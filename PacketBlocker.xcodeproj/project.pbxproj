@@ -1,0 +1,66 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		A1B2C3D4E5F6A7B8C9D0E1F2 /* App.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6A7B8C9D0E1F3 /* App.swift */; };
+		A1B2C3D4E5F6A7B8C9D0E1F4 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6A7B8C9D0E1F5 /* ContentView.swift */; };
+		A1B2C3D4E5F6A7B8C9D0E1F6 /* VPNManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6A7B8C9D0E1F7 /* VPNManager.swift */; };
+		B1C2D3E4F5A6B7C8D9E0F1A2 /* PacketTunnelProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1C2D3E4F5A6B7C8D9E0F1A3 /* PacketTunnelProvider.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		A1B2C3D4E5F6A7B8C9D0E1F3 /* App.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = App.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F6A7B8C9D0E1F5 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F6A7B8C9D0E1F7 /* VPNManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VPNManager.swift; sourceTree = "<group>"; };
+		B1C2D3E4F5A6B7C8D9E0F1A3 /* PacketTunnelProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PacketTunnelProvider.swift; sourceTree = "<group>"; };
+		... (các file plist, entitlements)
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		...
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		/* Target PacketBlocker */
+		AABBCCDD0011 /* PacketBlocker */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = ...;
+			buildPhases = (...);
+			buildRules = (...);
+			dependencies = ();
+			name = PacketBlocker;
+			productName = PacketBlocker;
+			productReference = ...;
+			productType = "com.apple.product-type.application";
+		};
+		/* Target PacketBlockerExtension */
+		AABBCCDD0022 /* PacketBlockerExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = ...;
+			buildPhases = (...);
+			dependencies = ();
+			name = PacketBlockerExtension;
+			productName = PacketBlockerExtension;
+			productReference = ...;
+			productType = "com.apple.product-type.network-extension";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin XCBuildConfiguration section */
+		/* Debug configuration cho app */
+		...
+		/* Release configuration cho app */
+		...
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		...
+/* End XCConfigurationList section */
+	};
+	rootObject = ...;
+}
