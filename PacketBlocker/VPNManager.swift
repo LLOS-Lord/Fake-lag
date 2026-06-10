@@ -10,9 +10,7 @@ class VPNManager: ObservableObject {
     private var manager: NETunnelProviderManager?
     private var observer: NSObjectProtocol?
     
-    // ⚠️ QUAN TRỌNG: Thay đổi thành Bundle ID extension thực tế của bạn
-    // Format: com.yourcompany.PacketBlocker.PacketBlockerExtension
-    private let extensionBundleID = "com.tenban.PacketBlocker.PacketBlockerExtension"  // ← sửa đúng Bundle ID
+    private let extensionBundleID = "com.tenban.PacketBlocker.PacketBlockerExtension"
     
     init() {
         loadVPNConfiguration()
@@ -40,11 +38,14 @@ class VPNManager: ObservableObject {
             guard let self = self else { return }
             let wasConnected = self.isVPNConnected
             self.isVPNConnected = self.manager?.connection.status == .connected
+            
+            print("📊 VPN Status: \(self.manager?.connection.status.rawValue ?? -1)")
+            
             if wasConnected && !self.isVPNConnected {
                 self.isBlocking = false
                 self.isProcessingCommand = false
             }
-            // Lưu trạng thái lỗi nếu có
+            
             if let mgr = self.manager, mgr.connection.status == .invalid {
                 self.lastError = "VPN configuration invalid. Try reinstalling app."
             }
@@ -56,11 +57,12 @@ class VPNManager: ObservableObject {
             guard let self = self else { return }
             if let error = error {
                 self.lastError = "Load error: \(error.localizedDescription)"
+                print("❌ Load error: \(error.localizedDescription)")
                 return
             }
             self.manager = managers?.first
             self.updateStatus()
-            print("Loaded VPN config: \(self.manager != nil ? "exists" : "none")")
+            print("✅ Loaded VPN config: \(self.manager != nil ? "exists" : "none")")
         }
     }
     
@@ -78,51 +80,63 @@ class VPNManager: ObservableObject {
     }
     
     private func startExistingVPN(manager: NETunnelProviderManager) {
+        print("🔄 Attempting to start existing VPN...")
         do {
             try manager.connection.startVPNTunnel()
             lastError = nil
-            print("Started existing VPN tunnel")
+            print("✅ startVPNTunnel() called successfully")
         } catch {
             lastError = "Start error: \(error.localizedDescription)"
-            print("❌ \(lastError!)")
+            print("❌ Start error: \(error.localizedDescription)")
         }
     }
     
     private func createAndStartVPN() {
+        print("🔧 Creating new VPN configuration...")
+        print("   Extension Bundle ID: \(extensionBundleID)")
+        
         let mgr = NETunnelProviderManager()
         let proto = NETunnelProviderProtocol()
+        
         proto.providerBundleIdentifier = extensionBundleID
         proto.serverAddress = "PacketBlocker"
         proto.disconnectOnSleep = false
+        
         mgr.protocolConfiguration = proto
         mgr.localizedDescription = "Packet Blocker"
         mgr.isEnabled = true
         
-        print("Creating new VPN configuration...")
-        
         mgr.saveToPreferences { [weak self] error in
             guard let self = self else { return }
+            
             if let error = error {
-                self.lastError = "Save error: \(error.localizedDescription)"
-                print("❌ \(self.lastError!)")
+                self.lastError = "❌ Save failed: \(error.localizedDescription)"
+                print("❌ Save error: \(error.localizedDescription)")
                 return
             }
-            print("VPN configuration saved.")
+            
+            print("✅ VPN configuration saved")
+            
+            // Critical: Load the configuration from preferences
             mgr.loadFromPreferences { [weak self] error in
                 guard let self = self else { return }
+                
                 if let error = error {
-                    self.lastError = "Load after save error: \(error.localizedDescription)"
-                    print("❌ \(self.lastError!)")
+                    self.lastError = "❌ Load after save failed: \(error.localizedDescription)"
+                    print("❌ Load after save error: \(error.localizedDescription)")
                     return
                 }
+                
+                print("✅ VPN configuration loaded from preferences")
                 self.manager = mgr
+                
+                // Now try to start the tunnel
                 do {
                     try mgr.connection.startVPNTunnel()
-                    self.lastError = nil
-                    print("✅ startVPNTunnel called successfully")
+                    print("✅ startVPNTunnel() called successfully")
                 } catch {
-                    self.lastError = "Start tunnel error: \(error.localizedDescription)"
-                    print("❌ \(self.lastError!)")
+                    self.lastError = "❌ Connection failed: \(error.localizedDescription)"
+                    print("❌ startVPNTunnel() error: \(error.localizedDescription)")
                 }
             }
         }
@@ -130,51 +144,54 @@ class VPNManager: ObservableObject {
     
     func toggleBlocking() {
         guard let session = manager?.connection as? NETunnelProviderSession else {
-            lastError = "No VPN session"
+            lastError = "❌ No VPN session available"
+            print("❌ No VPN session")
             return
         }
+        
         guard isVPNConnected else {
-            lastError = "VPN not connected"
+            lastError = "❌ VPN not connected"
+            print("❌ VPN not connected")
             return
         }
-        guard !isProcessingCommand else { return }
+        
+        guard !isProcessingCommand else {
+            print("⏳ Already processing command")
+            return
+        }
         
         isProcessingCommand = true
         let command = isBlocking ? "disableBlocking" : "enableBlocking"
         
-        // Add small delay to ensure extension is ready
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
-            guard let self = self else { return }
-            
-            do {
-                try session.sendProviderMessage(Data(command.utf8)) { [weak self] response in
-                    DispatchQueue.main.async {
-                        guard let self = self else { return }
-                        self.isProcessingCommand = false
+        print("📤 Sending command to extension: \(command)")
+        
+        do {
+            try session.sendProviderMessage(Data(command.utf8)) { [weak self] response in
+                DispatchQueue.main.async {
+                    guard let self = self else { return }
+                    self.isProcessingCommand = false
+                    
+                    if let response = response,
+                       let responseString = String(data: response, encoding: .utf8) {
+                        print("📩 Extension response: \(responseString)")
                         
-                        print("📩 Response received: \(response?.count ?? 0) bytes")
-                        
-                        if let response = response,
-                           let responseString = String(data: response, encoding: .utf8) {
-                            print("📩 Response string: \(responseString)")
-                            if responseString == "ok" {
-                                self.isBlocking.toggle()
-                                self.lastError = nil
-                            } else {
-                                self.lastError = "Extension error: \(responseString)"
-                            }
+                        if responseString == "ok" {
+                            self.isBlocking.toggle()
+                            self.lastError = nil
+                            print("✅ Command executed successfully")
                         } else {
-                            self.lastError = "Extension did not respond properly"
-                            print("❌ No response or invalid encoding")
+                            self.lastError = "❌ Extension error: \(responseString)"
                         }
+                    } else {
+                        self.lastError = "❌ No response from extension"
+                        print("❌ No response from extension")
                     }
                 }
-            } catch {
-                DispatchQueue.main.async {
-                    self.isProcessingCommand = false
-                    self.lastError = "Send message error: \(error.localizedDescription)"
-                }
             }
+        } catch {
+            self.isProcessingCommand = false
+            self.lastError = "❌ Send error: \(error.localizedDescription)"
+            print("❌ Send message error: \(error.localizedDescription)")
         }
     }
 }
