@@ -48,10 +48,19 @@ jobs:
         run: |
           APP_BIN="./build/Build/Products/Release-iphoneos/PacketBlocker.app/PacketBlocker"
           EXT_BIN="./build/Build/Products/Release-iphoneos/PacketBlocker.app/PlugIns/PacketBlockerExtension.appex/PacketBlockerExtension"
+          
           for BIN in "$APP_BIN" "$EXT_BIN"; do
+            # 1. Strip bitcode
             xcrun bitcode_strip "$BIN" -r -o "$BIN"
-            # Đảm bảo chỉ có arm64
-            lipo -thin arm64 "$BIN" -o "$BIN.thin" && mv "$BIN.thin" "$BIN"
+            
+            # 2. Kiểm tra xem file có chứa nhiều kiến trúc (fat file) không trước khi chạy lipo
+            ARCHS=$(lipo -archs "$BIN")
+            if [[ "$ARCHS" == *" "* ]]; then
+              echo "Phát hiện fat binary ($ARCHS) cho $BIN, tiến hành tách arm64..."
+              lipo -thin arm64 "$BIN" -o "$BIN.thin" && mv "$BIN.thin" "$BIN"
+            else
+              echo "File $BIN đã là thin binary ($ARCHS), bỏ qua bước lipo để tránh lỗi."
+            fi
           done
 
       - name: Sign app with ldid (Cadhoc + shallow)
@@ -73,7 +82,7 @@ jobs:
           rm -rf Payload
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/artifact/upload-artifact@v4
         with:
           name: PacketBlocker
           path: PacketBlocker.ipa
