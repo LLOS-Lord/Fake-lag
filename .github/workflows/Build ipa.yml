@@ -36,15 +36,23 @@ jobs:
             ONLY_ACTIVE_ARCH=NO \
             -destination 'generic/platform=iOS'
 
-      - name: Fake sign app bundle
+      - name: Check binaries
+        run: |
+          echo "=== App binary ==="
+          file "./build/Build/Products/Release-iphoneos/PacketBlocker.app/PacketBlocker"
+          echo ""
+          echo "=== Extension binary ==="
+          file "./build/Build/Products/Release-iphoneos/PacketBlocker.app/PlugIns/PacketBlockerExtension.appex/PacketBlockerExtension"
+
+      - name: Fake sign app binary
         run: |
           ./ldid -S PacketBlocker/PacketBlocker.entitlements \
-            "./build/Build/Products/Release-iphoneos/PacketBlocker.app"
+            "./build/Build/Products/Release-iphoneos/PacketBlocker.app/PacketBlocker"
 
-      - name: Fake sign extension bundle
+      - name: Fake sign extension binary
         run: |
           ./ldid -S PacketBlockerExtension/PacketBlockerExtension.entitlements \
-            "./build/Build/Products/Release-iphoneos/PacketBlocker.app/PlugIns/PacketBlockerExtension.appex"
+            "./build/Build/Products/Release-iphoneos/PacketBlocker.app/PlugIns/PacketBlockerExtension.appex/PacketBlockerExtension"
 
       - name: Create IPA
         run: |
