@@ -18,22 +18,18 @@ jobs:
 
       - name: Download signing tools
         run: |
-          # Tải ldid
           curl -L -o ldid https://github.com/ProcursusTeam/ldid/releases/download/v2.1.5-procursus7/ldid_macosx_x86_64
           chmod +x ldid
-          
-          # Tải jtool2 từ bản release ổn định (dùng asset đúng)
           curl -L -o jtool https://github.com/coolstar/jtool2/releases/download/v2.2/jtool2_mac
-          # Kiểm tra xem có phải Mach-O không
           if file jtool | grep -q "Mach-O"; then
             chmod +x jtool
             echo "jtool OK"
           else
-            echo "jtool download failed or wrong file, removing"
+            echo "jtool download failed, removing"
             rm jtool
           fi
 
-      - name: Build unsigned app (disable bitcode, enable arm64 only)
+      - name: Build unsigned app (disable bitcode, arm64 only)
         run: |
           xcodebuild \
             -project PacketBlocker.xcodeproj \
@@ -47,6 +43,7 @@ jobs:
             PROVISIONING_PROFILE_SPECIFIER="" \
             ONLY_ACTIVE_ARCH=YES \
             ENABLE_BITCODE=NO \
+            IPHONEOS_DEPLOYMENT_TARGET=16.0 \
             -destination 'generic/platform=iOS'
 
       - name: Locate extension and prepare for signing
@@ -67,18 +64,17 @@ jobs:
             echo "Extension already in app bundle"
           fi
 
-      - name: Sign app binary (ldid with fallback)
+      - name: Sign app binary (ldid shallow sign, fallback jtool)
         run: |
           APP_BIN="./build/Build/Products/Release-iphoneos/PacketBlocker.app/PacketBlocker"
           echo "Signing app binary: $APP_BIN"
-          # Thử ldid với shallow sign (-w) trước
-          if ./ldid -w -S PacketBlocker/PacketBlocker.entitlements "$APP_BIN" 2>&1 | tee /tmp/ldid.log; then
-            echo "ldid shallow sign success"
+          if ./ldid -w -S PacketBlocker/PacketBlocker.entitlements "$APP_BIN" 2>&1; then
+            echo "ldid success"
           elif [ -x jtool ]; then
             echo "Falling back to jtool..."
             ./jtool --sign --entitlements PacketBlocker/PacketBlocker.entitlements --inplace "$APP_BIN"
           else
-            echo "Both ldid and jtool unavailable"
+            echo "No signing tool available"
             exit 1
           fi
 
@@ -87,8 +83,8 @@ jobs:
           EXT_BUNDLE=$(find "./build/Build/Products/Release-iphoneos/PacketBlocker.app/PlugIns" -name "*.appex" -type d | head -1)
           EXT_BIN="$EXT_BUNDLE/$(basename "$EXT_BUNDLE" .appex)"
           echo "Signing extension binary: $EXT_BIN"
-          if ./ldid -w -S PacketBlockerExtension/PacketBlockerExtension.entitlements "$EXT_BIN" 2>&1 | tee /tmp/ldid_ext.log; then
-            echo "ldid extension sign success"
+          if ./ldid -w -S PacketBlockerExtension/PacketBlockerExtension.entitlements "$EXT_BIN" 2>&1; then
+            echo "ldid success"
           elif [ -x jtool ]; then
             echo "Using jtool for extension..."
             ./jtool --sign --entitlements PacketBlockerExtension/PacketBlockerExtension.entitlements --inplace "$EXT_BIN"
