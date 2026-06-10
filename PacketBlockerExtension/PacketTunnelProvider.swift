@@ -97,11 +97,12 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
     }
     
     private func startDroppingPackets() {
-        guard isBlocking else { return }
-        
-        packetFlow.readPackets { [weak self] packets, protocols in
-            // Drop all packets
-            self?.startDroppingPackets()  // Continue reading
+        guard isReadingPackets, isBlocking else { return }
+    
+    packetFlow.readPackets { [weak self] packets, protocols in
+        // Không làm gì → drop packet
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.01) {
+            self?.dropPackets()
         }
     }
 }
