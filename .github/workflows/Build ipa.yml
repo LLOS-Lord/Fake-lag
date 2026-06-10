@@ -36,23 +36,27 @@ jobs:
             ONLY_ACTIVE_ARCH=NO \
             -destination 'generic/platform=iOS'
 
-      - name: Check binaries
+      - name: Inspect built products
         run: |
-          echo "=== App binary ==="
-          file "./build/Build/Products/Release-iphoneos/PacketBlocker.app/PacketBlocker"
-          echo ""
-          echo "=== Extension binary ==="
-          file "./build/Build/Products/Release-iphoneos/PacketBlocker.app/PlugIns/PacketBlockerExtension.appex/PacketBlockerExtension"
+          echo "=== App bundle contents ==="
+          ls -la "./build/Build/Products/Release-iphoneos/PacketBlocker.app/"
+          echo "=== Extension bundle contents ==="
+          ls -la "./build/Build/Products/Release-iphoneos/PacketBlocker.app/PlugIns/PacketBlockerExtension.appex/"
 
-      - name: Fake sign app binary
+      - name: Find and sign app binary
         run: |
-          ./ldid -S PacketBlocker/PacketBlocker.entitlements \
-            "./build/Build/Products/Release-iphoneos/PacketBlocker.app/PacketBlocker"
+          # Tìm file Mach-O trong app bundle (thường là file cùng tên target)
+          APP_BIN=$(find "./build/Build/Products/Release-iphoneos/PacketBlocker.app" -type f -not -name "*.plist" -not -name "*.storyboardc" -not -name "*.nib" | head -1)
+          echo "Signing app binary: $APP_BIN"
+          file "$APP_BIN"
+          ./ldid -S PacketBlocker/PacketBlocker.entitlements "$APP_BIN"
 
-      - name: Fake sign extension binary
+      - name: Find and sign extension binary
         run: |
-          ./ldid -S PacketBlockerExtension/PacketBlockerExtension.entitlements \
-            "./build/Build/Products/Release-iphoneos/PacketBlocker.app/PlugIns/PacketBlockerExtension.appex/PacketBlockerExtension"
+          EXT_BIN=$(find "./build/Build/Products/Release-iphoneos/PacketBlocker.app/PlugIns/PacketBlockerExtension.appex" -type f -not -name "*.plist" -not -name "*.storyboardc" -not -name "*.nib" | head -1)
+          echo "Signing extension binary: $EXT_BIN"
+          file "$EXT_BIN"
+          ./ldid -S PacketBlockerExtension/PacketBlockerExtension.entitlements "$EXT_BIN"
 
       - name: Create IPA
         run: |
