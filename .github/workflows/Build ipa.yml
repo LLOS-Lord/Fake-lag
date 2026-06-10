@@ -16,23 +16,14 @@ jobs:
       - name: Set Xcode version
         run: sudo xcode-select -s /Applications/Xcode_15.4.app
 
-      - name: Download signing tools
+      - name: Download ldid for Apple Silicon
         run: |
-          # Tải jtool2 v2.1 (bản ổn định)
-          echo "Downloading jtool2 v2.1..."
-          curl -L -o jtool https://github.com/coolstar/jtool2/releases/download/v2.1/jtool2_mac
-          if file jtool | grep -q "Mach-O"; then
-            chmod +x jtool
-            echo "✅ jtool ready"
-          else
-            echo "⚠️ jtool2 v2.1 download failed, trying zsign..."
-            rm -f jtool
-            # Fallback: tải zsign
-            curl -L -o zsign.zip https://github.com/zhlynn/zsign/releases/download/v1.0.3/zsign_macos.zip
-            unzip zsign.zip
-            chmod +x zsign
-            echo "✅ zsign ready"
-          fi
+          # Tải bản arm64 chính thức từ Procursus
+          curl -L -o ldid https://github.com/ProcursusTeam/ldid/releases/download/v2.1.5-procursus7/ldid_macosx_arm64
+          chmod +x ldid
+          # Kiểm tra file thực thi được
+          file ldid
+          ./ldid 2>&1 || true
 
       - name: Build unsigned app
         run: |
@@ -64,56 +55,26 @@ jobs:
           cp -R "$EXT_PATH" "$APP_PLUGINS/"
           echo "Extension copied."
 
-      - name: Thin and strip binaries
+      - name: Strip bitcode (if any)
         run: |
           APP_BIN="./build/Build/Products/Release-iphoneos/PacketBlocker.app/PacketBlocker"
           EXT_BIN="./build/Build/Products/Release-iphoneos/PacketBlocker.app/PlugIns/PacketBlockerExtension.appex/PacketBlockerExtension"
           for BIN in "$APP_BIN" "$EXT_BIN"; do
-            echo "Processing $BIN"
-            if [ ! -f "$BIN" ]; then
-              echo "❌ Binary not found: $BIN"
-              exit 1
-            fi
-            # Thin về arm64 nếu cần
-            if lipo -info "$BIN" | grep -q "Non-fat"; then
-              echo "Already thin"
-            else
-              lipo -thin arm64 "$BIN" -o "${BIN}.thin"
-              mv "${BIN}.thin" "$BIN"
-            fi
-            # Strip bitcode
+            echo "Stripping bitcode from $BIN"
             xcrun bitcode_strip "$BIN" -r -o "$BIN"
           done
 
-      - name: Sign app binary (jtool or zsign)
+      - name: Fake sign app binary
         run: |
           APP_BIN="./build/Build/Products/Release-iphoneos/PacketBlocker.app/PacketBlocker"
-          ENT="PacketBlocker/PacketBlocker.entitlements"
-          if [ -x jtool ]; then
-            echo "Using jtool..."
-            ./jtool --sign --entitlements "$ENT" --inplace "$APP_BIN"
-          elif [ -x zsign ]; then
-            echo "Using zsign..."
-            ./zsign -k none -e "$ENT" -p "$APP_BIN" "$APP_BIN"
-          else
-            echo "❌ No signing tool found!"
-            exit 1
-          fi
+          echo "Signing app with ldid..."
+          ./ldid -S PacketBlocker/PacketBlocker.entitlements "$APP_BIN"
 
-      - name: Sign extension binary
+      - name: Fake sign extension binary
         run: |
           EXT_BIN="./build/Build/Products/Release-iphoneos/PacketBlocker.app/PlugIns/PacketBlockerExtension.appex/PacketBlockerExtension"
-          ENT="PacketBlockerExtension/PacketBlockerExtension.entitlements"
-          if [ -x jtool ]; then
-            echo "Using jtool..."
-            ./jtool --sign --entitlements "$ENT" --inplace "$EXT_BIN"
-          elif [ -x zsign ]; then
-            echo "Using zsign..."
-            ./zsign -k none -e "$ENT" -p "$EXT_BIN" "$EXT_BIN"
-          else
-            echo "❌ No signing tool found!"
-            exit 1
-          fi
+          echo "Signing extension with ldid..."
+          ./ldid -S PacketBlockerExtension/PacketBlockerExtension.entitlements "$EXT_BIN"
 
       - name: Create IPA
         run: |
