@@ -10,7 +10,8 @@ class VPNManager: ObservableObject {
     private var manager: NETunnelProviderManager?
     private var observer: NSObjectProtocol?
     
-   private let extensionBundleID = "com.tenban.PacketBlocker.PacketBlockerExtension" // ← sửa
+    // ⚠️ QUAN TRỌNG: Thay đổi thành Bundle ID extension thực tế của bạn
+    private let extensionBundleID = "com.tenban.PacketBlocker.extension"  // ← sửa
     
     init() {
         loadVPNConfiguration()
