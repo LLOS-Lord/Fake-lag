@@ -8,10 +8,10 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
     override func startTunnel(options: [String : NSObject]? = nil, completionHandler: @escaping (Error?) -> Void) {
         NSLog("PacketTunnelProvider: startTunnel called")
         
-        // Khởi tạo cấu hình mặc định (không chặn)
+        // Cấu hình ban đầu: không route gì (không chặn)
         let settings = NEPacketTunnelNetworkSettings(tunnelRemoteAddress: "10.8.0.1")
         let ipv4Settings = NEIPv4Settings(addresses: ["10.8.0.2"], subnetMasks: ["255.255.255.0"])
-        ipv4Settings.includedRoutes = []   // Không route gì, để không ảnh hưởng mạng
+        ipv4Settings.includedRoutes = []
         settings.ipv4Settings = ipv4Settings
         settings.dnsSettings = NEDNSSettings(servers: [])
         settings.mtu = 1500
@@ -45,11 +45,13 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         switch command {
         case "enableBlocking":
             enableBlocking { success in
-                completionHandler?(Data(success ? "ok" : "error".utf8))
+                let responseData = (success ? "ok" : "error").data(using: .utf8)
+                completionHandler?(responseData)
             }
         case "disableBlocking":
             disableBlocking { success in
-                completionHandler?(Data(success ? "ok" : "error".utf8))
+                let responseData = (success ? "ok" : "error").data(using: .utf8)
+                completionHandler?(responseData)
             }
         default:
             completionHandler?(nil)
@@ -111,7 +113,7 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
     private func dropPackets() {
         guard isReadingPackets, isBlocking else { return }
         packetFlow.readPackets { [weak self] packets, protocols in
-            // Bỏ qua mọi gói tin -> drop
+            // Drop tất cả gói tin
             self?.dropPackets()
         }
     }
