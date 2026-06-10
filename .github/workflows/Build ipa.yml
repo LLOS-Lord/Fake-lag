@@ -53,12 +53,12 @@ jobs:
 
       - name: Sign app with ldid (Cadhoc + shallow)
         run: |
-          ./ldid -Cadhoc -w -S PacketBlocker/PacketBlocker.entitlements \
+          ./ldid -Cadhoc -w -SPacketBlocker/PacketBlocker.entitlements \
             "./build/Build/Products/Release-iphoneos/PacketBlocker.app/PacketBlocker"
 
       - name: Sign extension with ldid
         run: |
-          ./ldid -Cadhoc -w -S PacketBlockerExtension/PacketBlockerExtension.entitlements \
+          ./ldid -Cadhoc -w -SPacketBlockerExtension/PacketBlockerExtension.entitlements \
             "./build/Build/Products/Release-iphoneos/PacketBlocker.app/PlugIns/PacketBlockerExtension.appex/PacketBlockerExtension"
 
       - name: Create IPA
