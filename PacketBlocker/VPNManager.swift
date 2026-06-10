@@ -11,7 +11,8 @@ class VPNManager: ObservableObject {
     private var observer: NSObjectProtocol?
     
     // ⚠️ QUAN TRỌNG: Thay đổi thành Bundle ID extension thực tế của bạn
-    private let extensionBundleID = "com.tenban.PacketBlocker.extension"  // ← sửa
+    // Format: com.yourcompany.PacketBlocker.PacketBlockerExtension
+    private let extensionBundleID = "com.tenban.PacketBlocker.PacketBlockerExtension"  // ← sửa đúng Bundle ID
     
     init() {
         loadVPNConfiguration()
@@ -141,24 +142,39 @@ class VPNManager: ObservableObject {
         isProcessingCommand = true
         let command = isBlocking ? "disableBlocking" : "enableBlocking"
         
-        do {
-            try session.sendProviderMessage(Data(command.utf8)) { [weak self] response in
-                DispatchQueue.main.async {
-                    guard let self = self else { return }
-                    self.isProcessingCommand = false
-                    if let response = response,
-                       let responseString = String(data: response, encoding: .utf8),
-                       responseString == "ok" {
-                        self.isBlocking.toggle()
-                        self.lastError = nil
-                    } else {
-                        self.lastError = "Extension did not respond properly"
+        // Add small delay to ensure extension is ready
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
+            guard let self = self else { return }
+            
+            do {
+                try session.sendProviderMessage(Data(command.utf8)) { [weak self] response in
+                    DispatchQueue.main.async {
+                        guard let self = self else { return }
+                        self.isProcessingCommand = false
+                        
+                        print("📩 Response received: \(response?.count ?? 0) bytes")
+                        
+                        if let response = response,
+                           let responseString = String(data: response, encoding: .utf8) {
+                            print("📩 Response string: \(responseString)")
+                            if responseString == "ok" {
+                                self.isBlocking.toggle()
+                                self.lastError = nil
+                            } else {
+                                self.lastError = "Extension error: \(responseString)"
+                            }
+                        } else {
+                            self.lastError = "Extension did not respond properly"
+                            print("❌ No response or invalid encoding")
+                        }
                     }
                 }
+            } catch {
+                DispatchQueue.main.async {
+                    self.isProcessingCommand = false
+                    self.lastError = "Send message error: \(error.localizedDescription)"
+                }
             }
-        } catch {
-            isProcessingCommand = false
-            lastError = "Send message error: \(error.localizedDescription)"
         }
     }
 }
