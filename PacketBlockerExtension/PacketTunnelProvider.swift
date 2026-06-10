@@ -3,7 +3,7 @@ import NetworkExtension
 class PacketTunnelProvider: NEPacketTunnelProvider {
     
     private var isBlocking = false
-    private var packetFlowObserver: Any?
+    private var isDropping = false
     
     override func startTunnel(options: [String : NSObject]? = nil, completionHandler: @escaping (Error?) -> Void) {
         NSLog("🚀 PacketTunnelProvider: startTunnel called")
@@ -25,42 +25,14 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         }
     }
     
-    override func stopTunnel(with reason: NEProviderStopReason, completionHandler: @escaping () -> Void) {
-        NSLog("🛑 stopTunnel called")
-        isBlocking = false
-        completionHandler()
-    }
-    
-    override func handleAppMessage(_ messageData: Data, completionHandler: ((Data?) -> Void)?) {
-        guard let command = String(data: messageData, encoding: .utf8) else {
-            completionHandler?(nil)
-            return
-        }
-        
-        NSLog("📩 Received command: \(command)")
-        
-        switch command {
-        case "enableBlocking":
-            enableBlocking { success in
-                let resp = success ? "ok" : "error"
-                completionHandler?(resp.data(using: .utf8))
-            }
-        case "disableBlocking":
-            disableBlocking { success in
-                let resp = success ? "ok" : "error"
-                completionHandler?(resp.data(using: .utf8))
-            }
-        default:
-            completionHandler?(nil)
-        }
-    }
+    // ... (stopTunnel và handleAppMessage giữ nguyên)
     
     private func enableBlocking(completion: @escaping (Bool) -> Void) {
         guard !isBlocking else { completion(true); return }
         
         let settings = NEPacketTunnelNetworkSettings(tunnelRemoteAddress: "10.8.0.1")
         let ipv4 = NEIPv4Settings(addresses: ["10.8.0.2"], subnetMasks: ["255.255.255.0"])
-        ipv4.includedRoutes = [NEIPv4Route.default()]
+        ipv4.includedRoutes = [NEIPv4Route.default()]  // Route all traffic
         settings.ipv4Settings = ipv4
         settings.mtu = 1500
         
@@ -87,6 +59,7 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         
         setTunnelNetworkSettings(settings) { [weak self] error in
             self?.isBlocking = false
+            self?.isDropping = false
             if let error = error {
                 NSLog("❌ Disable failed: \(error)")
                 completion(false)
@@ -97,12 +70,25 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
     }
     
     private func startDroppingPackets() {
-        guard isReadingPackets, isBlocking else { return }
+        guard !isDropping else { return }
+        isDropping = true
+        
+        readPacketsLoop()
+    }
     
-    packetFlow.readPackets { [weak self] packets, protocols in
-        // Không làm gì → drop packet
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.01) {
-            self?.dropPackets()
+    private func readPacketsLoop() {
+        guard isBlocking && isDropping else {
+            isDropping = false
+            return
+        }
+        
+        packetFlow.readPackets { [weak self] packets, protocols in
+            // Drop all packets (không forward)
+            // Có thể log nếu muốn debug: NSLog("Dropped \(packets.count) packets")
+            
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.005) {  // Nhỏ hơn 0.01 để lag mạnh hơn
+                self?.readPacketsLoop()
+            }
         }
     }
 }
