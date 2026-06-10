@@ -5,7 +5,7 @@ struct ContentView: View {
     
     var body: some View {
         VStack(spacing: 30) {
-            // Header
+            // Icon và trạng thái
             VStack(spacing: 12) {
                 Image(systemName: iconName)
                     .font(.system(size: 80))
@@ -17,14 +17,12 @@ struct ContentView: View {
                     .font(.title2)
                     .fontWeight(.semibold)
                     .multilineTextAlignment(.center)
-                    .animation(.default, value: statusText)
             }
             .padding(.top, 40)
             
-            // Controls
+            // Nút điều khiển
             VStack(spacing: 16) {
                 if !vpnManager.isVPNConnected {
-                    // Connect VPN button
                     Button(action: {
                         vpnManager.connectVPN()
                     }) {
@@ -40,7 +38,7 @@ struct ContentView: View {
                         .cornerRadius(12)
                     }
                 } else {
-                    // Blocking toggle button
+                    // Nút bật/tắt chặn
                     Button(action: {
                         vpnManager.toggleBlocking()
                     }) {
@@ -57,7 +55,6 @@ struct ContentView: View {
                     }
                     .disabled(vpnManager.isProcessingCommand)
                     
-                    // Disconnect VPN button
                     Button(action: {
                         vpnManager.disconnectVPN()
                     }) {
@@ -73,7 +70,15 @@ struct ContentView: View {
             }
             .padding(.horizontal, 40)
             
-            // Status indicator
+            // Hiển thị lỗi (nếu có)
+            if let error = vpnManager.lastError {
+                Text(error)
+                    .font(.caption)
+                    .foregroundColor(.red)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal)
+            }
+            
             if vpnManager.isProcessingCommand {
                 HStack {
                     ProgressView()
@@ -82,57 +87,32 @@ struct ContentView: View {
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
-                .padding(.top, 8)
             }
             
             Spacer()
             
-            // Footer info
-            VStack(spacing: 4) {
-                Text("PacketBlocker v1.0")
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
-                Text("TrollStore Edition")
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
-            }
-            .padding(.bottom, 20)
+            Text("PacketBlocker v1.0 (TrollStore)")
+                .font(.caption2)
+                .foregroundColor(.secondary)
+                .padding(.bottom, 20)
         }
         .padding()
         .background(Color(.systemBackground))
     }
     
-    // MARK: - Computed properties for UI state
-    
     private var iconName: String {
-        if !vpnManager.isVPNConnected {
-            return "lock.open"
-        } else if vpnManager.isBlocking {
-            return "lock.shield.fill"
-        } else {
-            return "lock.shield"
-        }
+        if !vpnManager.isVPNConnected { return "lock.open" }
+        return vpnManager.isBlocking ? "lock.shield.fill" : "lock.shield"
     }
     
     private var iconColor: Color {
-        if !vpnManager.isVPNConnected {
-            return .gray
-        } else if vpnManager.isBlocking {
-            return .red
-        } else {
-            return .green
-        }
+        if !vpnManager.isVPNConnected { return .gray }
+        return vpnManager.isBlocking ? .red : .green
     }
     
     private var statusText: String {
-        if !vpnManager.isVPNConnected {
-            return "VPN Disconnected"
-        } else if vpnManager.isProcessingCommand {
-            return "Applying..."
-        } else if vpnManager.isBlocking {
-            return "🚫 All Traffic Blocked"
-        } else {
-            return "✅ VPN Connected\nTraffic Allowed"
-        }
+        if !vpnManager.isVPNConnected { return "VPN Disconnected" }
+        if vpnManager.isProcessingCommand { return "Applying..." }
+        return vpnManager.isBlocking ? "🚫 All Traffic Blocked" : "✅ VPN Connected\nTraffic Allowed"
     }
 }
