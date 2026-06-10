@@ -7,60 +7,328 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		A1B2C3D4E5F6A7B8C9D0E1F2 /* App.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6A7B8C9D0E1F3 /* App.swift */; };
-		A1B2C3D4E5F6A7B8C9D0E1F4 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6A7B8C9D0E1F5 /* ContentView.swift */; };
-		A1B2C3D4E5F6A7B8C9D0E1F6 /* VPNManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6A7B8C9D0E1F7 /* VPNManager.swift */; };
-		B1C2D3E4F5A6B7C8D9E0F1A2 /* PacketTunnelProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1C2D3E4F5A6B7C8D9E0F1A3 /* PacketTunnelProvider.swift */; };
+		7B1234567890ABCDEF000001 /* App.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B1234567890ABCDEF000011 /* App.swift */; };
+		7B1234567890ABCDEF000002 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B1234567890ABCDEF000012 /* ContentView.swift */; };
+		7B1234567890ABCDEF000003 /* VPNManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B1234567890ABCDEF000013 /* VPNManager.swift */; };
+		7B1234567890ABCDEF000004 /* PacketTunnelProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B1234567890ABCDEF000014 /* PacketTunnelProvider.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		A1B2C3D4E5F6A7B8C9D0E1F3 /* App.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = App.swift; sourceTree = "<group>"; };
-		A1B2C3D4E5F6A7B8C9D0E1F5 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
-		A1B2C3D4E5F6A7B8C9D0E1F7 /* VPNManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VPNManager.swift; sourceTree = "<group>"; };
-		B1C2D3E4F5A6B7C8D9E0F1A3 /* PacketTunnelProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PacketTunnelProvider.swift; sourceTree = "<group>"; };
-		... (các file plist, entitlements)
+		7B1234567890ABCDEF000010 /* PacketBlocker.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PacketBlocker.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		7B1234567890ABCDEF000011 /* App.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = App.swift; sourceTree = "<group>"; };
+		7B1234567890ABCDEF000012 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		7B1234567890ABCDEF000013 /* VPNManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VPNManager.swift; sourceTree = "<group>"; };
+		7B1234567890ABCDEF000014 /* PacketTunnelProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PacketTunnelProvider.swift; sourceTree = "<group>"; };
+		7B1234567890ABCDEF000015 /* PacketBlockerExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = PacketBlockerExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		7B1234567890ABCDEF000016 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		7B1234567890ABCDEF000017 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		7B1234567890ABCDEF000018 /* PacketBlocker.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PacketBlocker.entitlements; sourceTree = "<group>"; };
+		7B1234567890ABCDEF000019 /* PacketBlockerExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PacketBlockerExtension.entitlements; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
-		...
+		7B1234567890ABCDEF000020 = {
+			isa = PBXGroup;
+			children = (
+				7B1234567890ABCDEF000021 /* PacketBlocker */,
+				7B1234567890ABCDEF000022 /* PacketBlockerExtension */,
+				7B1234567890ABCDEF000023 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		7B1234567890ABCDEF000021 /* PacketBlocker */ = {
+			isa = PBXGroup;
+			children = (
+				7B1234567890ABCDEF000011 /* App.swift */,
+				7B1234567890ABCDEF000012 /* ContentView.swift */,
+				7B1234567890ABCDEF000013 /* VPNManager.swift */,
+				7B1234567890ABCDEF000016 /* Info.plist */,
+				7B1234567890ABCDEF000018 /* PacketBlocker.entitlements */,
+			);
+			path = PacketBlocker;
+			sourceTree = "<group>";
+		};
+		7B1234567890ABCDEF000022 /* PacketBlockerExtension */ = {
+			isa = PBXGroup;
+			children = (
+				7B1234567890ABCDEF000014 /* PacketTunnelProvider.swift */,
+				7B1234567890ABCDEF000017 /* Info.plist */,
+				7B1234567890ABCDEF000019 /* PacketBlockerExtension.entitlements */,
+			);
+			path = PacketBlockerExtension;
+			sourceTree = "<group>";
+		};
+		7B1234567890ABCDEF000023 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				7B1234567890ABCDEF000010 /* PacketBlocker.app */,
+				7B1234567890ABCDEF000015 /* PacketBlockerExtension.appex */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		/* Target PacketBlocker */
-		AABBCCDD0011 /* PacketBlocker */ = {
+		7B1234567890ABCDEF000030 /* PacketBlocker */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = ...;
-			buildPhases = (...);
-			buildRules = (...);
-			dependencies = ();
+			buildConfigurationList = 7B1234567890ABCDEF000040 /* Build configuration list for PBXNativeTarget "PacketBlocker" */;
+			buildPhases = (
+				7B1234567890ABCDEF000050 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				7B1234567890ABCDEF000060 /* PBXTargetDependency */,
+			);
 			name = PacketBlocker;
 			productName = PacketBlocker;
-			productReference = ...;
+			productReference = 7B1234567890ABCDEF000010 /* PacketBlocker.app */;
 			productType = "com.apple.product-type.application";
 		};
-		/* Target PacketBlockerExtension */
-		AABBCCDD0022 /* PacketBlockerExtension */ = {
+		7B1234567890ABCDEF000031 /* PacketBlockerExtension */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = ...;
-			buildPhases = (...);
-			dependencies = ();
+			buildConfigurationList = 7B1234567890ABCDEF000041 /* Build configuration list for PBXNativeTarget "PacketBlockerExtension" */;
+			buildPhases = (
+				7B1234567890ABCDEF000051 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
 			name = PacketBlockerExtension;
 			productName = PacketBlockerExtension;
-			productReference = ...;
+			productReference = 7B1234567890ABCDEF000015 /* PacketBlockerExtension.appex */;
 			productType = "com.apple.product-type.network-extension";
 		};
 /* End PBXNativeTarget section */
 
+/* Begin PBXProject section */
+		7B1234567890ABCDEF000100 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				LastSwiftUpdateCheck = 1540;
+				LastUpgradeCheck = 1540;
+				ORGANIZATIONNAME = "";
+				TargetAttributes = {
+					7B1234567890ABCDEF000030 = {
+						CreatedOnToolsVersion = 15.4;
+					};
+					7B1234567890ABCDEF000031 = {
+						CreatedOnToolsVersion = 15.4;
+					};
+				};
+			};
+			buildConfigurationList = 7B1234567890ABCDEF000110 /* Build configuration list for PBXProject "PacketBlocker" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 7B1234567890ABCDEF000020;
+			productRefGroup = 7B1234567890ABCDEF000023 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				7B1234567890ABCDEF000030 /* PacketBlocker */,
+				7B1234567890ABCDEF000031 /* PacketBlockerExtension */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		7B1234567890ABCDEF000050 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				7B1234567890ABCDEF000001 /* App.swift in Sources */,
+				7B1234567890ABCDEF000002 /* ContentView.swift in Sources */,
+				7B1234567890ABCDEF000003 /* VPNManager.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		7B1234567890ABCDEF000051 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				7B1234567890ABCDEF000004 /* PacketTunnelProvider.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		7B1234567890ABCDEF000060 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 7B1234567890ABCDEF000031 /* PacketBlockerExtension */;
+			targetProxy = 7B1234567890ABCDEF000070 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin PBXContainerItemProxy section */
+		7B1234567890ABCDEF000070 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 7B1234567890ABCDEF000100 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 7B1234567890ABCDEF000031;
+			remoteInfo = PacketBlockerExtension;
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin XCBuildConfiguration section */
-		/* Debug configuration cho app */
-		...
-		/* Release configuration cho app */
-		...
+		7B1234567890ABCDEF000200 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				IPHONEOS_DEPLOYMENT_TARGET = 17.5;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		7B1234567890ABCDEF000201 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				GCC_OPTIMIZATION_LEVEL = s;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.5;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		7B1234567890ABCDEF000202 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = PacketBlocker/PacketBlocker.entitlements;
+				CODE_SIGN_STYLE = Manual;
+				INFOPLIST_FILE = PacketBlocker/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.5;
+				PRODUCT_BUNDLE_IDENTIFIER = com.yourcompany.PacketBlocker;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		7B1234567890ABCDEF000203 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = PacketBlocker/PacketBlocker.entitlements;
+				CODE_SIGN_STYLE = Manual;
+				INFOPLIST_FILE = PacketBlocker/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.5;
+				PRODUCT_BUNDLE_IDENTIFIER = com.yourcompany.PacketBlocker;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		7B1234567890ABCDEF000204 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = PacketBlockerExtension/PacketBlockerExtension.entitlements;
+				CODE_SIGN_STYLE = Manual;
+				INFOPLIST_FILE = PacketBlockerExtension/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.5;
+				PRODUCT_BUNDLE_IDENTIFIER = com.yourcompany.PacketBlocker.extension;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		7B1234567890ABCDEF000205 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = PacketBlockerExtension/PacketBlockerExtension.entitlements;
+				CODE_SIGN_STYLE = Manual;
+				INFOPLIST_FILE = PacketBlockerExtension/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.5;
+				PRODUCT_BUNDLE_IDENTIFIER = com.yourcompany.PacketBlocker.extension;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		...
+		7B1234567890ABCDEF000040 /* Build configuration list for PBXNativeTarget "PacketBlocker" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				7B1234567890ABCDEF000202 /* Debug */,
+				7B1234567890ABCDEF000203 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		7B1234567890ABCDEF000041 /* Build configuration list for PBXNativeTarget "PacketBlockerExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				7B1234567890ABCDEF000204 /* Debug */,
+				7B1234567890ABCDEF000205 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		7B1234567890ABCDEF000110 /* Build configuration list for PBXProject "PacketBlocker" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				7B1234567890ABCDEF000200 /* Debug */,
+				7B1234567890ABCDEF000201 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 /* End XCConfigurationList section */
 	};
-	rootObject = ...;
+	rootObject = 7B1234567890ABCDEF000100 /* Project object */;
 }
