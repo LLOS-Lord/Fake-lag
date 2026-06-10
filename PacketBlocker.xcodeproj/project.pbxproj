@@ -99,7 +99,7 @@
 			name = PacketBlockerExtension;
 			productName = PacketBlockerExtension;
 			productReference = 7B1234567890ABCDEF000015 /* PacketBlockerExtension.appex */;
-			productType = "com.apple.product-type.network-extension";
+			productType = "com.apple.product-type.app-extension";
 		};
 /* End PBXNativeTarget section */
 
