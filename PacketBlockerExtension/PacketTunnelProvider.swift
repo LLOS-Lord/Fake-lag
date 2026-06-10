@@ -58,8 +58,7 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
     
     private func enableBlocking(completion: @escaping (Bool) -> Void) {
         guard !isBlocking else { 
-            completion(true); 
-            return 
+            completion(true); return 
         }
         
         let settings = NEPacketTunnelNetworkSettings(tunnelRemoteAddress: "10.8.0.1")
@@ -82,8 +81,7 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
     
     private func disableBlocking(completion: @escaping (Bool) -> Void) {
         guard isBlocking else { 
-            completion(true); 
-            return 
+            completion(true); return 
         }
         
         let settings = NEPacketTunnelNetworkSettings(tunnelRemoteAddress: "10.8.0.1")
@@ -117,7 +115,7 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         }
         
         packetFlow.readPackets { [weak self] packets, protocols in
-            // Drop packets (fake lag)
+            // Drop packet (fake lag)
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.005) {
                 self?.readPacketsLoop()
             }
