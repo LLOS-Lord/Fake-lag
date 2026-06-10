@@ -198,7 +198,7 @@
 					"DEBUG=1",
 					"$(inherited)",
 				);
-				IPHONEOS_DEPLOYMENT_TARGET = 17.5;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = iphoneos;
@@ -222,7 +222,7 @@
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GCC_OPTIMIZATION_LEVEL = s;
-				IPHONEOS_DEPLOYMENT_TARGET = 17.5;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				SDKROOT = iphoneos;
 				SWIFT_COMPILATION_MODE = wholemodule;
@@ -237,7 +237,7 @@
 				CODE_SIGN_ENTITLEMENTS = PacketBlocker/PacketBlocker.entitlements;
 				CODE_SIGN_STYLE = Manual;
 				INFOPLIST_FILE = PacketBlocker/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 17.5;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.yourcompany.PacketBlocker;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -254,7 +254,7 @@
 				CODE_SIGN_ENTITLEMENTS = PacketBlocker/PacketBlocker.entitlements;
 				CODE_SIGN_STYLE = Manual;
 				INFOPLIST_FILE = PacketBlocker/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 17.5;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.yourcompany.PacketBlocker;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -270,7 +270,7 @@
 				CODE_SIGN_ENTITLEMENTS = PacketBlockerExtension/PacketBlockerExtension.entitlements;
 				CODE_SIGN_STYLE = Manual;
 				INFOPLIST_FILE = PacketBlockerExtension/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 17.5;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.yourcompany.PacketBlocker.extension;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -287,7 +287,7 @@
 				CODE_SIGN_ENTITLEMENTS = PacketBlockerExtension/PacketBlockerExtension.entitlements;
 				CODE_SIGN_STYLE = Manual;
 				INFOPLIST_FILE = PacketBlockerExtension/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 17.5;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.yourcompany.PacketBlocker.extension;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
