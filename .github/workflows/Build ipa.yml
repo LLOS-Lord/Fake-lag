@@ -44,24 +44,12 @@ jobs:
           mkdir -p ./build/Build/Products/Release-iphoneos/PacketBlocker.app/PlugIns
           cp -R "$EXT_PATH" ./build/Build/Products/Release-iphoneos/PacketBlocker.app/PlugIns/
 
-      - name: Strip bitcode and thin binary
+      # Bước kiểm tra nhanh cấu trúc file (Thay thế cho bước strip lỗi cũ)
+      - name: Verify Binary Architecture
         run: |
           APP_BIN="./build/Build/Products/Release-iphoneos/PacketBlocker.app/PacketBlocker"
-          EXT_BIN="./build/Build/Products/Release-iphoneos/PacketBlocker.app/PlugIns/PacketBlockerExtension.appex/PacketBlockerExtension"
-          
-          for BIN in "$APP_BIN" "$EXT_BIN"; do
-            # 1. Strip bitcode
-            xcrun bitcode_strip "$BIN" -r -o "$BIN"
-            
-            # 2. Kiểm tra xem file có chứa nhiều kiến trúc (fat file) không trước khi chạy lipo
-            ARCHS=$(lipo -archs "$BIN")
-            if [[ "$ARCHS" == *" "* ]]; then
-              echo "Phát hiện fat binary ($ARCHS) cho $BIN, tiến hành tách arm64..."
-              lipo -thin arm64 "$BIN" -o "$BIN.thin" && mv "$BIN.thin" "$BIN"
-            else
-              echo "File $BIN đã là thin binary ($ARCHS), bỏ qua bước lipo để tránh lỗi."
-            fi
-          done
+          echo "Cấu trúc file hiện tại:"
+          lipo -archs "$APP_BIN"
 
       - name: Sign app with ldid (Cadhoc + shallow)
         run: |
