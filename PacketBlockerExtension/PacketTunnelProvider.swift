@@ -80,17 +80,15 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
     private func disableBlocking(completion: @escaping (Bool) -> Void) {
         guard isBlocking else { completion(true); return }
         
-        // CẬP NHẬT 1: Tắt cờ ngay lập tức để ngắt vòng lặp readPacketsLoop
-        self.isBlocking = false
-        self.isDropping = false
-        
         let settings = NEPacketTunnelNetworkSettings(tunnelRemoteAddress: "10.8.0.1")
         let ipv4 = NEIPv4Settings(addresses: ["10.8.0.2"], subnetMasks: ["255.255.255.0"])
         ipv4.includedRoutes = []
         settings.ipv4Settings = ipv4
         settings.mtu = 1500
         
-        setTunnelNetworkSettings(settings) { error in
+        setTunnelNetworkSettings(settings) { [weak self] error in
+            self?.isBlocking = false
+            self?.isDropping = false
             if let error = error {
                 NSLog("❌ Disable failed: \(error.localizedDescription)")
                 completion(false)
@@ -112,9 +110,11 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
             return
         }
         
-        // CẬP NHẬT 2: Đọc trực tiếp và không đẩy vào DispatchQueue.main
-        packetFlow.readPackets { [weak self] _, _ in
-            self?.readPacketsLoop()
+        packetFlow.readPackets { [weak self] packets, protocols in
+            // Fake lag: drop packets
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.005) {
+                self?.readPacketsLoop()
+            }
         }
     }
 }
