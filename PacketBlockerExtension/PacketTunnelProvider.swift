@@ -34,6 +34,7 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
     
     override func handleAppMessage(_ messageData: Data, completionHandler: ((Data?) -> Void)?) {
         guard let command = String(data: messageData, encoding: .utf8) else {
+            NSLog("❌ Failed to decode command")
             completionHandler?(nil)
             return
         }
@@ -42,23 +43,31 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         
         switch command {
         case "enableBlocking":
-            enableBlocking { success in
+            enableBlocking { [weak self] success in
                 let resp = success ? "ok" : "error"
+                NSLog("✅ enableBlocking response: \(resp)")
                 completionHandler?(resp.data(using: .utf8))
             }
         case "disableBlocking":
-            disableBlocking { success in
+            disableBlocking { [weak self] success in
                 let resp = success ? "ok" : "error"
+                NSLog("✅ disableBlocking response: \(resp)")
                 completionHandler?(resp.data(using: .utf8))
             }
         default:
+            NSLog("⚠️ Unknown command: \(command)")
             completionHandler?(nil)
         }
     }
     
     private func enableBlocking(completion: @escaping (Bool) -> Void) {
-        guard !isBlocking else { completion(true); return }
+        guard !isBlocking else {
+            NSLog("⚠️ Already blocking, skipping enable")
+            completion(true)
+            return
+        }
         
+        NSLog("🔴 Enabling blocking...")
         let settings = NEPacketTunnelNetworkSettings(tunnelRemoteAddress: "10.8.0.1")
         let ipv4 = NEIPv4Settings(addresses: ["10.8.0.2"], subnetMasks: ["255.255.255.0"])
         ipv4.includedRoutes = [NEIPv4Route.default()]
@@ -72,14 +81,20 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
             } else {
                 self?.isBlocking = true
                 self?.startDroppingPackets()
+                NSLog("✅ Blocking enabled successfully")
                 completion(true)
             }
         }
     }
     
     private func disableBlocking(completion: @escaping (Bool) -> Void) {
-        guard isBlocking else { completion(true); return }
+        guard isBlocking else {
+            NSLog("⚠️ Already allowing traffic, skipping disable")
+            completion(true)
+            return
+        }
         
+        NSLog("🟢 Disabling blocking...")
         let settings = NEPacketTunnelNetworkSettings(tunnelRemoteAddress: "10.8.0.1")
         let ipv4 = NEIPv4Settings(addresses: ["10.8.0.2"], subnetMasks: ["255.255.255.0"])
         ipv4.includedRoutes = []
@@ -93,6 +108,7 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
                 NSLog("❌ Disable failed: \(error.localizedDescription)")
                 completion(false)
             } else {
+                NSLog("✅ Blocking disabled successfully")
                 completion(true)
             }
         }
@@ -111,7 +127,7 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         }
         
         packetFlow.readPackets { [weak self] packets, protocols in
-            // Fake lag: drop packets
+            // Drop all packets
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.005) {
                 self?.readPacketsLoop()
             }
