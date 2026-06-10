@@ -16,12 +16,15 @@ jobs:
       - name: Set Xcode version
         run: sudo xcode-select -s /Applications/Xcode_15.4.app
 
-      - name: Download ldid
+      - name: Download signing tools
         run: |
           curl -L -o ldid https://github.com/ProcursusTeam/ldid/releases/download/v2.1.5-procursus7/ldid_macosx_x86_64
           chmod +x ldid
+          # Dự phòng: jtool2 (nếu ldid thất bại)
+          curl -L -o jtool https://github.com/coolstar/jtool2/releases/download/v2.2/jtool2_mac
+          chmod +x jtool
 
-      - name: Build unsigned app
+      - name: Build unsigned app (with bitcode disabled)
         run: |
           xcodebuild \
             -project PacketBlocker.xcodeproj \
@@ -34,29 +37,20 @@ jobs:
             CODE_SIGNING_REQUIRED=NO \
             PROVISIONING_PROFILE_SPECIFIER="" \
             ONLY_ACTIVE_ARCH=NO \
+            ENABLE_BITCODE=NO \
             -destination 'generic/platform=iOS'
 
       - name: Locate extension and prepare for signing
         run: |
-          # Tìm tất cả các file .appex trong thư mục build
           echo "Searching for extension bundles..."
-          find ./build -name "*.appex" -type d
-          
-          # Lấy đường dẫn extension đầu tiên tìm thấy
           EXT_PATH=$(find ./build -name "*.appex" -type d | head -1)
-          
           if [ -z "$EXT_PATH" ]; then
-            echo "❌ No extension found! Build may have failed silently."
+            echo "❌ No extension found!"
             exit 1
           fi
-          
           echo "Found extension at: $EXT_PATH"
-          
-          # Tạo thư mục PlugIns nếu chưa có
           APP_PLUGINS="./build/Build/Products/Release-iphoneos/PacketBlocker.app/PlugIns"
           mkdir -p "$APP_PLUGINS"
-          
-          # Sao chép extension vào PlugIns (nếu chưa có)
           if [ ! -d "$APP_PLUGINS/$(basename "$EXT_PATH")" ]; then
             cp -R "$EXT_PATH" "$APP_PLUGINS/"
             echo "Copied extension to app bundle"
@@ -64,22 +58,30 @@ jobs:
             echo "Extension already in app bundle"
           fi
 
-      - name: Fake sign app binary
+      - name: Sign app binary (try ldid first, fallback to jtool)
         run: |
-          # Lấy file thực thi chính (không phải PkgInfo, Info.plist,...)
-          APP_BIN=$(find "./build/Build/Products/Release-iphoneos/PacketBlocker.app" -type f -not -name "*.plist" -not -name "PkgInfo" | head -1)
+          APP_BIN="./build/Build/Products/Release-iphoneos/PacketBlocker.app/PacketBlocker"
           echo "Signing app binary: $APP_BIN"
-          file "$APP_BIN"
-          ./ldid -S PacketBlocker/PacketBlocker.entitlements "$APP_BIN"
+          if ./ldid -C adhoc "$APP_BIN" 2>/dev/null; then
+            echo "ldid adhoc success, now adding entitlements..."
+            ./ldid -S PacketBlocker/PacketBlocker.entitlements "$APP_BIN"
+          else
+            echo "ldid failed, trying jtool..."
+            ./jtool --sign --entitlements PacketBlocker/PacketBlocker.entitlements --inplace "$APP_BIN"
+          fi
 
-      - name: Fake sign extension binary
+      - name: Sign extension binary (try ldid first, fallback to jtool)
         run: |
-          # Tương tự cho extension
           EXT_BUNDLE=$(find "./build/Build/Products/Release-iphoneos/PacketBlocker.app/PlugIns" -name "*.appex" -type d | head -1)
-          EXT_BIN=$(find "$EXT_BUNDLE" -type f -not -name "*.plist" -not -name "PkgInfo" | head -1)
+          EXT_BIN="$EXT_BUNDLE/$(basename "$EXT_BUNDLE" .appex)"
           echo "Signing extension binary: $EXT_BIN"
-          file "$EXT_BIN"
-          ./ldid -S PacketBlockerExtension/PacketBlockerExtension.entitlements "$EXT_BIN"
+          if ./ldid -C adhoc "$EXT_BIN" 2>/dev/null; then
+            echo "ldid adhoc success, adding entitlements..."
+            ./ldid -S PacketBlockerExtension/PacketBlockerExtension.entitlements "$EXT_BIN"
+          else
+            echo "ldid failed, trying jtool..."
+            ./jtool --sign --entitlements PacketBlockerExtension/PacketBlockerExtension.entitlements --inplace "$EXT_BIN"
+          fi
 
       - name: Create IPA
         run: |
