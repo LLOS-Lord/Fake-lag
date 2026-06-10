@@ -1,0 +1,62 @@
+name: Build PacketBlocker IPA for TrollStore
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-14
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set Xcode version
+        run: sudo xcode-select -s /Applications/Xcode_15.4.app
+
+      - name: Download ldid
+        run: |
+          curl -L -o ldid https://github.com/ProcursusTeam/ldid/releases/download/v2.1.5-procursus7/ldid_macosx_x86_64
+          chmod +x ldid
+          ./ldid --version
+
+      - name: Build unsigned app
+        run: |
+          xcodebuild \
+            -project PacketBlocker.xcodeproj \
+            -scheme PacketBlocker \
+            -configuration Release \
+            -sdk iphoneos \
+            -derivedDataPath ./build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            PROVISIONING_PROFILE_SPECIFIER="" \
+            ONLY_ACTIVE_ARCH=NO \
+            -destination 'generic/platform=iOS'
+
+      - name: Fake sign app binary
+        run: |
+          ./ldid -S PacketBlocker/PacketBlocker.entitlements \
+            "./build/Build/Products/Release-iphoneos/PacketBlocker.app/PacketBlocker"
+
+      - name: Fake sign extension binary
+        run: |
+          ./ldid -S PacketBlockerExtension/PacketBlockerExtension.entitlements \
+            "./build/Build/Products/Release-iphoneos/PacketBlocker.app/PlugIns/PacketBlockerExtension.appex/PacketBlockerExtension"
+
+      - name: Create IPA
+        run: |
+          APP="./build/Build/Products/Release-iphoneos/PacketBlocker.app"
+          mkdir Payload
+          cp -R "$APP" Payload/
+          zip -r PacketBlocker.ipa Payload
+          rm -rf Payload
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: PacketBlocker
+          path: PacketBlocker.ipa
