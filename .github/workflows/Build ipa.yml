@@ -16,19 +16,16 @@ jobs:
       - name: Set Xcode version
         run: sudo xcode-select -s /Applications/Xcode_15.4.app
 
-      - name: Download signing tools
+      - name: Download jtool2
         run: |
-          # Tải ldid
-          curl -L -o ldid https://github.com/ProcursusTeam/ldid/releases/download/v2.1.5-procursus7/ldid_macosx_x86_64
-          chmod +x ldid
-          # Tải jtool2 (dùng link chính thức, kiểm tra kỹ)
           curl -L -o jtool https://github.com/coolstar/jtool2/releases/download/v2.2/jtool2_mac
           if file jtool | grep -q "Mach-O"; then
             chmod +x jtool
-            echo "jtool downloaded successfully"
+            echo "jtool ready"
           else
-            echo "jtool download invalid, removing"
-            rm -f jtool
+            echo "❌ jtool download invalid (not Mach-O)"
+            cat jtool
+            exit 1
           fi
 
       - name: Build unsigned app
@@ -50,64 +47,49 @@ jobs:
 
       - name: Locate extension and copy to app bundle
         run: |
-          echo "Searching for extension..."
           EXT_PATH=$(find ./build -name "*.appex" -type d | head -1)
           if [ -z "$EXT_PATH" ]; then
-            echo "❌ No extension found! Build may have failed."
+            echo "❌ No extension found!"
             exit 1
           fi
           echo "Found extension: $EXT_PATH"
           APP_PLUGINS="./build/Build/Products/Release-iphoneos/PacketBlocker.app/PlugIns"
           mkdir -p "$APP_PLUGINS"
           cp -R "$EXT_PATH" "$APP_PLUGINS/"
-          echo "Extension copied to app bundle"
+          echo "Extension copied."
 
-      - name: Thin and strip binaries (remove bitcode, ensure arm64)
+      - name: Thin and strip binaries
         run: |
           APP_BIN="./build/Build/Products/Release-iphoneos/PacketBlocker.app/PacketBlocker"
           EXT_BIN="./build/Build/Products/Release-iphoneos/PacketBlocker.app/PlugIns/PacketBlockerExtension.appex/PacketBlockerExtension"
-
-          # Thin fat binaries nếu có (chỉ giữ arm64)
           for BIN in "$APP_BIN" "$EXT_BIN"; do
+            echo "Processing $BIN"
+            if [ ! -f "$BIN" ]; then
+              echo "❌ Binary not found: $BIN"
+              exit 1
+            fi
+            # Thin về arm64 nếu là fat binary
             if lipo -info "$BIN" | grep -q "Non-fat"; then
-              echo "$BIN is already thin"
+              echo "Already thin"
             else
-              echo "Thinning $BIN..."
-              lipo -thin arm64 "$BIN" -o "$BIN.thin"
-              mv "$BIN.thin" "$BIN"
+              lipo -thin arm64 "$BIN" -o "${BIN}.thin"
+              mv "${BIN}.thin" "$BIN"
             fi
             # Strip bitcode triệt để
             xcrun bitcode_strip "$BIN" -r -o "$BIN"
           done
 
-      - name: Sign app binary (ldid with fallback to jtool)
+      - name: Sign app binary with jtool
         run: |
           APP_BIN="./build/Build/Products/Release-iphoneos/PacketBlocker.app/PacketBlocker"
-          echo "Signing $APP_BIN"
-          # Thử ldid với adhoc + shallow
-          if ./ldid -C adhoc -w -S PacketBlocker/PacketBlocker.entitlements "$APP_BIN" 2>&1; then
-            echo "ldid signed app successfully"
-          elif [ -x jtool ]; then
-            echo "ldid failed, using jtool..."
-            ./jtool --sign --entitlements PacketBlocker/PacketBlocker.entitlements --inplace "$APP_BIN"
-          else
-            echo "ERROR: No signing tool available for app"
-            exit 1
-          fi
+          echo "Signing app: $APP_BIN"
+          ./jtool --sign --entitlements PacketBlocker/PacketBlocker.entitlements --inplace "$APP_BIN"
 
-      - name: Sign extension binary
+      - name: Sign extension binary with jtool
         run: |
           EXT_BIN="./build/Build/Products/Release-iphoneos/PacketBlocker.app/PlugIns/PacketBlockerExtension.appex/PacketBlockerExtension"
-          echo "Signing $EXT_BIN"
-          if ./ldid -C adhoc -w -S PacketBlockerExtension/PacketBlockerExtension.entitlements "$EXT_BIN" 2>&1; then
-            echo "ldid signed extension successfully"
-          elif [ -x jtool ]; then
-            echo "ldid failed, using jtool..."
-            ./jtool --sign --entitlements PacketBlockerExtension/PacketBlockerExtension.entitlements --inplace "$EXT_BIN"
-          else
-            echo "ERROR: No signing tool available for extension"
-            exit 1
-          fi
+          echo "Signing extension: $EXT_BIN"
+          ./jtool --sign --entitlements PacketBlockerExtension/PacketBlockerExtension.entitlements --inplace "$EXT_BIN"
 
       - name: Create IPA
         run: |
