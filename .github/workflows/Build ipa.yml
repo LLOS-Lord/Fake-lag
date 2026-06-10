@@ -36,24 +36,47 @@ jobs:
             ONLY_ACTIVE_ARCH=NO \
             -destination 'generic/platform=iOS'
 
-      - name: Inspect built products
+      - name: Locate extension and prepare for signing
         run: |
-          echo "=== App bundle contents ==="
-          ls -la "./build/Build/Products/Release-iphoneos/PacketBlocker.app/"
-          echo "=== Extension bundle contents ==="
-          ls -la "./build/Build/Products/Release-iphoneos/PacketBlocker.app/PlugIns/PacketBlockerExtension.appex/"
+          # Tìm tất cả các file .appex trong thư mục build
+          echo "Searching for extension bundles..."
+          find ./build -name "*.appex" -type d
+          
+          # Lấy đường dẫn extension đầu tiên tìm thấy
+          EXT_PATH=$(find ./build -name "*.appex" -type d | head -1)
+          
+          if [ -z "$EXT_PATH" ]; then
+            echo "❌ No extension found! Build may have failed silently."
+            exit 1
+          fi
+          
+          echo "Found extension at: $EXT_PATH"
+          
+          # Tạo thư mục PlugIns nếu chưa có
+          APP_PLUGINS="./build/Build/Products/Release-iphoneos/PacketBlocker.app/PlugIns"
+          mkdir -p "$APP_PLUGINS"
+          
+          # Sao chép extension vào PlugIns (nếu chưa có)
+          if [ ! -d "$APP_PLUGINS/$(basename "$EXT_PATH")" ]; then
+            cp -R "$EXT_PATH" "$APP_PLUGINS/"
+            echo "Copied extension to app bundle"
+          else
+            echo "Extension already in app bundle"
+          fi
 
-      - name: Find and sign app binary
+      - name: Fake sign app binary
         run: |
-          # Tìm file Mach-O trong app bundle (thường là file cùng tên target)
-          APP_BIN=$(find "./build/Build/Products/Release-iphoneos/PacketBlocker.app" -type f -not -name "*.plist" -not -name "*.storyboardc" -not -name "*.nib" | head -1)
+          # Lấy file thực thi chính (không phải PkgInfo, Info.plist,...)
+          APP_BIN=$(find "./build/Build/Products/Release-iphoneos/PacketBlocker.app" -type f -not -name "*.plist" -not -name "PkgInfo" | head -1)
           echo "Signing app binary: $APP_BIN"
           file "$APP_BIN"
           ./ldid -S PacketBlocker/PacketBlocker.entitlements "$APP_BIN"
 
-      - name: Find and sign extension binary
+      - name: Fake sign extension binary
         run: |
-          EXT_BIN=$(find "./build/Build/Products/Release-iphoneos/PacketBlocker.app/PlugIns/PacketBlockerExtension.appex" -type f -not -name "*.plist" -not -name "*.storyboardc" -not -name "*.nib" | head -1)
+          # Tương tự cho extension
+          EXT_BUNDLE=$(find "./build/Build/Products/Release-iphoneos/PacketBlocker.app/PlugIns" -name "*.appex" -type d | head -1)
+          EXT_BIN=$(find "$EXT_BUNDLE" -type f -not -name "*.plist" -not -name "PkgInfo" | head -1)
           echo "Signing extension binary: $EXT_BIN"
           file "$EXT_BIN"
           ./ldid -S PacketBlockerExtension/PacketBlockerExtension.entitlements "$EXT_BIN"
