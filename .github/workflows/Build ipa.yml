@@ -16,23 +16,12 @@ jobs:
       - name: Set Xcode version
         run: sudo xcode-select -s /Applications/Xcode_15.4.app
 
-      - name: Download signing tools
+      - name: Download ldid (arm64)
         run: |
-          # Tải ldid
-          curl -L -o ldid https://github.com/ProcursusTeam/ldid/releases/download/v2.1.5-procursus7/ldid_macosx_x86_64
+          curl -L -o ldid https://github.com/ProcursusTeam/ldid/releases/download/v2.1.5-procursus7/ldid_macosx_arm64
           chmod +x ldid
-          
-          # Tải jtool2 (dùng link v2.1 - ổn định hơn)
-          curl -L -o jtool https://github.com/coolstar/jtool2/releases/download/v2.1/jtool2_mac
-          if file jtool | grep -q "Mach-O"; then
-            chmod +x jtool
-            echo "jtool OK"
-          else
-            echo "jtool download failed or wrong file, removing"
-            rm jtool
-          fi
 
-      - name: Build unsigned app (disable bitcode, arm64 only)
+      - name: Build unsigned app
         run: |
           xcodebuild \
             -project PacketBlocker.xcodeproj \
@@ -49,62 +38,31 @@ jobs:
             IPHONEOS_DEPLOYMENT_TARGET=16.0 \
             -destination 'generic/platform=iOS'
 
-      - name: Locate extension and prepare for signing
+      - name: Copy extension into app
         run: |
-          echo "Searching for extension bundles..."
           EXT_PATH=$(find ./build -name "*.appex" -type d | head -1)
-          if [ -z "$EXT_PATH" ]; then
-            echo "❌ No extension found! Check build log."
-            exit 1
-          fi
-          echo "Found extension at: $EXT_PATH"
-          APP_PLUGINS="./build/Build/Products/Release-iphoneos/PacketBlocker.app/PlugIns"
-          mkdir -p "$APP_PLUGINS"
-          if [ ! -d "$APP_PLUGINS/$(basename "$EXT_PATH")" ]; then
-            cp -R "$EXT_PATH" "$APP_PLUGINS/"
-            echo "Copied extension to app bundle"
-          else
-            echo "Extension already in app bundle"
-          fi
+          mkdir -p ./build/Build/Products/Release-iphoneos/PacketBlocker.app/PlugIns
+          cp -R "$EXT_PATH" ./build/Build/Products/Release-iphoneos/PacketBlocker.app/PlugIns/
 
-      - name: Strip bitcode (if any)
+      - name: Strip bitcode and thin binary
         run: |
           APP_BIN="./build/Build/Products/Release-iphoneos/PacketBlocker.app/PacketBlocker"
           EXT_BIN="./build/Build/Products/Release-iphoneos/PacketBlocker.app/PlugIns/PacketBlockerExtension.appex/PacketBlockerExtension"
           for BIN in "$APP_BIN" "$EXT_BIN"; do
-            echo "Stripping bitcode from $BIN"
-            xcrun bitcode_strip "$BIN" -r -o "$BIN" || true
+            xcrun bitcode_strip "$BIN" -r -o "$BIN"
+            # Đảm bảo chỉ có arm64
+            lipo -thin arm64 "$BIN" -o "$BIN.thin" && mv "$BIN.thin" "$BIN"
           done
 
-      - name: Sign app binary (ldid with fallback)
+      - name: Sign app with ldid (Cadhoc + shallow)
         run: |
-          APP_BIN="./build/Build/Products/Release-iphoneos/PacketBlocker.app/PacketBlocker"
-          echo "Signing app binary: $APP_BIN"
-          # Thử ldid với shallow sign (-w) trước
-          if ./ldid -w -S PacketBlocker/PacketBlocker.entitlements "$APP_BIN" 2>&1 | tee /tmp/ldid.log; then
-            echo "ldid shallow sign success"
-          elif [ -x jtool ]; then
-            echo "Falling back to jtool..."
-            ./jtool --sign --entitlements PacketBlocker/PacketBlocker.entitlements --inplace "$APP_BIN"
-          else
-            echo "Both ldid and jtool unavailable"
-            exit 1
-          fi
+          ./ldid -Cadhoc -w -S PacketBlocker/PacketBlocker.entitlements \
+            "./build/Build/Products/Release-iphoneos/PacketBlocker.app/PacketBlocker"
 
-      - name: Sign extension binary
+      - name: Sign extension with ldid
         run: |
-          EXT_BUNDLE=$(find "./build/Build/Products/Release-iphoneos/PacketBlocker.app/PlugIns" -name "*.appex" -type d | head -1)
-          EXT_BIN="$EXT_BUNDLE/$(basename "$EXT_BUNDLE" .appex)"
-          echo "Signing extension binary: $EXT_BIN"
-          if ./ldid -w -S PacketBlockerExtension/PacketBlockerExtension.entitlements "$EXT_BIN" 2>&1 | tee /tmp/ldid_ext.log; then
-            echo "ldid extension sign success"
-          elif [ -x jtool ]; then
-            echo "Using jtool for extension..."
-            ./jtool --sign --entitlements PacketBlockerExtension/PacketBlockerExtension.entitlements --inplace "$EXT_BIN"
-          else
-            echo "Cannot sign extension"
-            exit 1
-          fi
+          ./ldid -Cadhoc -w -S PacketBlockerExtension/PacketBlockerExtension.entitlements \
+            "./build/Build/Products/Release-iphoneos/PacketBlocker.app/PlugIns/PacketBlockerExtension.appex/PacketBlockerExtension"
 
       - name: Create IPA
         run: |
@@ -114,7 +72,7 @@ jobs:
           zip -r PacketBlocker.ipa Payload
           rm -rf Payload
 
-      - name: Upload IPA artifact
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: PacketBlocker
