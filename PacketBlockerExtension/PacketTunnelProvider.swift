@@ -39,7 +39,6 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         guard packetLoopRunning else { return }
         
         packetFlow.readPackets { [weak self] _, _ in
-            // Drop tất cả packets
             DispatchQueue.global(qos: .background).asyncAfter(deadline: .now() + 0.01) {
                 self?.readPacketsLoop()
             }
