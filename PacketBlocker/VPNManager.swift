@@ -3,15 +3,12 @@ import SwiftUI
 
 class VPNManager: ObservableObject {
     @Published var isVPNConnected = false
-    @Published var isBlocking = false
-    @Published var isProcessingCommand = false
     @Published var lastError: String?
     
     private var manager: NETunnelProviderManager?
     private var observer: NSObjectProtocol?
     
-    // ⚠️ SỬA Bundle ID cho đúng project của bạn
-    private let extensionBundleID = "com.tenban.PacketBlocker.extension"
+    private let extensionBundleID = "com.tenban.PacketBlocker.extension"  // ← SỬA THEO PROJECT CỦA BẠN
     
     init() {
         loadVPNConfiguration()
@@ -36,8 +33,7 @@ class VPNManager: ObservableObject {
     
     private func updateStatus() {
         DispatchQueue.main.async { [weak self] in
-            guard let self = self else { return }
-            self.isVPNConnected = self.manager?.connection.status == .connected
+            self?.isVPNConnected = self?.manager?.connection.status == .connected
         }
     }
     
@@ -61,9 +57,20 @@ class VPNManager: ObservableObject {
         }
     }
     
+    // Nút Block sẽ reconnect để áp dụng block packets
+    func toggleBlocking() {
+        guard isVPNConnected else {
+            lastError = "Connect VPN trước"
+            return
+        }
+        disconnectVPN()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in
+            self?.connectVPN()
+        }
+    }
+    
     func disconnectVPN() {
         manager?.connection.stopVPNTunnel()
-        isBlocking = false
         lastError = nil
     }
     
@@ -98,7 +105,7 @@ class VPNManager: ObservableObject {
             mgr.loadFromPreferences { [weak self] error in
                 guard let self = self else { return }
                 if let error = error {
-                    self.lastError = "Load after save error: \(error.localizedDescription)"
+                    self.lastError = "Load error: \(error.localizedDescription)"
                     return
                 }
                 self.manager = mgr
@@ -108,35 +115,6 @@ class VPNManager: ObservableObject {
                     self.lastError = "Start tunnel error: \(error.localizedDescription)"
                 }
             }
-        }
-    }
-    
-    func toggleBlocking() {
-        guard let session = manager?.connection as? NETunnelProviderSession, isVPNConnected else {
-            lastError = "VPN chưa kết nối"
-            return
-        }
-        guard !isProcessingCommand else { return }
-        
-        isProcessingCommand = true
-        let command = isBlocking ? "disableBlocking" : "enableBlocking"
-        
-        do {
-            try session.sendProviderMessage(Data(command.utf8)) { [weak self] response in
-                DispatchQueue.main.async {
-                    guard let self = self else { return }
-                    self.isProcessingCommand = false
-                    if let response = response, String(data: response, encoding: .utf8) == "ok" {
-                        self.isBlocking.toggle()
-                        self.lastError = nil
-                    } else {
-                        self.lastError = "Extension did not respond properly"
-                    }
-                }
-            }
-        } catch {
-            isProcessingCommand = false
-            lastError = "Send message error: \(error.localizedDescription)"
         }
     }
 }
