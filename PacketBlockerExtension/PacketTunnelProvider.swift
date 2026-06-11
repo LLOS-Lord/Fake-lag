@@ -63,7 +63,7 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
                 }
                 
             default:
-                os_log("⚠️ Unknown command: %@", log: self.logger, type: .warning, command)
+                os_log("⚠️ Unknown command: %@", log: self.logger, type: .debug, command)
                 completionHandler?(nil)
             }
         }
