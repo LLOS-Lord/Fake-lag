@@ -8,7 +8,7 @@ class VPNManager: ObservableObject {
     private var manager: NETunnelProviderManager?
     private var observer: NSObjectProtocol?
     
-    private let extensionBundleID = "com.tenban.PacketBlocker.extension"  // ← SỬA THEO PROJECT CỦA BẠN
+    private let extensionBundleID = "com.tenban.PacketBlocker.extension"  // ← SỬA CHO ĐÚNG PROJECT CỦA BẠN
     
     init() {
         loadVPNConfiguration()
@@ -62,7 +62,6 @@ class VPNManager: ObservableObject {
             lastError = "Vui lòng Connect VPN trước"
             return
         }
-        // Reconnect để áp dụng block packets
         disconnectVPN()
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
             self?.connectVPN()
