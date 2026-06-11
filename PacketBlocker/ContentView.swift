@@ -17,10 +17,10 @@ struct ContentView: View {
                 Button {
                     vpnManager.toggleBlocking()
                 } label: {
-                    Text(vpnManager.isBlocking ? "Block All Traffic ✓" : "Block All Traffic")
+                    Text("Block All Traffic")
                         .frame(maxWidth: .infinity)
                         .padding()
-                        .background(vpnManager.isBlocking ? Color.red : Color.orange)
+                        .background(Color.orange)
                         .foregroundColor(.white)
                         .cornerRadius(12)
                 }
@@ -46,6 +46,7 @@ struct ContentView: View {
             if let error = vpnManager.lastError {
                 Text(error)
                     .foregroundColor(.red)
+                    .multilineTextAlignment(.center)
             }
         }
         .padding()
