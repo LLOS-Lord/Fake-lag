@@ -4,7 +4,7 @@ import os
 class PacketTunnelProvider: NEPacketTunnelProvider {
     
     private var isBlocking = false
-    private let logger = OSLog(subsystem: "com.tenban.PacketBlocker.extension", category: "PacketTunnelProvider")
+    private let logger = OSLog(subsystem: "com.tenban.PacketBlocker.PacketBlockerExtension", category: "PacketTunnelProvider")
     
     override func startTunnel(options: [String : NSObject]? = nil, completionHandler: @escaping (Error?) -> Void) {
         os_log("🚀 startTunnel called", log: self.logger, type: .info)
