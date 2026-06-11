@@ -10,7 +10,7 @@ class VPNManager: ObservableObject {
     private var manager: NETunnelProviderManager?
     private var observer: NSObjectProtocol?
     
-    private let extensionBundleID = "com.tenban.PacketBlocker.extension"
+    private let extensionBundleID = "com.tenban.PacketBlocker.PacketBlockerExtension"
     
     init() {
         loadVPNConfiguration()
