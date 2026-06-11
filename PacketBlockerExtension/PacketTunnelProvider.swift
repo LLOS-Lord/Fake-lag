@@ -2,46 +2,64 @@ import NetworkExtension
 
 class PacketTunnelProvider: NEPacketTunnelProvider {
     
+    private var isBlocking = false
     private var packetLoopRunning = false
-    private var isBlocking = true  // Default block khi start
     
     override func startTunnel(options: [String : NSObject]? = nil, completionHandler: @escaping (Error?) -> Void) {
         NSLog("🚀 startTunnel called")
         
-        configureTunnel(blocking: true, completion: completionHandler)
-    }
-    
-    private func configureTunnel(blocking: Bool, completion: @escaping (Error?) -> Void) {
         let settings = NEPacketTunnelNetworkSettings(tunnelRemoteAddress: "10.8.0.1")
         let ipv4 = NEIPv4Settings(addresses: ["10.8.0.2"], subnetMasks: ["255.255.255.0"])
-        
-        if blocking {
-            ipv4.includedRoutes = [NEIPv4Route.default()]
-            NSLog("🔒 Blocking mode")
-        } else {
-            ipv4.includedRoutes = []
-            NSLog("✅ Allowed mode")
-        }
+        ipv4.includedRoutes = []   // Ban đầu cho phép traffic (tunnel active)
         
         settings.ipv4Settings = ipv4
         settings.mtu = 1500
         settings.dnsSettings = NEDNSSettings(servers: ["1.1.1.1", "8.8.8.8"])
         
-        setTunnelNetworkSettings(settings) { [weak self] error in
+        setTunnelNetworkSettings(settings) { error in
             if let error = error {
                 NSLog("❌ Set settings failed: \(error)")
-                completion(error)
+                completionHandler(error)
             } else {
-                self?.isBlocking = blocking
-                if blocking {
-                    self?.startPacketDropping()
-                } else {
-                    self?.packetLoopRunning = false
-                }
-                NSLog("✅ Tunnel configured - Blocking: \(blocking)")
-                completion(nil)
+                NSLog("✅ Tunnel started - Ready for blocking")
+                completionHandler(nil)
             }
         }
+    }
+    
+    // Trả lời siêu nhanh để tránh lỗi "did not respond properly"
+    override func handleAppMessage(_ messageData: Data, completionHandler: ((Data?) -> Void)?) {
+        guard let command = String(data: messageData, encoding: .utf8) else {
+            completionHandler?(nil)
+            return
+        }
+        
+        NSLog("📩 Received: \(command)")
+        completionHandler?("ok".data(using: .utf8))  // Trả lời ngay lập tức
+        
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            switch command {
+            case "enableBlocking":
+                self?.enableBlocking()
+            case "disableBlocking":
+                self?.disableBlocking()
+            default:
+                break
+            }
+        }
+    }
+    
+    private func enableBlocking() {
+        guard !isBlocking else { return }
+        isBlocking = true
+        startPacketDropping()
+        NSLog("🔒 Blocking ENABLED - Packets are being dropped")
+    }
+    
+    private func disableBlocking() {
+        isBlocking = false
+        packetLoopRunning = false
+        NSLog("✅ Blocking DISABLED - Traffic allowed")
     }
     
     private func startPacketDropping() {
@@ -51,16 +69,21 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
     }
     
     private func readPacketsLoop() {
-        guard packetLoopRunning else { return }
+        guard packetLoopRunning && isBlocking else {
+            packetLoopRunning = false
+            return
+        }
         
-        packetFlow.readPackets { [weak self] _, _ in
-            DispatchQueue.global(qos: .background).asyncAfter(deadline: .now() + 0.01) {
+        // Đọc và DROP packets (fake lag)
+        packetFlow.readPackets { [weak self] packets, protocols in
+            DispatchQueue.global(qos: .background).asyncAfter(deadline: .now() + 0.012) {
                 self?.readPacketsLoop()
             }
         }
     }
     
     override func stopTunnel(with reason: NEProviderStopReason, completionHandler: @escaping () -> Void) {
+        NSLog("🛑 Tunnel stopped")
         packetLoopRunning = false
         completionHandler()
     }
