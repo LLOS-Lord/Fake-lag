@@ -10,8 +10,7 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         let settings = NEPacketTunnelNetworkSettings(tunnelRemoteAddress: "10.8.0.1")
         let ipv4 = NEIPv4Settings(addresses: ["10.8.0.2"], subnetMasks: ["255.255.255.0"])
         
-        // BLOCK tất cả network packets
-        ipv4.includedRoutes = [NEIPv4Route.default()]
+        ipv4.includedRoutes = [NEIPv4Route.default()]  // Block tất cả packets
         
         settings.ipv4Settings = ipv4
         settings.mtu = 1500
