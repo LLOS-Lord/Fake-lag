@@ -57,14 +57,14 @@ class VPNManager: ObservableObject {
         }
     }
     
-    // Nút Block sẽ reconnect để áp dụng block packets
     func toggleBlocking() {
         guard isVPNConnected else {
-            lastError = "Connect VPN trước"
+            lastError = "Vui lòng Connect VPN trước"
             return
         }
+        // Reconnect để áp dụng block packets
         disconnectVPN()
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
             self?.connectVPN()
         }
     }
