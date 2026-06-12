@@ -1,12 +1,8 @@
 import SwiftUI
-import NetworkExtension
 
 struct ContentView: View {
-    @State private var isVPNConnected = false
+    @StateObject private var vpnManager = VPNManager.shared
     @State private var isBlocking = false
-    @State private var isLoading = false
-    
-    private let vpnManager = NEVPNManager.shared()
     
     var body: some View {
         VStack(spacing: 20) {
@@ -15,29 +11,29 @@ struct ContentView: View {
                 .padding()
             
             Button(action: {
-                if isVPNConnected {
-                    stopVPN()
+                if vpnManager.isConnected {
+                    vpnManager.stopVPN()
                 } else {
-                    startVPN()
+                    vpnManager.startVPN()
                 }
             }) {
-                Text(isVPNConnected ? "Đang kết nối VPN - TẮT" : "BẬT VPN")
+                Text(vpnManager.isConnected ? "Đang kết nối VPN - TẮT" : "BẬT VPN")
                     .frame(maxWidth: .infinity)
                     .padding()
-                    .background(isVPNConnected ? Color.green : Color.blue)
+                    .background(vpnManager.isConnected ? Color.green : Color.blue)
                     .foregroundColor(.white)
                     .cornerRadius(8)
             }
-            .disabled(isLoading)
+            .disabled(vpnManager.isLoading)
             
-            if isVPNConnected {
+            if vpnManager.isConnected {
                 Toggle(isOn: $isBlocking) {
                     Text("Chặn toàn bộ traffic (upload + download)")
                         .font(.headline)
                 }
                 .padding()
                 .onChange(of: isBlocking) { newValue in
-                    setTrafficBlocked(newValue)
+                    vpnManager.setTrafficBlocked(newValue)
                 }
                 .toggleStyle(SwitchToggleStyle(tint: .red))
                 
@@ -50,94 +46,7 @@ struct ContentView: View {
         }
         .padding()
         .onAppear {
-            loadVPNConfig()
-            startObserving()
+            vpnManager.loadVPNConfiguration()
         }
-    }
-    
-    // MARK: - VPN Actions
-    
-    private func loadVPNConfig() {
-        vpnManager.loadFromPreferences { _ in
-            self.updateConnectionStatus()
-        }
-    }
-    
-    private func startVPN() {
-        isLoading = true
-        vpnManager.loadFromPreferences { error in
-            if let error = error {
-                print("Load error: \(error)")
-                self.isLoading = false
-                return
-            }
-            // Nếu chưa có cấu hình, tạo mới
-            if self.vpnManager.connection.status == .invalid {
-                self.createVPNConfiguration()
-            }
-            do {
-                try self.vpnManager.connection.startVPNTunnel()
-                self.isLoading = false
-            } catch {
-                print("Start VPN error: \(error)")
-                self.isLoading = false
-            }
-        }
-    }
-    
-    private func stopVPN() {
-        vpnManager.connection.stopVPNTunnel()
-    }
-    
-    private func createVPNConfiguration() {
-        let protocolConfig = NETunnelProviderProtocol()
-        // 👉 THAY bundle ID NÀY BẰNG BUNDLE ID THẬT CỦA EXTENSION
-        protocolConfig.providerBundleIdentifier = "com.tenban.PacketBlocker.extension"
-        protocolConfig.serverAddress = "FakeLag VPN"
-        
-        vpnManager.protocolConfiguration = protocolConfig
-        vpnManager.isEnabled = true
-        vpnManager.localizedDescription = "FakeLag Traffic Blocker"
-        
-        vpnManager.saveToPreferences { error in
-            if let error = error {
-                print("Save VPN config error: \(error)")
-            }
-        }
-    }
-    
-    // MARK: - Gửi lệnh chặn traffic
-    
-    private func setTrafficBlocked(_ blocked: Bool) {
-        guard let session = vpnManager.connection as? NETunnelProviderSession else {
-            print("Cannot get NETunnelProviderSession")
-            return
-        }
-        let message = "toggleBlock:\(blocked)".data(using: .utf8)!
-        do {
-            try session.sendProviderMessage(message) { response in
-                if let response = response, let str = String(data: response, encoding: .utf8) {
-                    print("Provider response: \(str)")
-                }
-            }
-        } catch {
-            print("Send message error: \(error)")
-        }
-    }
-    
-    // MARK: - Theo dõi trạng thái VPN
-    
-    private func startObserving() {
-        NotificationCenter.default.addObserver(
-            forName: .NEVPNStatusDidChange,
-            object: nil,
-            queue: .main
-        ) { _ in
-            self.updateConnectionStatus()
-        }
-    }
-    
-    private func updateConnectionStatus() {
-        isVPNConnected = (vpnManager.connection.status == .connected)
     }
 }
