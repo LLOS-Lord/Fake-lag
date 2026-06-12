@@ -1,20 +1,21 @@
 import NetworkExtension
 import Network
+import Darwin   // cho os_unfair_lock
 
 class PacketTunnelProvider: NEPacketTunnelProvider {
     
     // MARK: - Cờ điều khiển chặn traffic (thread‑safe)
     private var isTrafficBlocked: Bool = false
-    private let lock = os_unfair_lock()
+    private var lock = os_unfair_lock()   // CHỮA LỖI: let -> var
     
-    // MARK: - Kết nối upstream (ra internet)
-    private var upstreamConnection: NWConnection?      // Ví dụ dùng TCP
-    private var downloadQueue = DispatchQueue(label: "download.queue")
+    // MARK: - Kết nối upstream (ra internet) – thay bằng logic thật
+    private var upstreamConnection: NWConnection?
+    private let downloadQueue = DispatchQueue(label: "download.queue")
     
     // MARK: - Khởi động tunnel
     override func startTunnel(options: [String : NSObject]? = nil,
                               completionHandler: @escaping (Error?) -> Void) {
-        // 1. Cấu hình địa chỉ VPN
+        // 1. Cấu hình VPN
         let settings = NEPacketTunnelNetworkSettings(tunnelRemoteAddress: "10.0.0.1")
         settings.ipv4Settings = {
             let ipv4 = NEIPv4Settings(addresses: ["10.0.2.2"], subnetMasks: ["255.255.255.0"])
@@ -29,58 +30,52 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
                 return
             }
             
-            // 2. Thiết lập kết nối upstream (thay bằng logic thật của bạn)
+            // 2. Thiết lập upstream (thay bằng server thật)
             self.setupUpstreamConnection()
             
-            // 3. Bắt đầu xử lý gói tin UPLOAD (inline, không dùng hàm riêng)
+            // 3. Đọc gói UPLOAD từ thiết bị
             self.readPacketsAndForward()
             
-            // 4. Bắt đầu xử lý gói tin DOWNLOAD (chạy nền)
+            // 4. Xử lý DOWNLOAD từ internet
             self.startDownloadHandler()
             
             completionHandler(nil)
         }
     }
     
-    // MARK: - Thiết lập kết nối upstream (giả lập, hãy thay bằng socket thật)
     private func setupUpstreamConnection() {
-        // Ví dụ kết nối TCP tới một proxy server
+        // 👉 Thay địa chỉ và port theo server của bạn
         let endpoint = NWEndpoint.hostPort(host: "example.com", port: 443)
         upstreamConnection = NWConnection(to: endpoint, using: .tcp)
         upstreamConnection?.start(queue: .global())
     }
     
-    // MARK: - Xử lý UPLOAD (đọc từ packetFlow → gửi lên mạng)
-    // Không có hàm handlePackets – toàn bộ logic nằm trong closure
+    // MARK: - Xử lý UPLOAD
     private func readPacketsAndForward() {
         packetFlow.readPackets { [weak self] packets, protocols in
             guard let self = self else { return }
             
-            // Kiểm tra trạng thái chặn một cách an toàn
             os_unfair_lock_lock(&self.lock)
             let blocked = self.isTrafficBlocked
             os_unfair_lock_unlock(&self.lock)
             
             if !blocked {
-                // ✅ Không chặn: gửi từng gói lên upstream
                 for packet in packets {
                     self.upstreamConnection?.send(content: packet, completion: .contentProcessed { _ in })
                 }
             }
-            // 🛑 Nếu blocked == true: không gửi gói đi → chặn UPLOAD
+            // Nếu blocked == true -> không gửi gì → chặn upload
             
-            // Đọc tiếp các gói tiếp theo (lặp vô tận)
-            self.readPacketsAndForward()
+            self.readPacketsAndForward()  // đọc tiếp
         }
     }
     
-    // MARK: - Xử lý DOWNLOAD (nhận từ mạng → ghi vào packetFlow)
+    // MARK: - Xử lý DOWNLOAD
     private func startDownloadHandler() {
         downloadQueue.async { [weak self] in
             while true {
                 guard let self = self else { break }
                 
-                // Giả lập nhận gói từ upstream (thay bằng receive thật)
                 let semaphore = DispatchSemaphore(value: 0)
                 var receivedData: Data?
                 self.upstreamConnection?.receive(minimumIncompleteLength: 1,
@@ -92,21 +87,19 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
                 
                 guard let data = receivedData, !data.isEmpty else { continue }
                 
-                // Kiểm tra trạng thái chặn
                 os_unfair_lock_lock(&self.lock)
                 let blocked = self.isTrafficBlocked
                 os_unfair_lock_unlock(&self.lock)
                 
                 if !blocked {
-                    // ✅ Không chặn: ghi gói vào packetFlow (chuyển xuống thiết bị)
                     self.packetFlow.writePackets([data], withProtocols: [AF_INET as NSNumber])
                 }
-                // 🛑 Nếu blocked == true: không ghi gói → chặn DOWNLOAD
+                // blocked == true -> không ghi → chặn download
             }
         }
     }
     
-    // MARK: - Hàm điều khiển từ ứng dụng chính (qua sendProviderMessage)
+    // MARK: - Nhận lệnh từ ứng dụng chính
     override func handleAppMessage(_ messageData: Data, completionHandler: ((Data?) -> Void)?) {
         if let command = String(data: messageData, encoding: .utf8), command.hasPrefix("toggleBlock:") {
             let blocked = command.hasSuffix("true")
@@ -119,7 +112,6 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         }
     }
     
-    // MARK: - Dừng tunnel
     override func stopTunnel(with reason: NEProviderStopReason, completionHandler: @escaping () -> Void) {
         upstreamConnection?.cancel()
         completionHandler()
