@@ -8,7 +8,7 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
     private var isTrafficBlocked: Bool = false
     private var lock = os_unfair_lock()   // CHỮA LỖI: let -> var
     
-    // MARK: - Kết nối upstream (ra internet) – thay bằng logic thật
+    // MARK: - Kết nối upstream (ra internet) – thay bằng server thật
     private var upstreamConnection: NWConnection?
     private let downloadQueue = DispatchQueue(label: "download.queue")
     
@@ -30,13 +30,13 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
                 return
             }
             
-            // 2. Thiết lập upstream (thay bằng server thật)
+            // 2. Thiết lập upstream (thay bằng địa chỉ server thật)
             self.setupUpstreamConnection()
             
-            // 3. Đọc gói UPLOAD từ thiết bị
+            // 3. Bắt đầu xử lý gói UPLOAD
             self.readPacketsAndForward()
             
-            // 4. Xử lý DOWNLOAD từ internet
+            // 4. Bắt đầu xử lý DOWNLOAD
             self.startDownloadHandler()
             
             completionHandler(nil)
@@ -44,13 +44,13 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
     }
     
     private func setupUpstreamConnection() {
-        // 👉 Thay địa chỉ và port theo server của bạn
+        // 👉 THAY example.com bằng địa chỉ proxy/server của bạn
         let endpoint = NWEndpoint.hostPort(host: "example.com", port: 443)
         upstreamConnection = NWConnection(to: endpoint, using: .tcp)
         upstreamConnection?.start(queue: .global())
     }
     
-    // MARK: - Xử lý UPLOAD
+    // MARK: - Xử lý UPLOAD (đọc từ packetFlow, gửi lên mạng)
     private func readPacketsAndForward() {
         packetFlow.readPackets { [weak self] packets, protocols in
             guard let self = self else { return }
@@ -64,13 +64,13 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
                     self.upstreamConnection?.send(content: packet, completion: .contentProcessed { _ in })
                 }
             }
-            // Nếu blocked == true -> không gửi gì → chặn upload
+            // Nếu blocked == true -> không gửi → chặn upload
             
-            self.readPacketsAndForward()  // đọc tiếp
+            self.readPacketsAndForward()  // tiếp tục đọc
         }
     }
     
-    // MARK: - Xử lý DOWNLOAD
+    // MARK: - Xử lý DOWNLOAD (nhận từ mạng, ghi vào packetFlow)
     private func startDownloadHandler() {
         downloadQueue.async { [weak self] in
             while true {
@@ -99,7 +99,7 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         }
     }
     
-    // MARK: - Nhận lệnh từ ứng dụng chính
+    // MARK: - Nhận lệnh từ ứng dụng chính (toggle block)
     override func handleAppMessage(_ messageData: Data, completionHandler: ((Data?) -> Void)?) {
         if let command = String(data: messageData, encoding: .utf8), command.hasPrefix("toggleBlock:") {
             let blocked = command.hasSuffix("true")
