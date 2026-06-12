@@ -2,46 +2,50 @@ import SwiftUI
 
 struct ContentView: View {
     @StateObject private var vpnManager = VPNManager.shared
-    @State private var isBlocking = false
-    
+
+    // Binding để Toggle gọi toggleBlocking() thay vì gán trực tiếp
+    private var blockingBinding: Binding<Bool> {
+        Binding(
+            get: { vpnManager.isBlocking },
+            set: { _ in vpnManager.toggleBlocking() }
+        )
+    }
+
     var body: some View {
         VStack(spacing: 20) {
             Text("Fake Lag & Traffic Blocker")
                 .font(.largeTitle)
                 .padding()
-            
+
             Button(action: {
-                if vpnManager.isConnected {
-                    vpnManager.stopVPN()
+                if vpnManager.isVPNConnected {
+                    vpnManager.disconnectVPN()
                 } else {
-                    vpnManager.startVPN()
+                    vpnManager.connectVPN()
                 }
             }) {
-                Text(vpnManager.isConnected ? "Đang kết nối VPN - TẮT" : "BẬT VPN")
+                Text(vpnManager.isVPNConnected ? "Đang kết nối VPN - TẮT" : "BẬT VPN")
                     .frame(maxWidth: .infinity)
                     .padding()
-                    .background(vpnManager.isConnected ? Color.green : Color.blue)
+                    .background(vpnManager.isVPNConnected ? Color.green : Color.blue)
                     .foregroundColor(.white)
                     .cornerRadius(8)
             }
-            .disabled(vpnManager.isLoading)
-            
-            if vpnManager.isConnected {
-                Toggle(isOn: $isBlocking) {
+            .disabled(vpnManager.isProcessingCommand)   // thay thế isLoading
+
+            if vpnManager.isVPNConnected {
+                Toggle(isOn: blockingBinding) {
                     Text("Chặn toàn bộ traffic (upload + download)")
                         .font(.headline)
                 }
                 .padding()
-                .onChange(of: isBlocking) { newValue in
-                    vpnManager.setTrafficBlocked(newValue)
-                }
                 .toggleStyle(SwitchToggleStyle(tint: .red))
-                
-                Text(isBlocking ? "🚫 Đang chặn traffic" : "✅ Traffic tự do")
+
+                Text(vpnManager.isBlocking ? "🚫 Đang chặn traffic" : "✅ Traffic tự do")
                     .font(.subheadline)
-                    .foregroundColor(isBlocking ? .red : .green)
+                    .foregroundColor(vpnManager.isBlocking ? .red : .green)
             }
-            
+
             Spacer()
         }
         .padding()
