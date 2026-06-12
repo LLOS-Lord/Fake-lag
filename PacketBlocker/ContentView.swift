@@ -90,7 +90,7 @@ struct ContentView: View {
     
     private func createVPNConfiguration() {
         let protocolConfig = NETunnelProviderProtocol()
-        protocolConfig.providerBundleIdentifier = "com.yourapp.PacketBlockerExtension" // 👈 Sửa đúng bundle ID
+        protocolConfig.providerBundleIdentifier = "com.tenban.PacketBlocker.extension" // 👈 Sửa đúng bundle ID
         protocolConfig.serverAddress = "FakeLag VPN"
         
         vpnManager.protocolConfiguration = protocolConfig
