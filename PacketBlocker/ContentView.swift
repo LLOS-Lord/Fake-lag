@@ -56,6 +56,7 @@ struct ContentView: View {
     }
     
     // MARK: - VPN Actions
+    
     private func loadVPNConfig() {
         vpnManager.loadFromPreferences { _ in
             self.updateConnectionStatus()
@@ -90,7 +91,8 @@ struct ContentView: View {
     
     private func createVPNConfiguration() {
         let protocolConfig = NETunnelProviderProtocol()
-        protocolConfig.providerBundleIdentifier = "com.tenban.PacketBlocker.extension" // 👈 Sửa đúng bundle ID
+        // 👉 THAY bundle ID NÀY BẰNG BUNDLE ID THẬT CỦA EXTENSION
+        protocolConfig.providerBundleIdentifier = "com.tenban.PacketBlocker.extension"
         protocolConfig.serverAddress = "FakeLag VPN"
         
         vpnManager.protocolConfiguration = protocolConfig
@@ -104,7 +106,8 @@ struct ContentView: View {
         }
     }
     
-    // MARK: - Gửi lệnh chặn traffic tới PacketTunnelProvider
+    // MARK: - Gửi lệnh chặn traffic
+    
     private func setTrafficBlocked(_ blocked: Bool) {
         guard let session = vpnManager.connection as? NETunnelProviderSession else {
             print("Cannot get NETunnelProviderSession")
@@ -123,6 +126,7 @@ struct ContentView: View {
     }
     
     // MARK: - Theo dõi trạng thái VPN
+    
     private func startObserving() {
         NotificationCenter.default.addObserver(
             forName: .NEVPNStatusDidChange,
