@@ -1,34 +1,44 @@
 import NetworkExtension
+import os.log
 
 class PacketTunnelProvider: NEPacketTunnelProvider {
     
     private var isBlocking = false
-    private var isDropping = false
+    private let log = OSLog(subsystem: "com.tenban.PacketBlocker.extension", category: "tunnel")
     
     override func startTunnel(options: [String : NSObject]? = nil, completionHandler: @escaping (Error?) -> Void) {
-        NSLog("🚀 PacketTunnelProvider: startTunnel called")
+        os_log("🚀 PacketTunnelProvider startTunnel", log: log, type: .info)
         
         let settings = NEPacketTunnelNetworkSettings(tunnelRemoteAddress: "10.8.0.1")
-        let ipv4Settings = NEIPv4Settings(addresses: ["10.8.0.2"], subnetMasks: ["255.255.255.0"])
-        ipv4Settings.includedRoutes = []
-        settings.ipv4Settings = ipv4Settings
+        
+        // Route tất cả traffic qua tunnel (IPv4 + IPv6)
+        let ipv4 = NEIPv4Settings(addresses: ["10.8.0.2"], subnetMasks: ["255.255.255.0"])
+        ipv4.includedRoutes = [NEIPv4Route.default()]   // 0.0.0.0/0
+        settings.ipv4Settings = ipv4
+        
+        let ipv6 = NEIPv6Settings(addresses: ["fd00::2"], networkPrefixLengths: [64])
+        ipv6.includedRoutes = [NEIPv6Route.default()]   // ::/0
+        settings.ipv6Settings = ipv6
+        
         settings.mtu = 1500
         
-        setTunnelNetworkSettings(settings) { error in
+        setTunnelNetworkSettings(settings) { [weak self] error in
             if let error = error {
-                NSLog("❌ Set settings failed: \(error.localizedDescription)")
+                os_log("❌ setTunnelNetworkSettings failed: %{public}@", log: self?.log ?? .default, String(describing: error))
                 completionHandler(error)
-            } else {
-                NSLog("✅ Tunnel started successfully")
-                completionHandler(nil)
+                return
             }
+            os_log("✅ Tunnel settings applied", log: self?.log ?? .default, type: .info)
+            
+            // Bắt đầu vòng lặp đọc gói tin
+            self?.startPacketLoop()
+            completionHandler(nil)
         }
     }
     
     override func stopTunnel(with reason: NEProviderStopReason, completionHandler: @escaping () -> Void) {
-        NSLog("🛑 stopTunnel called with reason: \(reason)")
+        os_log("🛑 stopTunnel with reason: %{public}@", log: log, type: .info, String(describing: reason))
         isBlocking = false
-        isDropping = false
         completionHandler()
     }
     
@@ -38,83 +48,39 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
             return
         }
         
-        NSLog("📩 Received command: \(command)")
+        os_log("📩 Received command: %{public}@", log: log, type: .info, command)
         
         switch command {
         case "enableBlocking":
-            enableBlocking { success in
-                let resp = success ? "ok" : "error"
-                completionHandler?(resp.data(using: .utf8))
-            }
+            isBlocking = true
+            os_log("🚫 Blocking enabled", log: log, type: .info)
+            completionHandler?("ok".data(using: .utf8))
         case "disableBlocking":
-            disableBlocking { success in
-                let resp = success ? "ok" : "error"
-                completionHandler?(resp.data(using: .utf8))
-            }
+            isBlocking = false
+            os_log("✅ Blocking disabled", log: log, type: .info)
+            completionHandler?("ok".data(using: .utf8))
         default:
+            os_log("❓ Unknown command", log: log, type: .error)
             completionHandler?(nil)
         }
     }
     
-    private func enableBlocking(completion: @escaping (Bool) -> Void) {
-        guard !isBlocking else { completion(true); return }
-        
-        let settings = NEPacketTunnelNetworkSettings(tunnelRemoteAddress: "10.8.0.1")
-        let ipv4 = NEIPv4Settings(addresses: ["10.8.0.2"], subnetMasks: ["255.255.255.0"])
-        ipv4.includedRoutes = [NEIPv4Route.default()]
-        settings.ipv4Settings = ipv4
-        settings.mtu = 1500
-        
-        setTunnelNetworkSettings(settings) { [weak self] error in
-            if let error = error {
-                NSLog("❌ Enable blocking failed: \(error.localizedDescription)")
-                completion(false)
-            } else {
-                self?.isBlocking = true
-                self?.startDroppingPackets()
-                completion(true)
-            }
-        }
-    }
+    // MARK: - Vòng lặp đọc/ghi (hoặc drop) gói tin
     
-    private func disableBlocking(completion: @escaping (Bool) -> Void) {
-        guard isBlocking else { completion(true); return }
-        
-        let settings = NEPacketTunnelNetworkSettings(tunnelRemoteAddress: "10.8.0.1")
-        let ipv4 = NEIPv4Settings(addresses: ["10.8.0.2"], subnetMasks: ["255.255.255.0"])
-        ipv4.includedRoutes = []
-        settings.ipv4Settings = ipv4
-        settings.mtu = 1500
-        
-        setTunnelNetworkSettings(settings) { [weak self] error in
-            self?.isBlocking = false
-            self?.isDropping = false
-            if let error = error {
-                NSLog("❌ Disable failed: \(error.localizedDescription)")
-                completion(false)
-            } else {
-                completion(true)
-            }
-        }
-    }
-    
-    private func startDroppingPackets() {
-        guard !isDropping else { return }
-        isDropping = true
-        readPacketsLoop()
-    }
-    
-    private func readPacketsLoop() {
-        guard isBlocking && isDropping else {
-            isDropping = false
-            return
-        }
-        
+    private func startPacketLoop() {
         packetFlow.readPackets { [weak self] packets, protocols in
-            // Fake lag: drop packets
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.005) {
-                self?.readPacketsLoop()
+            guard let self = self else { return }
+            
+            if self.isBlocking {
+                // DROP tất cả packet -> mất mạng hoàn toàn
+                os_log("🛑 Dropped %d packets", log: self.log, type: .debug, packets.count)
+            } else {
+                // FORWARD packet bình thường
+                self.packetFlow.writePackets(packets, withProtocols: protocols)
             }
+            
+            // Tiếp tục vòng lặp không ngừng
+            self.startPacketLoop()
         }
     }
 }
