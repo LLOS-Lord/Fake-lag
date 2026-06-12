@@ -2,7 +2,6 @@ import NetworkExtension
 import SwiftUI
 
 class VPNManager: ObservableObject {
-    // Singleton instance - sửa lỗi "type 'VPNManager' has no member 'shared'"
     static let shared = VPNManager()
 
     @Published var isVPNConnected = false
@@ -13,10 +12,9 @@ class VPNManager: ObservableObject {
     private var manager: NETunnelProviderManager?
     private var observer: NSObjectProtocol?
     
-    // ⚠️ QUAN TRỌNG: Thay đổi thành Bundle ID extension thực tế của bạn
-    private let extensionBundleID = "com.tenban.PacketBlocker.extension"  // ← sửa
+    // ⚠️ QUAN TRỌNG: Đảm bảo Bundle ID này khớp với extension
+    private let extensionBundleID = "com.tenban.PacketBlocker.extension"
     
-    // Khởi tạo private để chỉ dùng singleton
     private init() {
         loadVPNConfiguration()
         setupStatusObserver()
@@ -44,10 +42,10 @@ class VPNManager: ObservableObject {
             let wasConnected = self.isVPNConnected
             self.isVPNConnected = self.manager?.connection.status == .connected
             if wasConnected && !self.isVPNConnected {
+                // Khi mất kết nối, reset trạng thái
                 self.isBlocking = false
                 self.isProcessingCommand = false
             }
-            // Lưu trạng thái lỗi nếu có
             if let mgr = self.manager, mgr.connection.status == .invalid {
                 self.lastError = "VPN configuration invalid. Try reinstalling app."
             }
@@ -131,6 +129,7 @@ class VPNManager: ObservableObject {
         }
     }
     
+    // MARK: - Bật/tắt chặn traffic (đã sửa)
     func toggleBlocking() {
         guard let session = manager?.connection as? NETunnelProviderSession else {
             lastError = "No VPN session"
@@ -142,27 +141,38 @@ class VPNManager: ObservableObject {
         }
         guard !isProcessingCommand else { return }
         
+        // 👉 Toggle ngay lập tức để UI thay đổi mượt
+        isBlocking.toggle()
         isProcessingCommand = true
-        let command = isBlocking ? "disableBlocking" : "enableBlocking"
+        
+        let command = isBlocking ? "enableBlocking" : "disableBlocking"
+        print("📤 Sending command: \(command)")
         
         do {
             try session.sendProviderMessage(Data(command.utf8)) { [weak self] response in
                 DispatchQueue.main.async {
                     guard let self = self else { return }
                     self.isProcessingCommand = false
+                    
                     if let response = response,
                        let responseString = String(data: response, encoding: .utf8),
                        responseString == "ok" {
-                        self.isBlocking.toggle()
                         self.lastError = nil
+                        print("✅ Command \(command) successful")
                     } else {
+                        // Nếu thất bại, revert trạng thái
+                        self.isBlocking.toggle()
                         self.lastError = "Extension did not respond properly"
+                        print("❌ Response: \(response != nil ? String(data: response!, encoding: .utf8) ?? "nil" : "nil")")
                     }
                 }
             }
         } catch {
+            // Nếu gửi lệnh lỗi, revert trạng thái
+            isBlocking.toggle()
             isProcessingCommand = false
             lastError = "Send message error: \(error.localizedDescription)"
+            print("❌ Send error: \(error)")
         }
     }
 }
