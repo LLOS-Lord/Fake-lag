@@ -5,7 +5,7 @@ import Darwin
 class PacketTunnelProvider: NEPacketTunnelProvider {
     
     private var isTrafficBlocked: Bool = false
-    private var lock = os_unfair_lock()   // ✅ đã sửa 'let' → 'var'
+    private var lock = os_unfair_lock()   // var, không phải let
     
     private var upstreamConnection: NWConnection?
     private let downloadQueue = DispatchQueue(label: "download.queue")
@@ -33,7 +33,7 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
     }
     
     private func setupUpstreamConnection() {
-        let endpoint = NWEndpoint.hostPort(host: "example.com", port: 443)
+        let endpoint = NWEndpoint.hostPort(host: "example.com", port: 443) // thay bằng server thật
         upstreamConnection = NWConnection(to: endpoint, using: .tcp)
         upstreamConnection?.start(queue: .global())
     }
