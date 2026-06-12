@@ -11,7 +11,6 @@ struct ContentView: View {
                 .font(.largeTitle)
                 .padding()
             
-            // Nút bật/tắt VPN
             Button(action: {
                 if vpnManager.isConnected {
                     vpnManager.stopVPN()
@@ -28,7 +27,6 @@ struct ContentView: View {
             }
             .disabled(vpnManager.isLoading)
             
-            // Toggle chặn traffic (chỉ hiện khi VPN đã kết nối)
             if vpnManager.isConnected {
                 Toggle(isOn: $isBlocking) {
                     Text("Chặn toàn bộ traffic (upload + download)")
@@ -54,7 +52,7 @@ struct ContentView: View {
     }
 }
 
-// MARK: - VPN Manager (quản lý cấu hình và kết nối)
+// MARK: - VPN Manager
 class VPNManager: NSObject, ObservableObject {
     static let shared = VPNManager()
     
@@ -75,14 +73,12 @@ class VPNManager: NSObject, ObservableObject {
         }
     }
     
-    // MARK: - Cấu hình VPN (chỉ chạy 1 lần)
     func loadVPNConfiguration() {
         vpnManager.loadFromPreferences { [weak self] error in
             if let error = error {
                 print("Load preferences error: \(error)")
                 return
             }
-            // Nếu chưa có cấu hình, tạo mới
             if self?.vpnManager.connection.status == .invalid {
                 self?.createVPNConfiguration()
             } else {
@@ -92,26 +88,21 @@ class VPNManager: NSObject, ObservableObject {
     }
     
     private func createVPNConfiguration() {
-        let manager = NEVPNManager.shared()
         let protocolConfig = NETunnelProviderProtocol()
-        protocolConfig.providerBundleIdentifier = "com.yourapp.PacketTunnelProvider" // Thay bằng bundle ID của extension
+        protocolConfig.providerBundleIdentifier = "com.yourapp.PacketBlockerExtension" // 👈 Thay đúng bundle ID
         protocolConfig.serverAddress = "FakeLag VPN"
-        protocolConfig.username = nil
         
-        manager.protocolConfiguration = protocolConfig
-        manager.isEnabled = true
-        manager.localizedDescription = "FakeLag Traffic Blocker"
+        vpnManager.protocolConfiguration = protocolConfig
+        vpnManager.isEnabled = true
+        vpnManager.localizedDescription = "FakeLag Traffic Blocker"
         
-        manager.saveToPreferences { error in
+        vpnManager.saveToPreferences { error in
             if let error = error {
                 print("Save VPN config error: \(error)")
-            } else {
-                print("VPN config saved successfully")
             }
         }
     }
     
-    // MARK: - Điều khiển VPN
     func startVPN() {
         isLoading = true
         vpnManager.loadFromPreferences { [weak self] error in
@@ -135,7 +126,6 @@ class VPNManager: NSObject, ObservableObject {
         vpnManager.connection.stopVPNTunnel()
     }
     
-    // MARK: - Gửi lệnh chặn traffic tới PacketTunnelProvider
     func setTrafficBlocked(_ blocked: Bool) {
         guard let session = vpnManager.connection as? NETunnelProviderSession else {
             print("Cannot get NETunnelProviderSession")
@@ -153,7 +143,6 @@ class VPNManager: NSObject, ObservableObject {
         }
     }
     
-    // MARK: - Theo dõi trạng thái VPN
     private func startObserving() {
         statusObserver = NotificationCenter.default.addObserver(
             forName: .NEVPNStatusDidChange,
