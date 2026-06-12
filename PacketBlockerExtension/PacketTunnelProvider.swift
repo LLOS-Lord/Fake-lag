@@ -4,18 +4,19 @@ import os.log
 class PacketTunnelProvider: NEPacketTunnelProvider {
     
     private let log = OSLog(subsystem: "com.tenban.PacketBlocker.extension", category: "tunnel")
+    private var isCurrentlyBlocking = false
     
     override func startTunnel(options: [String : NSObject]? = nil, completionHandler: @escaping (Error?) -> Void) {
         os_log("🚀 startTunnel", log: log, type: .info)
         
-        // Mặc định khi kết nối: Không chặn (Traffic tự do)
+        // Khởi tạo ban đầu: KHÔNG chặn (Traffic tự do)
+        isCurrentlyBlocking = false
         applySettings(isBlocking: false) { [weak self] error in
             if let error = error {
-                os_log("❌ setTunnelNetworkSettings failed", log: self?.log ?? .default, type: .error)
+                os_log("❌ setTunnelNetworkSettings failed: %@", log: self?.log ?? .default, type: .error, error.localizedDescription)
                 completionHandler(error)
                 return
             }
-            // Bắt đầu vòng lặp đọc gói tin (chỉ dùng để drop khi bật chặn)
             self?.startPacketLoop()
             completionHandler(nil)
         }
@@ -34,67 +35,58 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         
         os_log("📩 Received command: %{public}@", log: log, type: .info, command)
         
-        switch command {
-        case "enableBlocking":
-            os_log("🚫 Blocking ENABLED – routing all traffic to VPN to drop", log: log, type: .info)
-            applySettings(isBlocking: true) { error in
-                if error == nil {
-                    completionHandler?("ok".data(using: .utf8))
-                } else {
-                    completionHandler?(nil)
-                }
+        // 1. PHẢN HỒI NGAY LẬP TỨC CHO APP ĐỂ TRÁNH LỖI TIMEOUT UI
+        completionHandler?("ok".data(using: .utf8))
+        
+        // 2. SAU ĐÓ MỚI ÁP DỤNG CÀI ĐẶT NETWORK Ở BACKGROUND THREAD
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            if command == "enableBlocking" {
+                self?.isCurrentlyBlocking = true
+                self?.applySettings(isBlocking: true) { _ in }
+            } else if command == "disableBlocking" {
+                self?.isCurrentlyBlocking = false
+                self?.applySettings(isBlocking: false) { _ in }
             }
-            
-        case "disableBlocking":
-            os_log("✅ Blocking DISABLED – bypassing VPN routes", log: log, type: .info)
-            applySettings(isBlocking: false) { error in
-                if error == nil {
-                    completionHandler?("ok".data(using: .utf8))
-                } else {
-                    completionHandler?(nil)
-                }
-            }
-            
-        default:
-            os_log("❓ Unknown command", log: log, type: .error)
-            completionHandler?(nil)
         }
     }
     
-    // Hàm cập nhật Routing linh hoạt
     private func applySettings(isBlocking: Bool, completion: @escaping (Error?) -> Void) {
         let settings = NEPacketTunnelNetworkSettings(tunnelRemoteAddress: "10.8.0.1")
         
+        // Chỉ dùng IPv4 để tránh xung đột cấu hình nhà mạng
         let ipv4 = NEIPv4Settings(addresses: ["10.8.0.2"], subnetMasks: ["255.255.255.0"])
-        let ipv6 = NEIPv6Settings(addresses: ["fd00::2"], networkPrefixLengths: [64])
         
         if isBlocking {
-            // Hút toàn bộ traffic vào VPN
+            // Hút toàn bộ traffic vào VPN để Drop
             ipv4.includedRoutes = [NEIPv4Route.default()]
-            ipv6.includedRoutes = [NEIPv6Route.default()]
         } else {
-            // Không hút traffic nào (Traffic được đi tự do qua Wi-Fi/4G)
+            // Bỏ trống để traffic đi tự do ra ngoài (Bypass)
             ipv4.includedRoutes = []
-            ipv6.includedRoutes = []
         }
         
         settings.ipv4Settings = ipv4
-        settings.ipv6Settings = ipv6
-        settings.dnsSettings = NEDNSSettings(servers: ["8.8.8.8", "8.8.4.4"])
         settings.mtu = 1500
         
-        setTunnelNetworkSettings(settings, completionHandler: completion)
+        setTunnelNetworkSettings(settings) { error in
+            if let err = error {
+                os_log("❌ Error applying settings: %@", log: self.log, type: .error, err.localizedDescription)
+            } else {
+                os_log("✅ Settings applied. Blocking: %d", log: self.log, type: .info, isBlocking)
+            }
+            completion(error)
+        }
     }
     
     private func startPacketLoop() {
         packetFlow.readPackets { [weak self] packets, protocols in
             guard let self = self else { return }
             
-            // Nếu có gói tin nào chui vào đây (khi isBlocking = true), DROP sạch sẽ.
-            // TUYỆT ĐỐI KHÔNG dùng writePackets để trả về.
-            os_log("🛑 Dropped %d packets", log: self.log, type: .debug, packets.count)
+            // Chỉ in log và Drop khi đang bật chế độ chặn
+            if self.isCurrentlyBlocking {
+                os_log("🛑 Dropped %d packets", log: self.log, type: .debug, packets.count)
+            }
             
-            // Tiếp tục vòng lặp
+            // Gọi lại chính nó để tiếp tục chờ gói tin (không crash)
             self.startPacketLoop()
         }
     }
