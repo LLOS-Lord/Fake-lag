@@ -50,3 +50,6 @@ struct ContentView: View {
         }
     }
 }
+
+// ⚠️ KHÔNG được định nghĩa lại class VPNManager ở đây
+// Hãy xóa toàn bộ phần code class VPNManager trong file này
