@@ -37,7 +37,7 @@ class VPNManager: NSObject, ObservableObject {
     
     private func createVPNConfiguration() {
         let protocolConfig = NETunnelProviderProtocol()
-        protocolConfig.providerBundleIdentifier = "com.tenban.PacketBlocker.extension"
+        protocolConfig.providerBundleIdentifier = "com.tenban.PacketBlocker.extension"  // 👈 SỬA ĐÚNG BUNDLE ID CỦA BẠN
         protocolConfig.serverAddress = "FakeLag VPN"
         
         vpnManager.protocolConfiguration = protocolConfig
