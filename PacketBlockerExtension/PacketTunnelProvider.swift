@@ -6,7 +6,6 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
     private var isBlocking = false
     private let log = OSLog(subsystem: "com.tenban.PacketBlocker.extension", category: "tunnel")
     
-    // MARK: - Start Tunnel
     override func startTunnel(options: [String : NSObject]? = nil, completionHandler: @escaping (Error?) -> Void) {
         os_log("🚀 startTunnel", log: log, type: .info)
         
@@ -34,7 +33,7 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
             }
             os_log("✅ Tunnel settings applied – VPN is now connected", log: self?.log ?? .default, type: .info)
             
-            // Bắt đầu vòng lặp đọc/ghi gói tin NGAY LẬP TỨC
+            // Bắt đầu vòng lặp đọc/ghi gói tin ngay lập tức
             self?.startPacketLoop()
             completionHandler(nil)
         }
@@ -46,7 +45,6 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         completionHandler()
     }
     
-    // MARK: - Nhận lệnh từ App (bật/tắt chặn)
     override func handleAppMessage(_ messageData: Data, completionHandler: ((Data?) -> Void)?) {
         guard let command = String(data: messageData, encoding: .utf8) else {
             completionHandler?(nil)
@@ -72,7 +70,6 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         }
     }
     
-    // MARK: - Vòng lặp xử lý gói tin (chạy liên tục)
     private func startPacketLoop() {
         packetFlow.readPackets { [weak self] packets, protocols in
             guard let self = self else { return }
