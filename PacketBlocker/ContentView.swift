@@ -17,6 +17,7 @@ struct ContentView: View {
                 .font(.largeTitle)
                 .padding()
 
+            // Nút bật/tắt VPN
             Button(action: {
                 if vpnManager.isVPNConnected {
                     vpnManager.disconnectVPN()
@@ -31,8 +32,9 @@ struct ContentView: View {
                     .foregroundColor(.white)
                     .cornerRadius(8)
             }
-            .disabled(vpnManager.isProcessingCommand)   // thay thế isLoading
+            .disabled(vpnManager.isProcessingCommand)
 
+            // Chỉ hiển thị toggle khi VPN đã kết nối
             if vpnManager.isVPNConnected {
                 Toggle(isOn: blockingBinding) {
                     Text("Chặn toàn bộ traffic (upload + download)")
@@ -44,6 +46,27 @@ struct ContentView: View {
                 Text(vpnManager.isBlocking ? "🚫 Đang chặn traffic" : "✅ Traffic tự do")
                     .font(.subheadline)
                     .foregroundColor(vpnManager.isBlocking ? .red : .green)
+            }
+
+            // Debug: hiển thị nếu đang xử lý lệnh
+            if vpnManager.isProcessingCommand {
+                HStack {
+                    ProgressView()
+                        .scaleEffect(0.8)
+                    Text("⏳ Đang gửi lệnh đến Extension...")
+                        .font(.caption)
+                        .foregroundColor(.yellow)
+                }
+            }
+
+            // Debug: hiển thị lỗi nếu có
+            if let error = vpnManager.lastError {
+                Text("Lỗi: \(error)")
+                    .font(.caption)
+                    .foregroundColor(.red)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal)
+                    .transition(.opacity)
             }
 
             Spacer()
