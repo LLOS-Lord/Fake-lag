@@ -2,6 +2,9 @@ import NetworkExtension
 import SwiftUI
 
 class VPNManager: ObservableObject {
+    // Singleton instance - sửa lỗi "type 'VPNManager' has no member 'shared'"
+    static let shared = VPNManager()
+
     @Published var isVPNConnected = false
     @Published var isBlocking = false
     @Published var isProcessingCommand = false
@@ -13,7 +16,8 @@ class VPNManager: ObservableObject {
     // ⚠️ QUAN TRỌNG: Thay đổi thành Bundle ID extension thực tế của bạn
     private let extensionBundleID = "com.tenban.PacketBlocker.extension"  // ← sửa
     
-    init() {
+    // Khởi tạo private để chỉ dùng singleton
+    private init() {
         loadVPNConfiguration()
         setupStatusObserver()
     }
