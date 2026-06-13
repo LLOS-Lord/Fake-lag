@@ -133,67 +133,42 @@ class VPNManager: ObservableObject {
         }
     }
     
-    // MARK: - Chuyển Làn Mạng (Ngắt -> Đổi Cấu Hình -> Bật Lại)
+    // MARK: - Chuyển Làn Ngầm (Gửi lệnh IPC, Không ngắt kết nối VPN)
     func toggleBlocking() {
-        guard let mgr = manager else { return }
-        guard !isProcessingCommand else { return }
+        guard let session = manager?.connection as? NETunnelProviderSession else {
+            lastError = "Không tìm thấy session VPN"
+            return
+        }
+        guard isVPNConnected && !isProcessingCommand else { return }
         
         // Thay đổi UI ngay lập tức để tạo cảm giác mượt mà
         isBlocking.toggle()
         isProcessingCommand = true
         self.lastError = nil
         
-        // Bước 1: Tạm ngắt kết nối
-        if isVPNConnected {
-            mgr.connection.stopVPNTunnel()
-        }
+        let command = isBlocking ? "enableBlocking" : "disableBlocking"
         
-        // Bước 2: Chờ 0.5 giây cho iOS đóng đường hầm sạch sẽ, sau đó cập nhật và bật lại
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
-            guard let self = self else { return }
-            
-            // Ghi đè trạng thái chặn mới vào giấy phép
-            if let proto = mgr.protocolConfiguration as? NETunnelProviderProtocol {
-                var config = proto.providerConfiguration ?? [:]
-                config["isBlocking"] = self.isBlocking
-                proto.providerConfiguration = config
-                mgr.protocolConfiguration = proto
-            }
-            
-            // Lưu lại vào hệ thống iOS
-            mgr.saveToPreferences { error in
-                if let error = error {
-                    self.lastError = "Lỗi lưu cấu hình mới: \(error.localizedDescription)"
-                    self.revertState()
-                    return
-                }
-                
-                // Load lại giấy phép vừa lưu và khởi động
-                mgr.loadFromPreferences { error in
-                    if let error = error {
-                        self.lastError = "Lỗi load cấu hình mới: \(error.localizedDescription)"
-                        self.revertState()
-                        return
-                    }
+        do {
+            try session.sendProviderMessage(Data(command.utf8)) { [weak self] response in
+                DispatchQueue.main.async {
+                    guard let self = self else { return }
+                    self.isProcessingCommand = false
                     
-                    do {
-                        try mgr.connection.startVPNTunnel()
+                    if let res = response, String(data: res, encoding: .utf8) == "ok" {
+                        // Extension đã nhận lệnh và đổi làn thành công ngầm bên dưới
                         self.lastError = nil
-                        self.isProcessingCommand = false
-                    } catch {
-                        self.lastError = "Không thể khởi động lại Làn mới: \(error.localizedDescription)"
-                        self.revertState()
+                    } else {
+                        // Extension không phản hồi (có thể bị crash do RAM hoặc lỗi khác), gạt lại công tắc
+                        self.isBlocking.toggle()
+                        self.lastError = "Extension did not respond properly"
                     }
                 }
             }
-        }
-    }
-    
-    // Khôi phục UI nếu quá trình chuyển làn thất bại
-    private func revertState() {
-        DispatchQueue.main.async {
+        } catch {
+            // Lỗi gửi lệnh
             self.isBlocking.toggle()
             self.isProcessingCommand = false
+            self.lastError = "Lỗi gửi lệnh: \(error.localizedDescription)"
         }
     }
 }
