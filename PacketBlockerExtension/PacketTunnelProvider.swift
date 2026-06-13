@@ -1,98 +1,97 @@
 import NetworkExtension
-import Network
-import Darwin
 
 class PacketTunnelProvider: NEPacketTunnelProvider {
     
-    private var isTrafficBlocked: Bool = false
-    private var lock = os_unfair_lock()   // var, không phải let
+    private var isPulseActive = false
+    private var isCurrentlyDropping = false
+    private var isBlockSimActive = false
     
-    private var upstreamConnection: NWConnection?
-    private let downloadQueue = DispatchQueue(label: "download.queue")
-    
-    override func startTunnel(options: [String : NSObject]? = nil,
-                              completionHandler: @escaping (Error?) -> Void) {
-        let settings = NEPacketTunnelNetworkSettings(tunnelRemoteAddress: "10.0.0.1")
-        settings.ipv4Settings = {
-            let ipv4 = NEIPv4Settings(addresses: ["10.0.2.2"], subnetMasks: ["255.255.255.0"])
-            ipv4.includedRoutes = [NEIPv4Route.default()]
-            return ipv4
-        }()
-        settings.dnsSettings = NEDNSSettings(servers: ["8.8.8.8", "8.8.4.4"])
-        
-        setTunnelNetworkSettings(settings) { error in
-            if let error = error {
-                completionHandler(error)
-                return
-            }
-            self.setupUpstreamConnection()
-            self.readPacketsAndForward()
-            self.startDownloadHandler()
-            completionHandler(nil)
-        }
-    }
-    
-    private func setupUpstreamConnection() {
-        let endpoint = NWEndpoint.hostPort(host: "example.com", port: 443) // thay bằng server thật
-        upstreamConnection = NWConnection(to: endpoint, using: .tcp)
-        upstreamConnection?.start(queue: .global())
-    }
-    
-    private func readPacketsAndForward() {
-        packetFlow.readPackets { [weak self] packets, protocols in
-            guard let self = self else { return }
-            os_unfair_lock_lock(&self.lock)
-            let blocked = self.isTrafficBlocked
-            os_unfair_lock_unlock(&self.lock)
-            
-            if !blocked {
-                for packet in packets {
-                    self.upstreamConnection?.send(content: packet, completion: .contentProcessed { _ in })
-                }
-            }
-            self.readPacketsAndForward()
-        }
-    }
-    
-    private func startDownloadHandler() {
-        downloadQueue.async { [weak self] in
-            while true {
-                guard let self = self else { break }
-                let semaphore = DispatchSemaphore(value: 0)
-                var receivedData: Data?
-                self.upstreamConnection?.receive(minimumIncompleteLength: 1,
-                                                 maximumLength: 65535) { data, _, _, _ in
-                    receivedData = data
-                    semaphore.signal()
-                }
-                semaphore.wait()
-                guard let data = receivedData, !data.isEmpty else { continue }
-                
-                os_unfair_lock_lock(&self.lock)
-                let blocked = self.isTrafficBlocked
-                os_unfair_lock_unlock(&self.lock)
-                
-                if !blocked {
-                    self.packetFlow.writePackets([data], withProtocols: [AF_INET as NSNumber])
-                }
-            }
-        }
-    }
-    
-    override func handleAppMessage(_ messageData: Data, completionHandler: ((Data?) -> Void)?) {
-        if let command = String(data: messageData, encoding: .utf8), command.hasPrefix("toggleBlock:") {
-            let blocked = command.hasSuffix("true")
-            os_unfair_lock_lock(&lock)
-            isTrafficBlocked = blocked
-            os_unfair_lock_unlock(&lock)
-            completionHandler?("OK".data(using: .utf8))
-        } else {
-            completionHandler?(nil)
-        }
+    override func startTunnel(options: [String : NSObject]? = nil, completionHandler: @escaping (Error?) -> Void) {
+        // Lúc mới bật VPN: Cho mạng đi tự do (Làn 1)
+        applyRouting(drop: false, completion: completionHandler)
     }
     
     override func stopTunnel(with reason: NEProviderStopReason, completionHandler: @escaping () -> Void) {
-        upstreamConnection?.cancel()
+        isPulseActive = false
         completionHandler()
+    }
+    
+    // MARK: - Nhận lệnh từ App để Chuyển Làn Ngầm (Không ngắt VPN)
+    override func handleAppMessage(_ messageData: Data, completionHandler: ((Data?) -> Void)?) {
+        guard let command = String(data: messageData, encoding: .utf8) else {
+            completionHandler?(nil)
+            return
+        }
+        
+        // Báo cáo hoàn thành ngay để không bị lỗi Timeout UI
+        completionHandler?("ok".data(using: .utf8))
+        
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            switch command {
+            case "enableBlocking":
+                self?.isPulseActive = true
+                self?.isCurrentlyDropping = true
+                self?.applyRouting(drop: true) { _ in
+                    self?.startPacketLoop()
+                    self?.scheduleNextPulse()
+                }
+            case "disableBlocking":
+                self?.isPulseActive = false
+                self?.applyRouting(drop: false) { _ in }
+            case "enableBlockSim":
+                self?.isBlockSimActive = true
+                // Khi chặn file simulate, ta có thể dùng cơ chế routing hoặc packet filter
+                // Ở đây ta sử dụng routing để chặn toàn bộ nếu cần, hoặc xử lý trong packet loop
+                // Tuy nhiên, việc chặn 1 file cụ thể trên iOS qua VPN Tunnel thường là chặn domain hoặc IP liên quan.
+                // Nếu là file local preferences, VPN không can thiệp trực tiếp được vào file system.
+                // Nhưng nếu ý người dùng là chặn traffic mà "Network Link Conditioner" tạo ra:
+                self?.applyRouting(drop: true) { _ in
+                    self?.startPacketLoop()
+                }
+            case "disableBlockSim":
+                self?.isBlockSimActive = false
+                self?.applyRouting(drop: false) { _ in }
+            default:
+                break
+            }
+        }
+    }
+    
+    // MARK: - Động cơ Pulse Lag
+    private func scheduleNextPulse() {
+        guard isPulseActive else { return }
+        
+        let waitTime = isCurrentlyDropping ? 2.5 : 0.001
+        
+        DispatchQueue.global(qos: .userInitiated).asyncAfter(deadline: .now() + waitTime) { [weak self] in
+            guard let self = self, self.isPulseActive else { return }
+            
+            self.isCurrentlyDropping.toggle()
+            self.applyRouting(drop: self.isCurrentlyDropping) { _ in
+                self.scheduleNextPulse()
+            }
+        }
+    }
+    
+    // MARK: - Định tuyến Core (IPv4 + IPv6)
+    private func applyRouting(drop: Bool, completion: @escaping (Error?) -> Void) {
+        let settings = NEPacketTunnelNetworkSettings(tunnelRemoteAddress: "10.8.0.1")
+        
+        let ipv4 = NEIPv4Settings(addresses: ["10.8.0.2"], subnetMasks: ["255.255.255.0"])
+        ipv4.includedRoutes = drop ? [NEIPv4Route.default()] : []
+        settings.ipv4Settings = ipv4
+        
+        let ipv6 = NEIPv6Settings(addresses: ["fd00::2"], networkPrefixLengths: [64])
+        ipv6.includedRoutes = drop ? [NEIPv6Route.default()] : []
+        settings.ipv6Settings = ipv6
+        
+        settings.mtu = 1500
+        setTunnelNetworkSettings(settings, completionHandler: completion)
+    }
+    
+    private func startPacketLoop() {
+        packetFlow.readPackets { [weak self] packets, protocols in
+            self?.startPacketLoop()
+        }
     }
 }

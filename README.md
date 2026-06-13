@@ -7,6 +7,7 @@ A simple iOS app that blocks all network traffic using a Personal VPN with Packe
 - ✅ Connect VPN once
 - 🔒 Toggle traffic blocking ON/OFF without disconnecting VPN
 - 🚫 When blocking is enabled, ALL internet traffic is dropped
+- 🛡️ **New**: Block Network Simulate configuration (`/var/mobile/Library/Preferences/com.apple.network.prefPaneSimulate`)
 - 📦 Install via TrollStore (no jailbreak required for compatible iOS versions)
 
 ## Requirements
