@@ -12,12 +12,20 @@ struct ContentView: View {
     }
 
     var body: some View {
-        VStack(spacing: 20) {
-            Text("Fake Lag & Traffic Blocker")
-                .font(.largeTitle)
-                .padding()
+        VStack(spacing: 25) {
+            
+            // MARK: - Tiêu đề
+            VStack(spacing: 8) {
+                Text("Fake Lag Controller")
+                    .font(.largeTitle)
+                    .fontWeight(.bold)
+                Text("Routing Switcher (Cơ chế 2 Làn Ảo)")
+                    .font(.subheadline)
+                    .foregroundColor(.gray)
+            }
+            .padding(.top, 20)
 
-            // Nút bật/tắt VPN
+            // MARK: - Nút Khởi động Hệ thống (VPN)
             Button(action: {
                 if vpnManager.isVPNConnected {
                     vpnManager.disconnectVPN()
@@ -25,53 +33,86 @@ struct ContentView: View {
                     vpnManager.connectVPN()
                 }
             }) {
-                Text(vpnManager.isVPNConnected ? "Đang kết nối VPN - TẮT" : "BẬT VPN")
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(vpnManager.isVPNConnected ? Color.green : Color.blue)
-                    .foregroundColor(.white)
-                    .cornerRadius(8)
+                HStack {
+                    Image(systemName: vpnManager.isVPNConnected ? "shield.fill" : "shield.slash")
+                    Text(vpnManager.isVPNConnected ? "TẮT HỆ THỐNG NỀN" : "BẬT HỆ THỐNG")
+                }
+                .font(.headline)
+                .frame(maxWidth: .infinity)
+                .padding()
+                // Nút chuyển đỏ khi đang chạy để cảnh báo, xanh khi chưa bật
+                .background(vpnManager.isVPNConnected ? Color.red.opacity(0.8) : Color.blue)
+                .foregroundColor(.white)
+                .cornerRadius(12)
+                .shadow(radius: 3)
             }
             .disabled(vpnManager.isProcessingCommand)
+            .padding(.horizontal)
 
-            // Chỉ hiển thị toggle khi VPN đã kết nối
+            // MARK: - Khu vực điều khiển Chuyển Làn (Chỉ hiện khi hệ thống nền đã bật)
             if vpnManager.isVPNConnected {
-                Toggle(isOn: blockingBinding) {
-                    Text("Chặn toàn bộ traffic (upload + download)")
-                        .font(.headline)
-                }
-                .padding()
-                .toggleStyle(SwitchToggleStyle(tint: .red))
+                VStack(spacing: 15) {
+                    
+                    // Công tắc Fake Lag
+                    Toggle(isOn: blockingBinding) {
+                        Text("Công tắc Fake Lag")
+                            .font(.headline)
+                    }
+                    .toggleStyle(SwitchToggleStyle(tint: .orange))
+                    .padding(.horizontal)
 
-                Text(vpnManager.isBlocking ? "🚫 Đang chặn traffic" : "✅ Traffic tự do")
-                    .font(.subheadline)
-                    .foregroundColor(vpnManager.isBlocking ? .red : .green)
+                    // Hiển thị trạng thái Làn đường trực quan
+                    HStack {
+                        Image(systemName: vpnManager.isBlocking ? "exclamationmark.triangle.fill" : "network")
+                        Text(vpnManager.isBlocking ? "LÀN 2: Blackhole (Đang nuốt data)" : "LÀN 1: Mạng đi tự do")
+                            .fontWeight(.semibold)
+                    }
+                    .foregroundColor(vpnManager.isBlocking ? .orange : .green)
+                    .padding()
+                    .frame(maxWidth: .infinity)
+                    .background(
+                        RoundedRectangle(cornerRadius: 10)
+                            .fill(vpnManager.isBlocking ? Color.orange.opacity(0.15) : Color.green.opacity(0.15))
+                    )
+                    .padding(.horizontal)
+                }
+                .padding(.top, 10)
             }
 
-            // Debug: hiển thị nếu đang xử lý lệnh
-            if vpnManager.isProcessingCommand {
-                HStack {
-                    ProgressView()
-                        .scaleEffect(0.8)
-                    Text("⏳ Đang gửi lệnh đến Extension...")
-                        .font(.caption)
-                        .foregroundColor(.yellow)
+            // MARK: - Khu vực Loading & Báo lỗi
+            VStack(spacing: 12) {
+                // Đang xử lý chuyển làn IPC
+                if vpnManager.isProcessingCommand {
+                    HStack {
+                        ProgressView()
+                            .scaleEffect(0.9)
+                        Text("⏳ Đang chuyển làn ngầm...")
+                            .font(.subheadline)
+                            .foregroundColor(.orange)
+                    }
                 }
-            }
 
-            // Debug: hiển thị lỗi nếu có
-            if let error = vpnManager.lastError {
-                Text("Lỗi: \(error)")
+                // Hiển thị lỗi nếu bị văng
+                if let error = vpnManager.lastError {
+                    HStack(alignment: .top) {
+                        Image(systemName: "xmark.octagon.fill")
+                        Text("Lỗi: \(error)")
+                    }
                     .font(.caption)
                     .foregroundColor(.red)
-                    .multilineTextAlignment(.center)
+                    .multilineTextAlignment(.leading)
+                    .padding()
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color.red.opacity(0.1))
+                    .cornerRadius(8)
                     .padding(.horizontal)
                     .transition(.opacity)
+                }
             }
+            .padding(.top, 10)
 
             Spacer()
         }
-        .padding()
         .onAppear {
             vpnManager.loadVPNConfiguration()
         }
