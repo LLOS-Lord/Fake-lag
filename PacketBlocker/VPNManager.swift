@@ -12,7 +12,7 @@ class VPNManager: ObservableObject {
     private var manager: NETunnelProviderManager?
     private var observer: NSObjectProtocol?
     
-    // ⚠️ QUAN TRỌNG: Đảm bảo Bundle ID này khớp với extension
+    // ⚠️ QUAN TRỌNG: Đảm bảo Bundle ID này khớp với Target Extension trong Xcode
     private let extensionBundleID = "com.tenban.PacketBlocker.extension"
     
     private init() {
@@ -41,11 +41,12 @@ class VPNManager: ObservableObject {
             guard let self = self else { return }
             let wasConnected = self.isVPNConnected
             self.isVPNConnected = self.manager?.connection.status == .connected
+            
             if wasConnected && !self.isVPNConnected {
-                // Khi mất kết nối, reset trạng thái
                 self.isBlocking = false
                 self.isProcessingCommand = false
             }
+            
             if let mgr = self.manager, mgr.connection.status == .invalid {
                 self.lastError = "VPN configuration invalid. Try reinstalling app."
             }
@@ -61,7 +62,6 @@ class VPNManager: ObservableObject {
             }
             self.manager = managers?.first
             self.updateStatus()
-            print("Loaded VPN config: \(self.manager != nil ? "exists" : "none")")
         }
     }
     
@@ -82,10 +82,8 @@ class VPNManager: ObservableObject {
         do {
             try manager.connection.startVPNTunnel()
             lastError = nil
-            print("Started existing VPN tunnel")
         } catch {
             lastError = "Start error: \(error.localizedDescription)"
-            print("❌ \(lastError!)")
         }
     }
     
@@ -93,60 +91,53 @@ class VPNManager: ObservableObject {
         let mgr = NETunnelProviderManager()
         let proto = NETunnelProviderProtocol()
         proto.providerBundleIdentifier = extensionBundleID
-        proto.serverAddress = "PacketBlocker"
+        proto.serverAddress = "FakeLagServer"
         proto.disconnectOnSleep = false
         mgr.protocolConfiguration = proto
-        mgr.localizedDescription = "Packet Blocker"
+        mgr.localizedDescription = "Fake Lag Blocker"
         mgr.isEnabled = true
-        
-        print("Creating new VPN configuration...")
         
         mgr.saveToPreferences { [weak self] error in
             guard let self = self else { return }
             if let error = error {
                 self.lastError = "Save error: \(error.localizedDescription)"
-                print("❌ \(self.lastError!)")
                 return
             }
-            print("VPN configuration saved.")
+            
             mgr.loadFromPreferences { [weak self] error in
                 guard let self = self else { return }
                 if let error = error {
                     self.lastError = "Load after save error: \(error.localizedDescription)"
-                    print("❌ \(self.lastError!)")
                     return
                 }
                 self.manager = mgr
                 do {
                     try mgr.connection.startVPNTunnel()
                     self.lastError = nil
-                    print("✅ startVPNTunnel called successfully")
                 } catch {
                     self.lastError = "Start tunnel error: \(error.localizedDescription)"
-                    print("❌ \(self.lastError!)")
                 }
             }
         }
     }
     
-    // MARK: - Bật/tắt chặn traffic (đã sửa)
+    // MARK: - Bật/tắt Fake Lag (Gửi lệnh Chuyển Làn)
     func toggleBlocking() {
         guard let session = manager?.connection as? NETunnelProviderSession else {
-            lastError = "No VPN session"
+            lastError = "Không tìm thấy session VPN"
             return
         }
         guard isVPNConnected else {
-            lastError = "VPN not connected"
+            lastError = "VPN chưa kết nối"
             return
         }
         guard !isProcessingCommand else { return }
         
-        // 👉 Toggle ngay lập tức để UI thay đổi mượt
+        // Cập nhật giao diện UI ngay lập tức cho mượt
         isBlocking.toggle()
         isProcessingCommand = true
         
         let command = isBlocking ? "enableBlocking" : "disableBlocking"
-        print("📤 Sending command: \(command)")
         
         do {
             try session.sendProviderMessage(Data(command.utf8)) { [weak self] response in
@@ -157,22 +148,20 @@ class VPNManager: ObservableObject {
                     if let response = response,
                        let responseString = String(data: response, encoding: .utf8),
                        responseString == "ok" {
+                        // Extension đã nhận lệnh và đang chuyển làn ngầm
                         self.lastError = nil
-                        print("✅ Command \(command) successful")
                     } else {
-                        // Nếu thất bại, revert trạng thái
+                        // Extension không phản hồi, gạt lại công tắc
                         self.isBlocking.toggle()
                         self.lastError = "Extension did not respond properly"
-                        print("❌ Response: \(response != nil ? String(data: response!, encoding: .utf8) ?? "nil" : "nil")")
                     }
                 }
             }
         } catch {
-            // Nếu gửi lệnh lỗi, revert trạng thái
+            // Lỗi gửi tin nhắn
             isBlocking.toggle()
             isProcessingCommand = false
-            lastError = "Send message error: \(error.localizedDescription)"
-            print("❌ Send error: \(error)")
+            lastError = "Lỗi gửi lệnh IPC: \(error.localizedDescription)"
         }
     }
 }
