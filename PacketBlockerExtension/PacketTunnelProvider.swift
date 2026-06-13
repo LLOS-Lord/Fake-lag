@@ -39,7 +39,7 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         // ⏱ THÔNG SỐ ĐÃ ĐƯỢC CHỈNH LẠI:
         // - 2.5 giây Đóng băng (Phá vỡ cơ chế trượt của game, ép mọi sự kiện phải đứng im)
         // - 0.5 giây Thông mạch (Giữ cho ping không bị 999+ và chống văng)
-        let waitTime = isCurrentlyDropping ? 3 : 0.01
+        let waitTime = isCurrentlyDropping ? 3 : 0.0001
         
         DispatchQueue.global(qos: .userInitiated).asyncAfter(deadline: .now() + waitTime) { [weak self] in
             guard let self = self, self.isPulseActive else { return }
