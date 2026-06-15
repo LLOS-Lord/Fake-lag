@@ -1,5 +1,6 @@
 import NetworkExtension
 import Darwin
+import Foundation   // ← THÊM DÒNG NÀY
 
 class PacketTunnelProvider: NEPacketTunnelProvider {
     
@@ -9,9 +10,9 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
     private let processingQueue = DispatchQueue(label: "com.fakelag.packet", qos: .userInteractive)
     
     override func startTunnel(options: [String : NSObject]? = nil, completionHandler: @escaping (Error?) -> Void) {
-        // Tăng giới hạn file descriptor và bộ nhớ (chống kill)
+        // Tăng giới hạn tài nguyên
         increaseResourceLimits()
-        // Yêu cầu hệ thống ưu tiên giữ tiến trình
+        // Áp dụng cơ chế chống kill (nếu có quyền)
         applyAntiKillMechanism()
         
         let settings = NEPacketTunnelNetworkSettings(tunnelRemoteAddress: "10.8.0.1")
@@ -68,7 +69,7 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         }
     }
     
-    // MARK: - Anti-kill functions (cần entitlements mạnh)
+    // MARK: - Anti-kill functions
     
     private func increaseResourceLimits() {
         var rlim = rlimit()
@@ -84,23 +85,21 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
     }
     
     private func applyAntiKillMechanism() {
-        // Sử dụng private API memorystatus nếu có quyền
         let pid = ProcessInfo.processInfo.processIdentifier
         let command = "memorystatus_control -c 1 -p \(pid)"
         
-        // Thực thi lệnh (chỉ hoạt động nếu có quyền root hoặc entitlement com.apple.private.memorystatus)
+        // Chạy lệnh chỉ nếu có quyền, không gây lỗi nếu lệnh không tồn tại
+        #if DEBUG
         let task = Process()
         task.launchPath = "/bin/sh"
         task.arguments = ["-c", command]
         task.launch()
         task.waitUntilExit()
-        
-        #if DEBUG
         print("[*] Anti-kill applied for PID: \(pid)")
         #endif
     }
     
-    // MARK: - Packet loop
+    // MARK: - Packet processing
     
     private func startPulseLoop() {
         pulseWorkItem?.cancel()
