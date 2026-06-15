@@ -11,7 +11,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: symbols/checkout@v4
 
       - name: Set Xcode version
         run: sudo xcode-select -s /Applications/Xcode_15.4.app
@@ -38,36 +38,49 @@ jobs:
             IPHONEOS_DEPLOYMENT_TARGET=16.0 \
             -destination 'generic/platform=iOS'
 
-      - name: Copy extension into app
+      - name: Prepare Payload Structure
         run: |
+          mkdir -p Payload/PacketBlocker.app/PlugIns
+          # Tìm và copy App chính
+          cp -R ./build/Build/Products/Release-iphoneos/PacketBlocker.app/* Payload/PacketBlocker.app/
+          
+          # Tìm và copy Extension vào thư mục PlugIns
           EXT_PATH=$(find ./build -name "*.appex" -type d | head -1)
-          mkdir -p ./build/Build/Products/Release-iphoneos/PacketBlocker.app/PlugIns
-          cp -R "$EXT_PATH" ./build/Build/Products/Release-iphoneos/PacketBlocker.app/PlugIns/
-
-      # Bước kiểm tra nhanh cấu trúc file (Thay thế cho bước strip lỗi cũ)
-      - name: Verify Binary Architecture
-        run: |
-          APP_BIN="./build/Build/Products/Release-iphoneos/PacketBlocker.app/PacketBlocker"
-          echo "Cấu trúc file hiện tại:"
-          lipo -archs "$APP_BIN"
-
-      - name: Sign app with ldid (Cadhoc + shallow)
-        run: |
-          ./ldid -Cadhoc -w -SPacketBlocker/PacketBlocker.entitlements \
-            "./build/Build/Products/Release-iphoneos/PacketBlocker.app/PacketBlocker"
+          if [ -d "$EXT_PATH" ]; then
+            cp -R "$EXT_PATH" Payload/PacketBlocker.app/PlugIns/
+            echo "Extension copied from $EXT_PATH"
+          else
+            echo "Error: Extension not found!"
+            exit 1
+          fi
 
       - name: Sign extension with ldid
         run: |
-          ./ldid -Cadhoc -w -SPacketBlockerExtension/PacketBlockerExtension.entitlements \
-            "./build/Build/Products/Release-iphoneos/PacketBlocker.app/PlugIns/PacketBlockerExtension.appex/PacketBlockerExtension"
+          EXT_DIR="Payload/PacketBlocker.app/PlugIns/PacketBlockerExtension.appex"
+          EXT_BIN="$EXT_DIR/PacketBlockerExtension"
+          
+          # Đảm bảo file binary có quyền thực thi
+          chmod +x "$EXT_BIN"
+          
+          # Ký Extension với Entitlements của nó
+          ./ldid -Cadhoc -w -SPacketBlockerExtension/PacketBlockerExtension.entitlements "$EXT_BIN"
+          echo "Extension signed successfully"
+
+      - name: Sign app with ldid
+        run: |
+          APP_BIN="Payload/PacketBlocker.app/PacketBlocker"
+          
+          # Đảm bảo file binary có quyền thực thi
+          chmod +x "$APP_BIN"
+          
+          # Ký App chính với Entitlements của nó
+          ./ldid -Cadhoc -w -SPacketBlocker/PacketBlocker.entitlements "$APP_BIN"
+          echo "Main app signed successfully"
 
       - name: Create IPA
         run: |
-          APP="./build/Build/Products/Release-iphoneos/PacketBlocker.app"
-          mkdir Payload
-          cp -R "$APP" Payload/
           zip -r PacketBlocker.ipa Payload
-          rm -rf Payload
+          echo "IPA created: PacketBlocker.ipa"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
