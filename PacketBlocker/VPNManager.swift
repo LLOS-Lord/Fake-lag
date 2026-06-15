@@ -12,7 +12,6 @@ class VPNManager: ObservableObject {
     private var manager: NETunnelProviderManager?
     private var observer: NSObjectProtocol?
     
-    // ĐỊNH DANH CỰC KỲ QUAN TRỌNG: Hãy đảm bảo hậu tố là .extension
     private var extensionBundleID: String {
         let mainID = Bundle.main.bundleIdentifier ?? ""
         if mainID.isEmpty { return "com.ban.PacketBlocker.extension" }
@@ -45,9 +44,8 @@ class VPNManager: ObservableObject {
     func loadVPNConfiguration() {
         NETunnelProviderManager.loadAllFromPreferences { [weak self] managers, _ in
             guard let self = self else { return }
-            // Ưu tiên tìm manager khớp với Bundle ID hiện tại
-            self.manager = managers?.first(where: { 
-                ($0.protocolConfiguration as? NETunnelProviderProtocol)?.providerBundleIdentifier == self.extensionBundleID 
+            self.manager = managers?.first(where: {
+                ($0.protocolConfiguration as? NETunnelProviderProtocol)?.providerBundleIdentifier == self.extensionBundleID
             }) ?? managers?.first
             self.updateStatus()
         }
@@ -92,6 +90,8 @@ class VPNManager: ObservableObject {
         }
     }
     
+    // MARK: - Cải tiến chính: gửi lệnh với retry và tự động reconnect
+    
     func toggleBlocking() {
         guard let session = manager?.connection as? NETunnelProviderSession, isVPNConnected else {
             self.lastError = "VPN chưa kết nối ổn định."
@@ -104,25 +104,51 @@ class VPNManager: ObservableObject {
         let targetState = !isBlocking
         let command = targetState ? "enableBlocking" : "disableBlocking"
         
-        // CƠ CHẾ GỬI LỆNH SIÊU TỐC: Không chờ Extension xử lý xong, chỉ chờ nó nhận được lệnh
-        try? session.sendProviderMessage(Data(command.utf8)) { [weak self] response in
+        sendMessageWithRetry(command: command, retryCount: 0) { [weak self] success in
             DispatchQueue.main.async {
                 guard let self = self else { return }
                 self.isProcessingCommand = false
-                if response != nil {
+                if success {
                     self.isBlocking = targetState
                     self.lastError = nil
                 } else {
-                    self.lastError = "Extension không phản hồi. Hãy bật lại VPN."
+                    self.lastError = "Extension không phản hồi sau nhiều lần thử. Hãy kiểm tra kết nối VPN."
                 }
             }
         }
+    }
+    
+    private func sendMessageWithRetry(command: String, retryCount: Int, completion: @escaping (Bool) -> Void) {
+        guard let session = manager?.connection as? NETunnelProviderSession, isVPNConnected else {
+            completion(false)
+            return
+        }
         
-        // Timeout dự phòng: Nếu sau 2 giây không có phản hồi thì reset trạng thái
+        var didReceiveResponse = false
+        
+        try? session.sendProviderMessage(Data(command.utf8)) { response in
+            didReceiveResponse = true
+            DispatchQueue.main.async {
+                completion(response != nil)
+            }
+        }
+        
         DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
-            if self?.isProcessingCommand == true {
-                self?.isProcessingCommand = false
-                self?.lastError = "Extension phản hồi quá chậm."
+            guard !didReceiveResponse else { return }
+            if retryCount < 2 {
+                self?.reconnectVPNThenRetry(command: command, retryCount: retryCount + 1, completion: completion)
+            } else {
+                completion(false)
+            }
+        }
+    }
+    
+    private func reconnectVPNThenRetry(command: String, retryCount: Int, completion: @escaping (Bool) -> Void) {
+        disconnectVPN()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+            self?.connectVPN()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                self?.sendMessageWithRetry(command: command, retryCount: retryCount, completion: completion)
             }
         }
     }
