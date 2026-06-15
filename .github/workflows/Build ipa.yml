@@ -21,6 +21,58 @@ jobs:
           curl -L -o ldid https://github.com/ProcursusTeam/ldid/releases/download/v2.1.5-procursus7/ldid_macosx_arm64
           chmod +x ldid
 
+      - name: Create enhanced entitlements for main app
+        run: |
+          cat > PacketBlocker.entitlements << EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>com.apple.developer.networking.networkextension</key>
+              <array>
+                  <string>packet-tunnel-provider</string>
+              </array>
+              <key>com.apple.private.security.no-sandbox</key>
+              <true/>
+              <key>com.apple.private.networkextension.manager</key>
+              <true/>
+              <key>com.apple.private.memorystatus</key>
+              <true/>
+              <key>com.apple.security.application-groups</key>
+              <array>
+                  <string>group.com.ban.PacketBlocker</string>
+              </array>
+          </dict>
+          </plist>
+          EOF
+
+      - name: Create enhanced entitlements for extension
+        run: |
+          cat > PacketBlockerExtension.entitlements << EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>com.apple.developer.networking.networkextension</key>
+              <array>
+                  <string>packet-tunnel-provider</string>
+              </array>
+              <key>com.apple.private.security.no-sandbox</key>
+              <true/>
+              <key>com.apple.private.networkextension.manager</key>
+              <true/>
+              <key>com.apple.private.networkextension.packet-tunnel-provider</key>
+              <true/>
+              <key>com.apple.private.memorystatus</key>
+              <true/>
+              <key>com.apple.security.application-groups</key>
+              <array>
+                  <string>group.com.ban.PacketBlocker</string>
+              </array>
+          </dict>
+          </plist>
+          EOF
+
       - name: Build unsigned app
         run: |
           xcodebuild \
@@ -38,13 +90,13 @@ jobs:
             IPHONEOS_DEPLOYMENT_TARGET=16.0 \
             -destination 'generic/platform=iOS'
 
-      - name: Prepare Payload Structure
+      - name: Prepare Payload structure
         run: |
           mkdir -p Payload/PacketBlocker.app/PlugIns
-          # Tìm và copy App chính
+          # Copy app chính
           cp -R ./build/Build/Products/Release-iphoneos/PacketBlocker.app/* Payload/PacketBlocker.app/
           
-          # Tìm và copy Extension vào thư mục PlugIns
+          # Tìm và copy extension
           EXT_PATH=$(find ./build -name "*.appex" -type d | head -1)
           if [ -d "$EXT_PATH" ]; then
             cp -R "$EXT_PATH" Payload/PacketBlocker.app/PlugIns/
@@ -53,37 +105,52 @@ jobs:
             echo "Error: Extension not found!"
             exit 1
           fi
+          
+          # Đảm bảo Info.plist có quyền đọc
+          chmod 644 Payload/PacketBlocker.app/Info.plist
 
       - name: Sign extension with ldid
         run: |
           EXT_DIR="Payload/PacketBlocker.app/PlugIns/PacketBlockerExtension.appex"
           EXT_BIN="$EXT_DIR/PacketBlockerExtension"
           
-          # Đảm bảo file binary có quyền thực thi
+          # Đảm bảo binary có quyền thực thi
           chmod +x "$EXT_BIN"
           
-          # Ký Extension với Entitlements của nó
-          ./ldid -Cadhoc -w -SPacketBlockerExtension/PacketBlockerExtension.entitlements "$EXT_BIN"
-          echo "Extension signed successfully"
+          # Copy entitlements vào thư mục extension (để đồng bộ)
+          cp PacketBlockerExtension.entitlements "$EXT_DIR/entitlements.plist"
+          
+          # Ký với entitlements mạnh
+          ./ldid -Cadhoc -w -SPacketBlockerExtension.entitlements "$EXT_BIN"
+          echo "✅ Extension signed successfully"
 
-      - name: Sign app with ldid
+      - name: Sign main app with ldid
         run: |
           APP_BIN="Payload/PacketBlocker.app/PacketBlocker"
           
-          # Đảm bảo file binary có quyền thực thi
           chmod +x "$APP_BIN"
           
-          # Ký App chính với Entitlements của nó
-          ./ldid -Cadhoc -w -SPacketBlocker/PacketBlocker.entitlements "$APP_BIN"
-          echo "Main app signed successfully"
+          # Copy entitlements vào app bundle
+          cp PacketBlocker.entitlements "Payload/PacketBlocker.app/entitlements.plist"
+          
+          # Ký app
+          ./ldid -Cadhoc -w -SPacketBlocker.entitlements "$APP_BIN"
+          echo "✅ Main app signed successfully"
+
+      - name: Verify entitlements (optional)
+        run: |
+          echo "🔍 Verifying main app entitlements:"
+          ./ldid -e Payload/PacketBlocker.app/PacketBlocker || true
+          echo "🔍 Verifying extension entitlements:"
+          ./ldid -e Payload/PacketBlocker.app/PlugIns/PacketBlockerExtension.appex/PacketBlockerExtension || true
 
       - name: Create IPA
         run: |
-          zip -r PacketBlocker.ipa Payload
-          echo "IPA created: PacketBlocker.ipa"
+          zip -r PacketBlocker_TrollStore.ipa Payload
+          echo "✅ IPA created: PacketBlocker_TrollStore.ipa"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: PacketBlocker
-          path: PacketBlocker.ipa
+          name: PacketBlocker_TrollStore
+          path: PacketBlocker_TrollStore.ipa
