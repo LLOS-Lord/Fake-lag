@@ -9,7 +9,7 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
     
     override func startTunnel(options: [String : NSObject]? = nil, completionHandler: @escaping (Error?) -> Void) {
         let settings = NEPacketTunnelNetworkSettings(tunnelRemoteAddress: "10.8.0.1")
-        settings.mtu = 1280  // Giảm MTU để tiết kiệm bộ nhớ
+        settings.mtu = 1280  // Giảm MTU giảm áp lực bộ nhớ
         
         let ipv4 = NEIPv4Settings(addresses: ["10.8.0.2"], subnetMasks: ["255.255.255.0"])
         ipv4.includedRoutes = [NEIPv4Route.default()]
@@ -48,7 +48,7 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
             return
         }
         
-        // Phản hồi ngay lập tức – tránh timeout từ app
+        // Phản hồi ngay lập tức để tránh timeout
         completionHandler?("ok".data(using: .utf8))
         
         if command == "enableBlocking" {
@@ -82,11 +82,18 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
                 guard let self = self else { return }
                 
                 if !self.isCurrentlyDropping {
-                    self.packetFlow.writePackets(packets, withProtocols: protocols)
+                    // Ghi theo từng chunk để tránh tràn bộ nhớ
+                    let chunkSize = 100
+                    for i in stride(from: 0, to: packets.count, by: chunkSize) {
+                        let end = min(i + chunkSize, packets.count)
+                        let packetChunk = Array(packets[i..<end])
+                        let protocolChunk = Array(protocols[i..<end])
+                        self.packetFlow.writePackets(packetChunk, withProtocols: protocolChunk)
+                    }
                 }
                 
-                self.processingQueue.async {
-                    self.startPacketLoop()
+                self.processingQueue.async { [weak self] in
+                    self?.startPacketLoop()
                 }
             }
         }
