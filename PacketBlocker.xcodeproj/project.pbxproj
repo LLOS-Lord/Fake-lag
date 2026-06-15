@@ -238,7 +238,7 @@
 				CODE_SIGN_STYLE = Manual;
 				INFOPLIST_FILE = PacketBlocker/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.tenban.PacketBlocker;
+				PRODUCT_BUNDLE_IDENTIFIER = com.ban.PacketBlocker;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -255,7 +255,7 @@
 				CODE_SIGN_STYLE = Manual;
 				INFOPLIST_FILE = PacketBlocker/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.tenban.PacketBlocker;
+				PRODUCT_BUNDLE_IDENTIFIER = com.ban.PacketBlocker;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -271,7 +271,7 @@
 				CODE_SIGN_STYLE = Manual;
 				INFOPLIST_FILE = PacketBlockerExtension/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.tenban.PacketBlocker.extension;
+				PRODUCT_BUNDLE_IDENTIFIER = com.ban.PacketBlocker.extension;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SKIP_INSTALL = YES;
@@ -288,7 +288,7 @@
 				CODE_SIGN_STYLE = Manual;
 				INFOPLIST_FILE = PacketBlockerExtension/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.tenban.PacketBlocker.extension;
+				PRODUCT_BUNDLE_IDENTIFIER = com.ban.PacketBlocker.extension;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SKIP_INSTALL = YES;
