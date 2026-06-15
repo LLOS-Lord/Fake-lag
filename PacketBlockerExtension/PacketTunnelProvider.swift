@@ -4,14 +4,11 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
     
     private var isPulseActive = false
     private var isCurrentlyDropping = false
-    private var timer: Timer?
     
     override func startTunnel(options: [String : NSObject]? = nil, completionHandler: @escaping (Error?) -> Void) {
-        // Cấu hình mạng 1 lần duy nhất khi bắt đầu
         let settings = NEPacketTunnelNetworkSettings(tunnelRemoteAddress: "10.8.0.1")
         
         let ipv4 = NEIPv4Settings(addresses: ["10.8.0.2"], subnetMasks: ["255.255.255.0"])
-        // Luôn bao gồm route mặc định để bắt mọi gói tin
         ipv4.includedRoutes = [NEIPv4Route.default()]
         settings.ipv4Settings = ipv4
         
@@ -25,7 +22,6 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
             if let error = error {
                 completionHandler(error)
             } else {
-                // Bắt đầu vòng lặp đọc gói tin
                 self.startPacketLoop()
                 completionHandler(nil)
             }
@@ -34,7 +30,6 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
     
     override func stopTunnel(with reason: NEProviderStopReason, completionHandler: @escaping () -> Void) {
         isPulseActive = false
-        timer?.invalidate()
         completionHandler()
     }
     
@@ -44,26 +39,30 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
             return
         }
         
+        // PHẢN HỒI NGAY LẬP TỨC ĐỂ APP KHÔNG BÁO LỖI
+        completionHandler?("ok".data(using: .utf8))
+        
+        // Xử lý logic sau khi đã phản hồi
         if command == "enableBlocking" {
             isPulseActive = true
             isCurrentlyDropping = true
-            startPulseTimer()
+            startPulseLoop()
         } else {
             isPulseActive = false
-            timer?.invalidate()
             isCurrentlyDropping = false
         }
-        
-        // Phản hồi ngay lập tức để tránh lỗi "did not respond"
-        completionHandler?("ok".data(using: .utf8))
     }
     
-    private func startPulseTimer() {
-        timer?.invalidate()
-        // Sử dụng Timer để chính xác hơn và không block thread
-        timer = Timer.scheduledTimer(withTimeInterval: 2.5, repeats: true) { [weak self] _ in
+    private func startPulseLoop() {
+        guard isPulseActive else { return }
+        
+        // Sử dụng asyncAfter thay cho Timer để đảm bảo chạy được trong background thread của Extension
+        let waitTime = isCurrentlyDropping ? 2.5 : 0.001
+        
+        DispatchQueue.global().asyncAfter(deadline: .now() + waitTime) { [weak self] in
             guard let self = self, self.isPulseActive else { return }
             self.isCurrentlyDropping.toggle()
+            self.startPulseLoop()
         }
     }
     
@@ -72,14 +71,10 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
             guard let self = self else { return }
             
             if !self.isCurrentlyDropping {
-                // Nếu KHÔNG chặn: Gửi gói tin đi bình thường (Làn 1)
                 self.packetFlow.writePackets(packets, withProtocols: protocols)
-            } else {
-                // Nếu ĐANG chặn: "Vứt bỏ" gói tin (Làn 2 - Blackhole)
-                // Không gọi writePackets = gói tin bị mất = Lag
             }
             
-            // Tiếp tục đọc gói tin tiếp theo
+            // Luôn đọc tiếp gói tin
             self.startPacketLoop()
         }
     }
