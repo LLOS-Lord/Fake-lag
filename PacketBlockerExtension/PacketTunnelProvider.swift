@@ -4,6 +4,7 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
     
     private var isPulseActive = false
     private var isCurrentlyDropping = false
+    private let queue = DispatchQueue(label: "com.fakelag.packet.processing", qos: .userInteractive)
     
     override func startTunnel(options: [String : NSObject]? = nil, completionHandler: @escaping (Error?) -> Void) {
         let settings = NEPacketTunnelNetworkSettings(tunnelRemoteAddress: "10.8.0.1")
@@ -22,7 +23,10 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
             if let error = error {
                 completionHandler(error)
             } else {
-                self.startPacketLoop()
+                // Chạy vòng lặp trên queue ưu tiên cao
+                self.queue.async {
+                    self.startPacketLoop()
+                }
                 completionHandler(nil)
             }
         }
@@ -42,7 +46,6 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         // PHẢN HỒI NGAY LẬP TỨC ĐỂ APP KHÔNG BÁO LỖI
         completionHandler?("ok".data(using: .utf8))
         
-        // Xử lý logic sau khi đã phản hồi
         if command == "enableBlocking" {
             isPulseActive = true
             isCurrentlyDropping = true
@@ -56,10 +59,10 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
     private func startPulseLoop() {
         guard isPulseActive else { return }
         
-        // Sử dụng asyncAfter thay cho Timer để đảm bảo chạy được trong background thread của Extension
         let waitTime = isCurrentlyDropping ? 2.5 : 0.001
         
-        DispatchQueue.global().asyncAfter(deadline: .now() + waitTime) { [weak self] in
+        // Sử dụng global queue để không block main thread của extension
+        DispatchQueue.global(qos: .userInteractive).asyncAfter(deadline: .now() + waitTime) { [weak self] in
             guard let self = self, self.isPulseActive else { return }
             self.isCurrentlyDropping.toggle()
             self.startPulseLoop()
@@ -67,15 +70,21 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
     }
     
     private func startPacketLoop() {
-        packetFlow.readPackets { [weak self] packets, protocols in
-            guard let self = self else { return }
-            
-            if !self.isCurrentlyDropping {
-                self.packetFlow.writePackets(packets, withProtocols: protocols)
+        // Sử dụng autoreleasepool để giải phóng RAM ngay lập tức sau mỗi lần đọc gói tin
+        // Đây là chìa khóa để chống bị iOS kill do tràn RAM (Extension chỉ có 6-15MB RAM)
+        autoreleasepool {
+            packetFlow.readPackets { [weak self] packets, protocols in
+                guard let self = self else { return }
+                
+                if !self.isCurrentlyDropping {
+                    self.packetFlow.writePackets(packets, withProtocols: protocols)
+                }
+                
+                // Tiếp tục vòng lặp trên queue riêng để tối ưu hiệu năng
+                self.queue.async {
+                    self.startPacketLoop()
+                }
             }
-            
-            // Luôn đọc tiếp gói tin
-            self.startPacketLoop()
         }
     }
 }
