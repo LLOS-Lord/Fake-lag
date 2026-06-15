@@ -4,79 +4,83 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
     
     private var isPulseActive = false
     private var isCurrentlyDropping = false
+    private var timer: Timer?
     
     override func startTunnel(options: [String : NSObject]? = nil, completionHandler: @escaping (Error?) -> Void) {
-        // Lúc mới bật VPN: Cho mạng đi tự do (Làn 1)
-        applyRouting(drop: false, completion: completionHandler)
+        // Cấu hình mạng 1 lần duy nhất khi bắt đầu
+        let settings = NEPacketTunnelNetworkSettings(tunnelRemoteAddress: "10.8.0.1")
+        
+        let ipv4 = NEIPv4Settings(addresses: ["10.8.0.2"], subnetMasks: ["255.255.255.0"])
+        // Luôn bao gồm route mặc định để bắt mọi gói tin
+        ipv4.includedRoutes = [NEIPv4Route.default()]
+        settings.ipv4Settings = ipv4
+        
+        let ipv6 = NEIPv6Settings(addresses: ["fd00::2"], networkPrefixLengths: [64])
+        ipv6.includedRoutes = [NEIPv6Route.default()]
+        settings.ipv6Settings = ipv6
+        
+        settings.mtu = 1500
+        
+        setTunnelNetworkSettings(settings) { error in
+            if let error = error {
+                completionHandler(error)
+            } else {
+                // Bắt đầu vòng lặp đọc gói tin
+                self.startPacketLoop()
+                completionHandler(nil)
+            }
+        }
     }
     
     override func stopTunnel(with reason: NEProviderStopReason, completionHandler: @escaping () -> Void) {
         isPulseActive = false
+        timer?.invalidate()
         completionHandler()
     }
     
-    // MARK: - Nhận lệnh từ App để Chuyển Làn Ngầm (Không ngắt VPN)
     override func handleAppMessage(_ messageData: Data, completionHandler: ((Data?) -> Void)?) {
         guard let command = String(data: messageData, encoding: .utf8) else {
             completionHandler?(nil)
             return
         }
         
-        // Báo cáo hoàn thành ngay để không bị lỗi Timeout UI
+        if command == "enableBlocking" {
+            isPulseActive = true
+            isCurrentlyDropping = true
+            startPulseTimer()
+        } else {
+            isPulseActive = false
+            timer?.invalidate()
+            isCurrentlyDropping = false
+        }
+        
+        // Phản hồi ngay lập tức để tránh lỗi "did not respond"
         completionHandler?("ok".data(using: .utf8))
-        
-        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            if command == "enableBlocking" {
-                // BẬT FAKE LAG: Kích hoạt nhịp đập 2.5s
-                self?.isPulseActive = true
-                self?.isCurrentlyDropping = true
-                self?.applyRouting(drop: true) { _ in
-                    self?.startPacketLoop()
-                    self?.scheduleNextPulse()
-                }
-            } else {
-                // TẮT FAKE LAG: Trở về mạng tự do
-                self?.isPulseActive = false
-                self?.applyRouting(drop: false) { _ in }
-            }
-        }
     }
     
-    // MARK: - Động cơ Pulse Lag
-    private func scheduleNextPulse() {
-        guard isPulseActive else { return }
-        
-        let waitTime = isCurrentlyDropping ? 2.5 : 0.001
-        
-        DispatchQueue.global(qos: .userInitiated).asyncAfter(deadline: .now() + waitTime) { [weak self] in
+    private func startPulseTimer() {
+        timer?.invalidate()
+        // Sử dụng Timer để chính xác hơn và không block thread
+        timer = Timer.scheduledTimer(withTimeInterval: 2.5, repeats: true) { [weak self] _ in
             guard let self = self, self.isPulseActive else { return }
-            
             self.isCurrentlyDropping.toggle()
-            self.applyRouting(drop: self.isCurrentlyDropping) { _ in
-                self.scheduleNextPulse()
-            }
         }
-    }
-    
-    // MARK: - Định tuyến Core (IPv4 + IPv6)
-    private func applyRouting(drop: Bool, completion: @escaping (Error?) -> Void) {
-        let settings = NEPacketTunnelNetworkSettings(tunnelRemoteAddress: "10.8.0.1")
-        
-        let ipv4 = NEIPv4Settings(addresses: ["10.8.0.2"], subnetMasks: ["255.255.255.0"])
-        ipv4.includedRoutes = drop ? [NEIPv4Route.default()] : []
-        settings.ipv4Settings = ipv4
-        
-        let ipv6 = NEIPv6Settings(addresses: ["fd00::2"], networkPrefixLengths: [64])
-        ipv6.includedRoutes = drop ? [NEIPv6Route.default()] : []
-        settings.ipv6Settings = ipv6
-        
-        settings.mtu = 1500
-        setTunnelNetworkSettings(settings, completionHandler: completion)
     }
     
     private func startPacketLoop() {
         packetFlow.readPackets { [weak self] packets, protocols in
-            self?.startPacketLoop()
+            guard let self = self else { return }
+            
+            if !self.isCurrentlyDropping {
+                // Nếu KHÔNG chặn: Gửi gói tin đi bình thường (Làn 1)
+                self.packetFlow.writePackets(packets, withProtocols: protocols)
+            } else {
+                // Nếu ĐANG chặn: "Vứt bỏ" gói tin (Làn 2 - Blackhole)
+                // Không gọi writePackets = gói tin bị mất = Lag
+            }
+            
+            // Tiếp tục đọc gói tin tiếp theo
+            self.startPacketLoop()
         }
     }
 }
