@@ -90,11 +90,21 @@ class VPNManager: ObservableObject {
         }
     }
     
-    // MARK: - Cải tiến chính: gửi lệnh với retry và tự động reconnect
+    // MARK: - Public toggle với cơ chế tự động refresh profile
     
     func toggleBlocking() {
+        // Nếu VPN chưa kết nối, thử refresh profile trước
         guard let session = manager?.connection as? NETunnelProviderSession, isVPNConnected else {
-            self.lastError = "VPN chưa kết nối ổn định."
+            self.lastError = "VPN chưa kết nối. Đang thử khởi tạo lại profile..."
+            refreshVPNProfile { success in
+                if success {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                        self.toggleBlocking()
+                    }
+                } else {
+                    self.lastError = "Không thể phục hồi VPN. Vui lòng cài đặt lại ứng dụng."
+                }
+            }
             return
         }
         
@@ -112,11 +122,21 @@ class VPNManager: ObservableObject {
                     self.isBlocking = targetState
                     self.lastError = nil
                 } else {
-                    self.lastError = "Extension không phản hồi sau nhiều lần thử. Hãy kiểm tra kết nối VPN."
+                    // Thất bại dù VPN đang kết nối → profile hỏng, cần refresh
+                    self.lastError = "Phát hiện lỗi giao tiếp. Đang làm mới cấu hình VPN..."
+                    self.refreshVPNProfile { refreshed in
+                        if refreshed {
+                            self.lastError = "Đã làm mới profile. Vui lòng thử lại công tắc."
+                        } else {
+                            self.lastError = "Không thể phục hồi. Hãy gỡ ứng dụng và cài lại."
+                        }
+                    }
                 }
             }
         }
     }
+    
+    // MARK: - Private helpers: retry + refresh
     
     private func sendMessageWithRetry(command: String, retryCount: Int, completion: @escaping (Bool) -> Void) {
         guard let session = manager?.connection as? NETunnelProviderSession, isVPNConnected else {
@@ -136,6 +156,7 @@ class VPNManager: ObservableObject {
         DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
             guard !didReceiveResponse else { return }
             if retryCount < 2 {
+                // Thử lại sau khi khởi động lại tunnel
                 self?.reconnectVPNThenRetry(command: command, retryCount: retryCount + 1, completion: completion)
             } else {
                 completion(false)
@@ -149,6 +170,19 @@ class VPNManager: ObservableObject {
             self?.connectVPN()
             DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
                 self?.sendMessageWithRetry(command: command, retryCount: retryCount, completion: completion)
+            }
+        }
+    }
+    
+    private func refreshVPNProfile(completion: @escaping (Bool) -> Void) {
+        // Xóa profile hiện tại
+        manager?.removeFromPreferences { _ in
+            self.manager = nil
+            // Tạo profile mới
+            self.createAndStartVPN()
+            // Đợi profile mới được thiết lập và kết nối
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+                completion(self.isVPNConnected)
             }
         }
     }
