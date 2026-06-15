@@ -1,4 +1,5 @@
 import NetworkExtension
+import Darwin
 
 class PacketTunnelProvider: NEPacketTunnelProvider {
     
@@ -8,8 +9,13 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
     private let processingQueue = DispatchQueue(label: "com.fakelag.packet", qos: .userInteractive)
     
     override func startTunnel(options: [String : NSObject]? = nil, completionHandler: @escaping (Error?) -> Void) {
+        // Tăng giới hạn file descriptor và bộ nhớ (chống kill)
+        increaseResourceLimits()
+        // Yêu cầu hệ thống ưu tiên giữ tiến trình
+        applyAntiKillMechanism()
+        
         let settings = NEPacketTunnelNetworkSettings(tunnelRemoteAddress: "10.8.0.1")
-        settings.mtu = 1280  // Giảm MTU giảm áp lực bộ nhớ
+        settings.mtu = 1280
         
         let ipv4 = NEIPv4Settings(addresses: ["10.8.0.2"], subnetMasks: ["255.255.255.0"])
         ipv4.includedRoutes = [NEIPv4Route.default()]
@@ -48,7 +54,6 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
             return
         }
         
-        // Phản hồi ngay lập tức để tránh timeout
         completionHandler?("ok".data(using: .utf8))
         
         if command == "enableBlocking" {
@@ -62,6 +67,40 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
             pulseWorkItem = nil
         }
     }
+    
+    // MARK: - Anti-kill functions (cần entitlements mạnh)
+    
+    private func increaseResourceLimits() {
+        var rlim = rlimit()
+        getrlimit(RLIMIT_NOFILE, &rlim)
+        rlim.rlim_cur = 4096
+        rlim.rlim_max = 4096
+        setrlimit(RLIMIT_NOFILE, &rlim)
+        
+        getrlimit(RLIMIT_DATA, &rlim)
+        rlim.rlim_cur = 256 * 1024 * 1024   // 256 MB
+        rlim.rlim_max = 512 * 1024 * 1024   // 512 MB
+        setrlimit(RLIMIT_DATA, &rlim)
+    }
+    
+    private func applyAntiKillMechanism() {
+        // Sử dụng private API memorystatus nếu có quyền
+        let pid = ProcessInfo.processInfo.processIdentifier
+        let command = "memorystatus_control -c 1 -p \(pid)"
+        
+        // Thực thi lệnh (chỉ hoạt động nếu có quyền root hoặc entitlement com.apple.private.memorystatus)
+        let task = Process()
+        task.launchPath = "/bin/sh"
+        task.arguments = ["-c", command]
+        task.launch()
+        task.waitUntilExit()
+        
+        #if DEBUG
+        print("[*] Anti-kill applied for PID: \(pid)")
+        #endif
+    }
+    
+    // MARK: - Packet loop
     
     private func startPulseLoop() {
         pulseWorkItem?.cancel()
@@ -82,7 +121,6 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
                 guard let self = self else { return }
                 
                 if !self.isCurrentlyDropping {
-                    // Ghi theo từng chunk để tránh tràn bộ nhớ
                     let chunkSize = 100
                     for i in stride(from: 0, to: packets.count, by: chunkSize) {
                         let end = min(i + chunkSize, packets.count)
