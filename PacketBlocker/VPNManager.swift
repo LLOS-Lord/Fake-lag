@@ -14,7 +14,7 @@ class VPNManager: ObservableObject {
     
     private var extensionBundleID: String {
         let mainID = Bundle.main.bundleIdentifier ?? ""
-        if mainID.isEmpty { return "com.ban.PacketBlocker.extension" }
+        if mainID.isEmpty { return "com.ban.PacketBlocker" }
         return "\(mainID).extension"
     }
     
