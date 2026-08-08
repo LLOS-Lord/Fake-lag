@@ -1,26 +1,6 @@
 import NetworkExtension
 import SwiftUI
 
-// MARK: - Shared Config
-struct LagConfig: Codable {
-    var enabled: Bool = false
-    var timestamp: TimeInterval = 0
-}
-
-private func writeConfig(_ config: LagConfig) {
-    guard let groupURL = FileManager.default.containerURL(
-        forSecurityApplicationGroupIdentifier: "group.com.ban.PacketBlocker"
-    ) else { return }
-    let url = groupURL.appendingPathComponent("fakelag_config.plist")
-    do {
-        let data = try PropertyListEncoder().encode(config)
-        try data.write(to: url, options: .atomic)
-    } catch {
-        NSLog("[FakeLag] Write config error: \(error)")
-    }
-}
-
-// MARK: - VPN Manager
 class VPNManager: ObservableObject {
     static let shared = VPNManager()
 
@@ -83,15 +63,12 @@ class VPNManager: ObservableObject {
     }
 
     func connectVPN() {
-        // RESET config về false trước khi bật VPN
-        // Tránh extension đọc config cũ (enabled=true) và bật lag ngay
-        let resetConfig = LagConfig(enabled: false, timestamp: Date().timeIntervalSince1970)
-        writeConfig(resetConfig)
-
         if let manager = manager {
             manager.isEnabled = true
             if let proto = manager.protocolConfiguration as? NETunnelProviderProtocol {
                 proto.disconnectOnSleep = false
+        proto.includeAllNetworks = true
+        proto.excludeLocalNetworks = false
             }
             manager.saveToPreferences { [weak self] error in
                 DispatchQueue.main.async {
@@ -124,6 +101,8 @@ class VPNManager: ObservableObject {
         proto.providerBundleIdentifier = extensionBundleID
         proto.serverAddress = "127.0.0.1"
         proto.disconnectOnSleep = false
+        proto.includeAllNetworks = true
+        proto.excludeLocalNetworks = false
 
         mgr.protocolConfiguration = proto
         mgr.localizedDescription = "Fake Lag Controller"
@@ -143,28 +122,38 @@ class VPNManager: ObservableObject {
         }
     }
 
-    // MARK: - Toggle Blocking (Ngay lập tức)
+    // MARK: - Toggle Blocking (Chỉ qua IPC, không file)
 
     func toggleBlocking() {
         if isProcessingCommand { return }
         isProcessingCommand = true
 
         let targetState = !isBlocking
+        let command = targetState ? "enable" : "disable"
 
-        // Ghi config vào file shared
-        let config = LagConfig(enabled: targetState, timestamp: Date().timeIntervalSince1970)
-        writeConfig(config)
-
-        // Ping extension
-        if isVPNConnected, let session = manager?.connection as? NETunnelProviderSession {
-            do {
-                try session.sendProviderMessage(Data("reload".utf8)) { _ in }
-            } catch { }
+        guard isVPNConnected, let session = manager?.connection as? NETunnelProviderSession else {
+            lastError = "VPN chưa kết nối"
+            isProcessingCommand = false
+            return
         }
 
-        // Cập nhật UI NGAY
-        isBlocking = targetState
-        isProcessingCommand = false
-        lastError = nil
+        do {
+            try session.sendProviderMessage(Data(command.utf8)) { [weak self] response in
+                DispatchQueue.main.async {
+                    if response != nil {
+                        self?.isBlocking = targetState
+                        self?.lastError = nil
+                    } else {
+                        self?.lastError = "Extension không phản hồi"
+                    }
+                    self?.isProcessingCommand = false
+                }
+            }
+        } catch {
+            DispatchQueue.main.async { [weak self] in
+                self?.lastError = "Gửi lệnh lỗi: \(error.localizedDescription)"
+                self?.isProcessingCommand = false
+            }
+        }
     }
 }
