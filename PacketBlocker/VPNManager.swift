@@ -9,7 +9,7 @@ class VPNManager: ObservableObject {
     @Published var isProcessingCommand = false
     @Published var lastError: String?
 
-    private var manager: NETunnelProviderManager?
+    private var manager: NEAppProxyProviderManager?
     private var observer: NSObjectProtocol?
 
     private var extBundleID: String {
@@ -20,11 +20,14 @@ class VPNManager: ObservableObject {
     private var configURL: URL {
         FileManager.default
             .containerURL(forSecurityApplicationGroupIdentifier: "group.com.ban.PacketBlocker")!
-            .appendingPathComponent("lag.plist")
+            .appendingPathComponent("fakelag_config.plist")
     }
 
     private func writeConfig(enabled: Bool) {
-        let dict: [String: Any] = ["enabled": enabled]
+        let dict: [String: Any] = [
+            "enabled": enabled,
+            "timestamp": Date().timeIntervalSince1970
+        ]
         (dict as NSDictionary).write(to: configURL, atomically: true)
     }
 
@@ -59,39 +62,36 @@ class VPNManager: ObservableObject {
     }
 
     func loadVPNConfiguration() {
-        NETunnelProviderManager.loadAllFromPreferences { [weak self] managers, error in
+        NEAppProxyProviderManager.loadAllFromPreferences { [weak self] managers, error in
             guard let self = self else { return }
             if let error = error {
-                self.lastError = "Load lỗi: \(error.localizedDescription)"
+                self.lastError = "Load loi: \(error.localizedDescription)"
                 return
             }
             self.manager = managers?.first(where: {
-                ($0.protocolConfiguration as? NETunnelProviderProtocol)?.providerBundleIdentifier == self.extBundleID
+                ($0.protocolConfiguration as? NEAppProxyProviderProtocol)?.providerBundleIdentifier == self.extBundleID
             }) ?? managers?.first
             self.updateStatus()
         }
     }
 
     func connectVPN() {
-        // Reset config trước khi bật
+        // Reset config truoc khi bat
         writeConfig(enabled: false)
 
         if let manager = manager {
             manager.isEnabled = true
-            if let proto = manager.protocolConfiguration as? NETunnelProviderProtocol {
-                proto.disconnectOnSleep = false
-            }
             manager.saveToPreferences { [weak self] error in
                 DispatchQueue.main.async {
                     if let error = error {
-                        self?.lastError = "Save lỗi: \(error.localizedDescription)"
+                        self?.lastError = "Save loi: \(error.localizedDescription)"
                         return
                     }
                     do {
                         try manager.connection.startVPNTunnel()
                         self?.lastError = nil
                     } catch {
-                        self?.lastError = "Bật lỗi: \(error.localizedDescription)"
+                        self?.lastError = "Bat loi: \(error.localizedDescription)"
                     }
                 }
             }
@@ -107,11 +107,15 @@ class VPNManager: ObservableObject {
     }
 
     private func createVPN() {
-        let mgr = NETunnelProviderManager()
-        let proto = NETunnelProviderProtocol()
+        let mgr = NEAppProxyProviderManager()
+        let proto = NEAppProxyProviderProtocol()
         proto.providerBundleIdentifier = extBundleID
         proto.serverAddress = "127.0.0.1"
-        proto.disconnectOnSleep = false
+
+        // Proxy app Free Fire (com.dts.freefireth)
+        // Tren jailbreak, co the hoat dong ma khong can MDM
+        let rule = NEAppRule(signingIdentifier: "com.dts.freefireth")
+        mgr.appRules = [rule]
 
         mgr.protocolConfiguration = proto
         mgr.localizedDescription = "Fake Lag"
@@ -120,7 +124,7 @@ class VPNManager: ObservableObject {
         mgr.saveToPreferences { [weak self] error in
             DispatchQueue.main.async {
                 if let error = error {
-                    self?.lastError = "Tạo lỗi: \(error.localizedDescription)"
+                    self?.lastError = "Tao loi: \(error.localizedDescription)"
                     return
                 }
                 self?.loadVPNConfiguration()
@@ -137,17 +141,10 @@ class VPNManager: ObservableObject {
 
         let target = !isBlocking
 
-        // 1. Ghi file
+        // Ghi file + timestamp
         writeConfig(enabled: target)
 
-        // 2. Gửi IPC (optional)
-        if isVPNConnected, let session = manager?.connection as? NETunnelProviderSession {
-            do {
-                try session.sendProviderMessage(Data((target ? "enable" : "disable").utf8)) { _ in }
-            } catch { }
-        }
-
-        // 3. UI ngay
+        // GUI UI ngay, khong cho IPC response
         isBlocking = target
         isProcessingCommand = false
         lastError = nil

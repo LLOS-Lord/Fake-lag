@@ -1,183 +1,316 @@
 import NetworkExtension
 import Network
+import Foundation
 
-class AppProxyProvider: NEAppProxyProvider {
+class FakeLagAppProxyProvider: NEAppProxyProvider {
 
+    // MARK: - Config
     private var isLagEnabled = false
-    private let queue = DispatchQueue(label: "com.fakelag.proxy", qos: .userInitiated)
+    private var lastTimestamp: TimeInterval = 0
+    private let configQueue = DispatchQueue(label: "com.fakelag.config")
+    private let forwardQueue = DispatchQueue(label: "com.fakelag.forward", qos: .userInitiated, attributes: .concurrent)
+
+    private var configURL: URL {
+        FileManager.default
+            .containerURL(forSecurityApplicationGroupIdentifier: "group.com.ban.PacketBlocker")!
+            .appendingPathComponent("fakelag_config.plist")
+    }
+
+    // MARK: - Lifecycle
 
     override func startProxy(options: [String : NSObject]?, completionHandler: @escaping (Error?) -> Void) {
+        NSLog("[FakeLag] Proxy STARTED")
+        // Reset lag state
         isLagEnabled = false
-        NSLog("[FakeLag] Proxy started. Lag = OFF")
+        lastTimestamp = 0
+        // Start config watcher
+        startConfigWatcher()
         completionHandler(nil)
     }
 
     override func stopProxy(with reason: NEProviderStopReason, completionHandler: @escaping () -> Void) {
+        NSLog("[FakeLag] Proxy STOPPED. Reason: \(reason.rawValue)")
         isLagEnabled = false
         completionHandler()
     }
 
     override func handleAppMessage(_ messageData: Data, completionHandler: ((Data?) -> Void)?) {
-        if let cmd = String(data: messageData, encoding: .utf8) {
-            isLagEnabled = (cmd == "enable")
-            NSLog("[FakeLag] Lag = \(isLagEnabled ? "ON" : "OFF")")
-        }
+        // Luon tra loi ngay de tranh timeout
         completionHandler?(Data("ok".utf8))
     }
 
-    override func handleNewFlow(_ flow: NEAppProxyFlow) -> Bool {
-        if let udpFlow = flow as? NEAppProxyUDPFlow {
-            handleUDPFlow(udpFlow)
-            return true
+    // MARK: - Config Watcher
+
+    private func startConfigWatcher() {
+        configQueue.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+            self?.checkConfig()
         }
+    }
+
+    private func checkConfig() {
+        guard let data = try? Data(contentsOf: configURL),
+              let dict = try? PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any] else {
+            startConfigWatcher()
+            return
+        }
+
+        let enabled = dict["enabled"] as? Bool ?? false
+        let timestamp = dict["timestamp"] as? TimeInterval ?? 0
+
+        if timestamp > lastTimestamp {
+            lastTimestamp = timestamp
+            if enabled != isLagEnabled {
+                isLagEnabled = enabled
+                NSLog("[FakeLag] Config updated: lag=\(isLagEnabled)")
+            }
+        }
+
+        startConfigWatcher()
+    }
+
+    // MARK: - Flow Handling
+
+    override func handleNewFlow(_ flow: NEAppProxyFlow) -> Bool {
         if let tcpFlow = flow as? NEAppProxyTCPFlow {
-            handleTCPFlow(tcpFlow)
-            return true
+            return handleTCPFlow(tcpFlow)
+        } else if let udpFlow = flow as? NEAppProxyUDPFlow {
+            return handleUDPFlow(udpFlow)
         }
         return false
     }
 
-    // MARK: - UDP (Game traffic - delay + drop)
+    // MARK: - TCP Forwarding
 
-    private func handleUDPFlow(_ flow: NEAppProxyUDPFlow) {
+    private func handleTCPFlow(_ flow: NEAppProxyTCPFlow) -> Bool {
         guard let remoteEndpoint = flow.remoteEndpoint as? NWHostEndpoint else {
-            flow.closeReadWithError(nil)
-            return
+            NSLog("[FakeLag] Invalid TCP endpoint")
+            return false
         }
 
-        let port = UInt16(remoteEndpoint.port) ?? 0
-        let connection = NWConnection(
-            to: .hostPort(host: .name(remoteEndpoint.hostname, nil), port: .integer(port)),
-            using: .udp
-        )
+        let host = NWEndpoint.Host(remoteEndpoint.host)
+        guard let port = NWEndpoint.Port("\(remoteEndpoint.port)") else {
+            return false
+        }
 
-        connection.stateUpdateHandler = { state in
-            if case .failed = state {
+        let connection = NWConnection(host: host, port: port, using: .tcp)
+        let flowID = "\(remoteEndpoint.host):\(remoteEndpoint.port)"
+
+        connection.stateUpdateHandler = { [weak self] state in
+            switch state {
+            case .ready:
+                flow.open(withLocalEndpoint: nil) { error in
+                    guard error == nil else {
+                        NSLog("[FakeLag] TCP open error: \(error!)")
+                        connection.cancel()
+                        return
+                    }
+                    self?.startTCPForwarding(flow: flow, connection: connection, flowID: flowID)
+                }
+            case .failed(let error):
+                NSLog("[FakeLag] TCP connection failed: \(error)")
+                fallthrough
+            case .cancelled:
                 flow.closeReadWithError(nil)
+                flow.closeWriteWithError(nil)
+            default:
+                break
             }
         }
 
-        connection.start(queue: queue)
-
-        // App → Remote (with lag)
-        forwardFromApp(flow: flow, to: connection)
-
-        // Remote → App (no lag)
-        forwardFromRemote(connection: connection, to: flow)
+        connection.start(queue: forwardQueue)
+        return true
     }
 
-    private func forwardFromApp(flow: NEAppProxyUDPFlow, to connection: NWConnection) {
-        flow.readDatagrams { [weak self] datagrams, endpoints, error in
-            guard let self = self, error == nil else {
-                connection.cancel()
-                return
-            }
+    private func startTCPForwarding(flow: NEAppProxyTCPFlow, connection: NWConnection, flowID: String) {
 
-            guard let datagrams = datagrams, !datagrams.isEmpty else {
-                self.forwardFromApp(flow: flow, to: connection)
-                return
-            }
+        // MARK: Inbound (Server -> App)
+        func readRemote() {
+            connection.receive(minimumIncompleteLength: 1, maximumLength: 65535) { [weak self] data, _, isComplete, error in
+                guard let self = self else { return }
 
-            for datagram in datagrams {
-                if self.isLagEnabled {
-                    // Drop 15%
-                    if Int.random(in: 0..<100) < 15 {
-                        continue
+                if let error = error {
+                    flow.closeReadWithError(error)
+                    return
+                }
+
+                if let data = data, !data.isEmpty {
+                    self.applyLag(data: data) { laggedData in
+                        guard let laggedData = laggedData else {
+                            readRemote()
+                            return
+                        }
+                        flow.write(laggedData) { writeError in
+                            if writeError != nil { return }
+                            readRemote()
+                        }
                     }
-                    // Delay 300ms
-                    self.queue.asyncAfter(deadline: .now() + .milliseconds(300)) {
-                        connection.send(content: datagram, completion: .contentProcessed { _ in })
-                    }
+                } else if isComplete {
+                    flow.closeWriteWithError(nil)
                 } else {
-                    connection.send(content: datagram, completion: .contentProcessed { _ in })
+                    readRemote()
                 }
             }
-
-            self.forwardFromApp(flow: flow, to: connection)
         }
+
+        // MARK: Outbound (App -> Server)
+        func readFlow() {
+            flow.readData { [weak self] data, error in
+                guard let self = self else { return }
+
+                if let error = error {
+                    connection.cancel()
+                    return
+                }
+
+                guard let data = data, !data.isEmpty else {
+                    connection.send(content: nil, contentContext: .defaultStream, isComplete: true, completion: .contentProcessed { _ in })
+                    return
+                }
+
+                self.applyLag(data: data) { laggedData in
+                    guard let laggedData = laggedData else {
+                        readFlow()
+                        return
+                    }
+                    connection.send(content: laggedData, completion: .contentProcessed { _ in
+                        readFlow()
+                    })
+                }
+            }
+        }
+
+        readRemote()
+        readFlow()
     }
 
-    private func forwardFromRemote(connection: NWConnection, to flow: NEAppProxyUDPFlow) {
-        connection.receiveMessage { [weak self] content, _, _, error in
-            guard let self = self, error == nil, let content = content else {
-                flow.closeWriteWithError(nil)
-                return
-            }
+    // MARK: - UDP Forwarding
 
-            flow.writeDatagrams([content], sentBy: [flow.remoteEndpoint]) { error in
-                // continue
-            }
-
-            self.forwardFromRemote(connection: connection, to: flow)
-        }
-    }
-
-    // MARK: - TCP (Forward ngay, không delay)
-
-    private func handleTCPFlow(_ flow: NEAppProxyTCPFlow) {
+    private func handleUDPFlow(_ flow: NEAppProxyUDPFlow) -> Bool {
         guard let remoteEndpoint = flow.remoteEndpoint as? NWHostEndpoint else {
-            flow.closeReadWithError(nil)
+            return false
+        }
+
+        let host = NWEndpoint.Host(remoteEndpoint.host)
+        guard let port = NWEndpoint.Port("\(remoteEndpoint.port)") else {
+            return false
+        }
+
+        let connection = NWConnection(host: host, port: port, using: .udp)
+
+        connection.stateUpdateHandler = { state in
+            switch state {
+            case .ready:
+                flow.open(withLocalEndpoint: nil) { error in
+                    guard error == nil else {
+                        connection.cancel()
+                        return
+                    }
+                    self.startUDPForwarding(flow: flow, connection: connection)
+                }
+            case .failed, .cancelled:
+                flow.closeReadWithError(nil)
+                flow.closeWriteWithError(nil)
+            default:
+                break
+            }
+        }
+
+        connection.start(queue: forwardQueue)
+        return true
+    }
+
+    private func startUDPForwarding(flow: NEAppProxyUDPFlow, connection: NWConnection) {
+
+        // Inbound
+        func readRemote() {
+            connection.receiveMessage { [weak self] data, context, isComplete, error in
+                guard let self = self else { return }
+
+                if let error = error {
+                    flow.closeReadWithError(error)
+                    return
+                }
+
+                if let data = data, !data.isEmpty {
+                    self.applyLag(data: data) { laggedData in
+                        guard let laggedData = laggedData else {
+                            readRemote()
+                            return
+                        }
+                        flow.writeDatagrams([laggedData]) { writeError in
+                            if writeError != nil { return }
+                            readRemote()
+                        }
+                    }
+                } else {
+                    readRemote()
+                }
+            }
+        }
+
+        // Outbound
+        func readFlow() {
+            flow.readDatagrams { [weak self] datagrams, endpoints, error in
+                guard let self = self else { return }
+
+                if let error = error {
+                    connection.cancel()
+                    return
+                }
+
+                guard let datagrams = datagrams, !datagrams.isEmpty else {
+                    readFlow()
+                    return
+                }
+
+                var processed: [Data] = []
+                let group = DispatchGroup()
+
+                for datagram in datagrams {
+                    group.enter()
+                    self.applyLag(data: datagram) { lagged in
+                        if let lagged = lagged {
+                            processed.append(lagged)
+                        }
+                        group.leave()
+                    }
+                }
+
+                group.notify(queue: self.forwardQueue) {
+                    guard !processed.isEmpty else {
+                        readFlow()
+                        return
+                    }
+                    for datagram in processed {
+                        connection.send(content: datagram, completion: .contentProcessed { _ in })
+                    }
+                    readFlow()
+                }
+            }
+        }
+
+        readRemote()
+        readFlow()
+    }
+
+    // MARK: - Lag Engine
+
+    private func applyLag(data: Data, completion: @escaping (Data?) -> Void) {
+        if !isLagEnabled {
+            completion(data)
             return
         }
 
-        let port = UInt16(remoteEndpoint.port) ?? 0
-        let connection = NWConnection(
-            to: .hostPort(host: .name(remoteEndpoint.hostname, nil), port: .integer(port)),
-            using: .tcp
-        )
-
-        connection.stateUpdateHandler = { state in
-            if case .failed = state {
-                flow.closeReadWithError(nil)
-            }
+        // Drop rate: 15%
+        if Int.random(in: 0..<100) < 15 {
+            completion(nil)
+            return
         }
 
-        connection.start(queue: queue)
-
-        // App → Remote
-        flow.readData { [weak self] data, error in
-            guard let data = data, error == nil else {
-                connection.cancel()
-                return
-            }
-            connection.send(content: data, completion: .contentProcessed { _ in })
-            self?.forwardTCPFromApp(flow: flow, connection: connection)
-        }
-
-        // Remote → App
-        connection.receive(minimumIncompleteLength: 1, maximumLength: 65535) { [weak self] content, _, isComplete, error in
-            guard let content = content, error == nil else {
-                flow.closeWriteWithError(nil)
-                return
-            }
-            flow.write(content) { _ in }
-            if !isComplete {
-                self?.forwardTCPFromRemote(connection: connection, flow: flow)
-            }
-        }
-    }
-
-    private func forwardTCPFromApp(flow: NEAppProxyTCPFlow, connection: NWConnection) {
-        flow.readData { [weak self] data, error in
-            guard let data = data, error == nil else {
-                connection.cancel()
-                return
-            }
-            connection.send(content: data, completion: .contentProcessed { _ in })
-            self?.forwardTCPFromApp(flow: flow, connection: connection)
-        }
-    }
-
-    private func forwardTCPFromRemote(connection: NWConnection, flow: NEAppProxyTCPFlow) {
-        connection.receive(minimumIncompleteLength: 1, maximumLength: 65535) { [weak self] content, _, isComplete, error in
-            guard let content = content, error == nil else {
-                flow.closeWriteWithError(nil)
-                return
-            }
-            flow.write(content) { _ in }
-            if !isComplete {
-                self?.forwardTCPFromRemote(connection: connection, flow: flow)
-            }
+        // Delay: 300ms
+        let delayMs = 300
+        forwardQueue.asyncAfter(deadline: .now() + .milliseconds(delayMs)) {
+            completion(data)
         }
     }
 }
