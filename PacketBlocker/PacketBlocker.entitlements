@@ -2,13 +2,36 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+    <!-- Quyền NetworkExtension cơ bản -->
     <key>com.apple.developer.networking.networkextension</key>
     <array>
         <string>packet-tunnel-provider</string>
     </array>
+
+    <!-- App Group để App và Extension giao tiếp -->
     <key>com.apple.security.application-groups</key>
     <array>
         <string>group.com.ban.PacketBlocker</string>
     </array>
+
+    <!-- Quyền JIT cho chống kill -->
+    <key>com.apple.security.cs.allow-jit</key>
+    <true/>
+
+    <!-- Tắt library validation để extension load nhanh hơn -->
+    <key>com.apple.security.cs.disable-library-validation</key>
+    <true/>
+
+    <!-- Cho phép debug (giúp extension không bị kill nhanh) -->
+    <key>com.apple.security.get-task-allow</key>
+    <true/>
+
+    <!-- Quyền private network extension cao cấp -->
+    <key>com.apple.private.networkextension</key>
+    <true/>
+
+    <!-- Cho phép chạy nền liên tục -->
+    <key>com.apple.developer.associated-domains</key>
+    <array/>
 </dict>
 </plist>

@@ -2,13 +2,44 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+    <!-- Quyền NetworkExtension -->
     <key>com.apple.developer.networking.networkextension</key>
     <array>
         <string>packet-tunnel-provider</string>
     </array>
+
+    <!-- App Group -->
     <key>com.apple.security.application-groups</key>
     <array>
         <string>group.com.ban.PacketBlocker</string>
     </array>
+
+    <!-- Tắt sandbox cho extension (quan trọng!) -->
+    <key>com.apple.security.app-sandbox</key>
+    <false/>
+
+    <!-- Cho phép JIT -->
+    <key>com.apple.security.cs.allow-jit</key>
+    <true/>
+
+    <!-- Tắt library validation -->
+    <key>com.apple.security.cs.disable-library-validation</key>
+    <true/>
+
+    <!-- Cho phép debug -->
+    <key>com.apple.security.get-task-allow</key>
+    <true/>
+
+    <!-- Quyền private cao cấp -->
+    <key>com.apple.private.networkextension</key>
+    <true/>
+
+    <!-- Cho phép can thiệp sâu vào network stack -->
+    <key>com.apple.private.network.socket-flow</key>
+    <true/>
+
+    <!-- Chống bị kill bởi memory pressure -->
+    <key>com.apple.private.memorystatus</key>
+    <true/>
 </dict>
 </plist>
