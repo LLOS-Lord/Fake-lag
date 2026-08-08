@@ -9,7 +9,7 @@ class VPNManager: ObservableObject {
     @Published var isProcessingCommand = false
     @Published var lastError: String?
 
-    private var manager: NETunnelProviderManager?
+    private var manager: NEAppProxyProviderManager?
     private var observer: NSObjectProtocol?
 
     private var extensionBundleID: String {
@@ -19,7 +19,7 @@ class VPNManager: ObservableObject {
     }
 
     private init() {
-        loadVPNConfiguration()
+        loadConfiguration()
         setupStatusObserver()
     }
 
@@ -48,15 +48,15 @@ class VPNManager: ObservableObject {
         }
     }
 
-    func loadVPNConfiguration() {
-        NETunnelProviderManager.loadAllFromPreferences { [weak self] managers, error in
+    func loadConfiguration() {
+        NEAppProxyProviderManager.loadAllFromPreferences { [weak self] managers, error in
             guard let self = self else { return }
             if let error = error {
-                self.lastError = "Load config lỗi: \(error.localizedDescription)"
+                self.lastError = "Load lỗi: \(error.localizedDescription)"
                 return
             }
             self.manager = managers?.first(where: {
-                ($0.protocolConfiguration as? NETunnelProviderProtocol)?.providerBundleIdentifier == self.extensionBundleID
+                ($0.providerProtocol as? NEAppProxyProviderProtocol)?.providerBundleIdentifier == self.extensionBundleID
             }) ?? managers?.first
             self.updateStatus()
         }
@@ -65,11 +65,6 @@ class VPNManager: ObservableObject {
     func connectVPN() {
         if let manager = manager {
             manager.isEnabled = true
-            if let proto = manager.protocolConfiguration as? NETunnelProviderProtocol {
-                proto.disconnectOnSleep = false
-        proto.includeAllNetworks = true
-        proto.excludeLocalNetworks = false
-            }
             manager.saveToPreferences { [weak self] error in
                 DispatchQueue.main.async {
                     if let error = error {
@@ -80,12 +75,12 @@ class VPNManager: ObservableObject {
                         try manager.connection.startVPNTunnel()
                         self?.lastError = nil
                     } catch {
-                        self?.lastError = "Bật VPN lỗi: \(error.localizedDescription)"
+                        self?.lastError = "Bật lỗi: \(error.localizedDescription)"
                     }
                 }
             }
         } else {
-            createAndStartVPN()
+            createAndStart()
         }
     }
 
@@ -95,34 +90,30 @@ class VPNManager: ObservableObject {
         isBlocking = false
     }
 
-    private func createAndStartVPN() {
-        let mgr = NETunnelProviderManager()
-        let proto = NETunnelProviderProtocol()
+    private func createAndStart() {
+        let mgr = NEAppProxyProviderManager()
+        let proto = NEAppProxyProviderProtocol()
         proto.providerBundleIdentifier = extensionBundleID
         proto.serverAddress = "127.0.0.1"
         proto.disconnectOnSleep = false
-        proto.includeAllNetworks = true
-        proto.excludeLocalNetworks = false
 
-        mgr.protocolConfiguration = proto
-        mgr.localizedDescription = "Fake Lag Controller"
+        mgr.providerProtocol = proto
+        mgr.localizedDescription = "Fake Lag Proxy"
         mgr.isEnabled = true
 
         mgr.saveToPreferences { [weak self] error in
             DispatchQueue.main.async {
                 if let error = error {
-                    self?.lastError = "Tạo profile lỗi: \(error.localizedDescription)"
+                    self?.lastError = "Tạo lỗi: \(error.localizedDescription)"
                     return
                 }
-                self?.loadVPNConfiguration()
+                self?.loadConfiguration()
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                     self?.connectVPN()
                 }
             }
         }
     }
-
-    // MARK: - Toggle Blocking (Chỉ qua IPC, không file)
 
     func toggleBlocking() {
         if isProcessingCommand { return }
@@ -132,7 +123,7 @@ class VPNManager: ObservableObject {
         let command = targetState ? "enable" : "disable"
 
         guard isVPNConnected, let session = manager?.connection as? NETunnelProviderSession else {
-            lastError = "VPN chưa kết nối"
+            lastError = "Proxy chưa kết nối"
             isProcessingCommand = false
             return
         }
@@ -144,14 +135,14 @@ class VPNManager: ObservableObject {
                         self?.isBlocking = targetState
                         self?.lastError = nil
                     } else {
-                        self?.lastError = "Extension không phản hồi"
+                        self?.lastError = "Proxy không phản hồi"
                     }
                     self?.isProcessingCommand = false
                 }
             }
         } catch {
             DispatchQueue.main.async { [weak self] in
-                self?.lastError = "Gửi lệnh lỗi: \(error.localizedDescription)"
+                self?.lastError = "Gửi lỗi: \(error.localizedDescription)"
                 self?.isProcessingCommand = false
             }
         }
