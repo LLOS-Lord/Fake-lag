@@ -8,6 +8,7 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
     private let queue = DispatchQueue(label: "com.fakelag", qos: .userInitiated)
     private var isRunning = false
     private var watchTimer: Timer?
+    private var isReading = false
 
     private var configURL: URL? {
         guard let container = FileManager.default.containerURL(
@@ -22,12 +23,13 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
     // MARK: - Lifecycle
 
     override func startTunnel(options: [String : NSObject]? = nil, completionHandler: @escaping (Error?) -> Void) {
-        NSLog("[FakeLag] startTunnel called")
+        NSLog("[FakeLag] ===== startTunnel called =====")
 
         isLagEnabled = false
         lastConfigTimestamp = 0
+        isReading = false
 
-        // Apply settings first, then call completionHandler
+        // Always start with lag OFF - no traffic intercepted
         applySettings(lagEnabled: false) { [weak self] error in
             if let error = error {
                 NSLog("[FakeLag] startTunnel FAILED: \(error)")
@@ -36,7 +38,7 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
             }
 
             self?.isRunning = true
-            NSLog("[FakeLag] Tunnel UP. Lag=OFF")
+            NSLog("[FakeLag] ===== Tunnel UP. Lag=OFF =====")
 
             // Start config watcher
             self?.startConfigWatcher()
@@ -47,33 +49,28 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
     }
 
     override func stopTunnel(with reason: NEProviderStopReason, completionHandler: @escaping () -> Void) {
-        NSLog("[FakeLag] stopTunnel called. Reason: \(reason.rawValue)")
+        NSLog("[FakeLag] ===== stopTunnel called. Reason: \(reason.rawValue) =====")
         isRunning = false
         isLagEnabled = false
+        isReading = false
         watchTimer?.invalidate()
         watchTimer = nil
         completionHandler()
     }
 
     override func handleAppMessage(_ messageData: Data, completionHandler: ((Data?) -> Void)?) {
-        NSLog("[FakeLag] handleAppMessage called")
         completionHandler?(Data("ok".utf8))
     }
 
     // MARK: - Config Watcher
 
     private func startConfigWatcher() {
-        guard isRunning else {
-            NSLog("[FakeLag] Not starting watcher - not running")
-            return
-        }
+        guard isRunning else { return }
 
-        // Immediate first check
         queue.async { [weak self] in
             self?.checkConfig()
         }
 
-        // Repeating timer on main thread
         DispatchQueue.main.async { [weak self] in
             self?.watchTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
                 self?.queue.async {
@@ -86,14 +83,10 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
     private func checkConfig() {
         guard let url = configURL else { return }
 
-        guard FileManager.default.fileExists(atPath: url.path) else {
-            // File doesn't exist yet - normal on first launch
-            return
-        }
+        guard FileManager.default.fileExists(atPath: url.path) else { return }
 
         guard let data = try? Data(contentsOf: url),
               let dict = try? PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any] else {
-            NSLog("[FakeLag] Failed to read config file")
             return
         }
 
@@ -105,16 +98,22 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
 
         if enabled != isLagEnabled {
             isLagEnabled = enabled
-            NSLog("[FakeLag] Config changed: lag=\(isLagEnabled) (ts=\(timestamp))")
-            applySettings(lagEnabled: isLagEnabled) { error in
+            NSLog("[FakeLag] ===== Config changed: lag=\(isLagEnabled) (ts=\(timestamp)) =====")
+
+            // Update settings WITHOUT stopping tunnel
+            applySettings(lagEnabled: isLagEnabled) { [weak self] error in
                 if let error = error {
                     NSLog("[FakeLag] applySettings error: \(error)")
+                    return
+                }
+                if self?.isLagEnabled == true {
+                    self?.startReadLoop()
                 }
             }
         }
     }
 
-    // MARK: - Settings
+    // MARK: - Settings (can be called while tunnel is running)
 
     private func applySettings(lagEnabled: Bool, completion: @escaping (Error?) -> Void) {
         let settings = NEPacketTunnelNetworkSettings(tunnelRemoteAddress: "127.0.0.1")
@@ -123,10 +122,10 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         let ipv4 = NEIPv4Settings(addresses: ["10.8.0.2"], subnetMasks: ["255.255.255.0"])
         if lagEnabled {
             ipv4.includedRoutes = [NEIPv4Route.default()]
-            NSLog("[FakeLag] Routes: ALL traffic via tunnel")
+            NSLog("[FakeLag] Routes: ALL traffic -> tunnel (LAG ON)")
         } else {
             ipv4.includedRoutes = []
-            NSLog("[FakeLag] Routes: NO traffic via tunnel (passthrough)")
+            NSLog("[FakeLag] Routes: NO traffic -> tunnel (LAG OFF)")
         }
         settings.ipv4Settings = ipv4
 
@@ -138,37 +137,45 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         }
         settings.ipv6Settings = ipv6
 
-        // Do NOT set DNS settings - let system use default DNS
-        // This prevents DNS from getting stuck in the tunnel
+        // Do NOT set DNS - let system handle DNS via physical interface
+        // This is critical to prevent DNS from getting stuck in tunnel
 
-        NSLog("[FakeLag] Calling setTunnelNetworkSettings...")
-        setTunnelNetworkSettings(settings) { [weak self] error in
+        setTunnelNetworkSettings(settings) { error in
             if let error = error {
                 NSLog("[FakeLag] setTunnelNetworkSettings FAILED: \(error)")
                 completion(error)
                 return
             }
-
             NSLog("[FakeLag] setTunnelNetworkSettings OK")
-            if lagEnabled {
-                self?.queue.async {
-                    self?.readLoop()
-                }
-            }
             completion(nil)
         }
     }
 
     // MARK: - Read Loop
 
+    private func startReadLoop() {
+        guard isRunning, isLagEnabled, !isReading else {
+            NSLog("[FakeLag] startReadLoop skipped: running=\(isRunning), lag=\(isLagEnabled), reading=\(isReading)")
+            return
+        }
+        isReading = true
+        readLoop()
+    }
+
     private func readLoop() {
         guard isRunning, isLagEnabled else {
-            NSLog("[FakeLag] readLoop exiting: running=\(isRunning), lag=\(isLagEnabled)")
+            isReading = false
+            NSLog("[FakeLag] readLoop stopped")
             return
         }
 
         packetFlow.readPackets { [weak self] packets, protocols in
-            guard let self = self, self.isRunning, self.isLagEnabled else { return }
+            guard let self = self else { return }
+
+            guard self.isRunning, self.isLagEnabled else {
+                self.isReading = false
+                return
+            }
 
             if packets.isEmpty {
                 self.readLoop()
