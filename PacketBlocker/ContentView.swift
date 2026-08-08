@@ -6,13 +6,11 @@ struct ContentView: View {
     var body: some View {
         NavigationView {
             VStack(spacing: 24) {
-                // Status Card
                 VStack(spacing: 12) {
                     HStack {
                         Image(systemName: vpn.isVPNConnected ? "checkmark.shield.fill" : "shield.slash")
                             .font(.system(size: 40))
                             .foregroundColor(vpn.isVPNConnected ? .green : .gray)
-
                         VStack(alignment: .leading) {
                             Text(vpn.isVPNConnected ? "VPN Dang Bat" : "VPN Da Tat")
                                 .font(.headline)
@@ -28,7 +26,6 @@ struct ContentView: View {
                 }
                 .padding(.horizontal)
 
-                // VPN Toggle
                 Button(action: {
                     if vpn.isVPNConnected {
                         vpn.disconnectVPN()
@@ -50,7 +47,6 @@ struct ContentView: View {
                 .padding(.horizontal)
                 .disabled(vpn.isProcessingCommand)
 
-                // Fake Lag Toggle
                 Button(action: {
                     vpn.toggleBlocking()
                 }) {
@@ -68,7 +64,6 @@ struct ContentView: View {
                 .padding(.horizontal)
                 .disabled(!vpn.isVPNConnected || vpn.isProcessingCommand)
 
-                // Error
                 if let error = vpn.lastError {
                     Text(error)
                         .font(.caption)
@@ -77,7 +72,6 @@ struct ContentView: View {
                         .padding(.horizontal)
                 }
 
-                // Instructions
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Huong dan:").font(.headline)
                     Text("1. Bat VPN -> mang binh thuong")

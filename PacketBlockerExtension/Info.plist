@@ -5,7 +5,7 @@
     <key>CFBundleDevelopmentRegion</key>
     <string>$(DEVELOPMENT_LANGUAGE)</string>
     <key>CFBundleDisplayName</key>
-    <string>FakeLagProxy</string>
+    <string>PacketBlockerExtension</string>
     <key>CFBundleExecutable</key>
     <string>$(EXECUTABLE_NAME)</string>
     <key>CFBundleIdentifier</key>
@@ -23,9 +23,9 @@
     <key>NSExtension</key>
     <dict>
         <key>NSExtensionPointIdentifier</key>
-        <string>com.apple.networkextension.app-proxy</string>
+        <string>com.apple.networkextension.packet-tunnel</string>
         <key>NSExtensionPrincipalClass</key>
-        <string>FakeLagAppProxyProvider</string>
+        <string>PacketTunnelProvider</string>
     </dict>
 </dict>
 </plist>
