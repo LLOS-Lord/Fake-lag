@@ -1,6 +1,11 @@
 import NetworkExtension
 import Foundation
 
+private struct LagConfig: Codable {
+    var enabled: Bool = false
+    var timestamp: TimeInterval = 0
+}
+
 class PacketTunnelProvider: NEPacketTunnelProvider {
 
     private var isPulseActive = false
@@ -10,37 +15,26 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
     private var isRunning = false
     private var lastConfigTimestamp: TimeInterval = 0
 
-    // MARK: - Config từ file
-
-    private struct Config: Codable {
-        var enabled: Bool = false
-        var delayMs: Int = 100
-        var dropEnabled: Bool = false
-        var dropPercent: Int = 30
-        var timestamp: TimeInterval = 0
-    }
-
     private var configFileURL: URL {
         FileManager.default
             .containerURL(forSecurityApplicationGroupIdentifier: "group.com.ban.PacketBlocker")!
             .appendingPathComponent("fakelag_config.plist")
     }
 
-    private func readConfig() -> Config {
+    private func readConfig() -> LagConfig {
         guard FileManager.default.fileExists(atPath: configFileURL.path) else {
-            return Config()
+            return LagConfig()
         }
         do {
             let data = try Data(contentsOf: configFileURL)
-            return try PropertyListDecoder().decode(Config.self, from: data)
+            return try PropertyListDecoder().decode(LagConfig.self, from: data)
         } catch {
-            return Config()
+            return LagConfig()
         }
     }
 
-    private func applyConfig(_ config: Config) {
+    private func applyConfig(_ config: LagConfig) {
         lastConfigTimestamp = config.timestamp
-
         if config.enabled {
             if !isPulseActive {
                 isPulseActive = true
@@ -54,8 +48,6 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
             pulseWorkItem = nil
         }
     }
-
-    // MARK: - Tunnel Lifecycle
 
     override func startTunnel(options: [String : NSObject]? = nil, completionHandler: @escaping (Error?) -> Void) {
         let settings = NEPacketTunnelNetworkSettings(tunnelRemoteAddress: "127.0.0.1")
@@ -80,19 +72,14 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
             }
 
             self?.isRunning = true
-
-            // Đọc config từ file ngay khi khởi động
-            let config = self?.readConfig() ?? Config()
+            let config = self?.readConfig() ?? LagConfig()
             self?.applyConfig(config)
 
-            // Bắt đầu packet loop
             self?.processingQueue.async {
                 self?.startPacketLoop()
             }
 
-            // Kiểm tra file config định kỳ (5 giây/lần)
             self?.startConfigWatcher()
-
             completionHandler(nil)
         }
     }
@@ -107,74 +94,52 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
     }
 
     override func handleAppMessage(_ messageData: Data, completionHandler: ((Data?) -> Void)?) {
-        // LUÔN phản hồi ngay
         completionHandler?(Data("ok".utf8))
-
-        // Đọc lại config từ file
         let config = readConfig()
         applyConfig(config)
     }
 
-    // MARK: - Config Watcher (backup nếu message lỗi)
-
     private func startConfigWatcher() {
         guard isRunning else { return }
-
         let config = readConfig()
         if config.timestamp > lastConfigTimestamp {
             applyConfig(config)
         }
-
         DispatchQueue.global().asyncAfter(deadline: .now() + 5.0) { [weak self] in
             self?.startConfigWatcher()
         }
     }
 
-    // MARK: - Pulse Loop
-
     private func startPulseLoop() {
         pulseWorkItem?.cancel()
-
         let workItem = DispatchWorkItem { [weak self] in
             guard let self = self, self.isPulseActive else { return }
             self.isCurrentlyDropping.toggle()
             self.startPulseLoop()
         }
         pulseWorkItem = workItem
-
         let delay = isCurrentlyDropping ? 2.5 : 0.001
         processingQueue.asyncAfter(deadline: .now() + delay, execute: workItem)
     }
 
-    // MARK: - Packet Loop
-
     private func startPacketLoop() {
         guard isRunning else { return }
-
         packetFlow.readPackets { [weak self] packets, protocols in
             guard let self = self, self.isRunning else { return }
-
             if packets.isEmpty {
-                self.processingQueue.async {
-                    self.startPacketLoop()
-                }
+                self.processingQueue.async { self.startPacketLoop() }
                 return
             }
-
             if !self.isCurrentlyDropping {
                 self.forwardPackets(packets: packets, protocols: protocols)
             }
-
-            self.processingQueue.async {
-                self.startPacketLoop()
-            }
+            self.processingQueue.async { self.startPacketLoop() }
         }
     }
 
     private func forwardPackets(packets: [Data], protocols: [NSNumber]) {
         let chunkSize = 64
         let count = packets.count
-
         for i in stride(from: 0, to: count, by: chunkSize) {
             let end = min(i + chunkSize, count)
             let packetChunk = Array(packets[i..<end])
