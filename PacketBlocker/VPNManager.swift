@@ -9,17 +9,27 @@ class VPNManager: ObservableObject {
     @Published var isProcessingCommand = false
     @Published var lastError: String?
 
-    private var manager: NEAppProxyProviderManager?
+    private var manager: NETunnelProviderManager?
     private var observer: NSObjectProtocol?
 
-    private var extensionBundleID: String {
+    private var extBundleID: String {
         let mainID = Bundle.main.bundleIdentifier ?? ""
-        if mainID.isEmpty { return "com.ban.PacketBlocker.extension" }
-        return "\(mainID).extension"
+        return mainID.isEmpty ? "com.ban.PacketBlocker.extension" : "\(mainID).extension"
     }
 
-    private init() {
-        loadConfiguration()
+    private var configURL: URL {
+        FileManager.default
+            .containerURL(forSecurityApplicationGroupIdentifier: "group.com.ban.PacketBlocker")!
+            .appendingPathComponent("lag.plist")
+    }
+
+    private func writeConfig(enabled: Bool) {
+        let dict: [String: Any] = ["enabled": enabled]
+        (dict as NSDictionary).write(to: configURL, atomically: true)
+    }
+
+    init() {
+        loadVPNConfiguration()
         setupStatusObserver()
     }
 
@@ -48,23 +58,29 @@ class VPNManager: ObservableObject {
         }
     }
 
-    func loadConfiguration() {
-        NEAppProxyProviderManager.loadAllFromPreferences { [weak self] managers, error in
+    func loadVPNConfiguration() {
+        NETunnelProviderManager.loadAllFromPreferences { [weak self] managers, error in
             guard let self = self else { return }
             if let error = error {
                 self.lastError = "Load lỗi: \(error.localizedDescription)"
                 return
             }
             self.manager = managers?.first(where: {
-                ($0.providerProtocol as? NEAppProxyProviderProtocol)?.providerBundleIdentifier == self.extensionBundleID
+                ($0.protocolConfiguration as? NETunnelProviderProtocol)?.providerBundleIdentifier == self.extBundleID
             }) ?? managers?.first
             self.updateStatus()
         }
     }
 
     func connectVPN() {
+        // Reset config trước khi bật
+        writeConfig(enabled: false)
+
         if let manager = manager {
             manager.isEnabled = true
+            if let proto = manager.protocolConfiguration as? NETunnelProviderProtocol {
+                proto.disconnectOnSleep = false
+            }
             manager.saveToPreferences { [weak self] error in
                 DispatchQueue.main.async {
                     if let error = error {
@@ -80,7 +96,7 @@ class VPNManager: ObservableObject {
                 }
             }
         } else {
-            createAndStart()
+            createVPN()
         }
     }
 
@@ -90,15 +106,15 @@ class VPNManager: ObservableObject {
         isBlocking = false
     }
 
-    private func createAndStart() {
-        let mgr = NEAppProxyProviderManager()
-        let proto = NEAppProxyProviderProtocol()
-        proto.providerBundleIdentifier = extensionBundleID
+    private func createVPN() {
+        let mgr = NETunnelProviderManager()
+        let proto = NETunnelProviderProtocol()
+        proto.providerBundleIdentifier = extBundleID
         proto.serverAddress = "127.0.0.1"
         proto.disconnectOnSleep = false
 
-        mgr.providerProtocol = proto
-        mgr.localizedDescription = "Fake Lag Proxy"
+        mgr.protocolConfiguration = proto
+        mgr.localizedDescription = "Fake Lag"
         mgr.isEnabled = true
 
         mgr.saveToPreferences { [weak self] error in
@@ -107,7 +123,7 @@ class VPNManager: ObservableObject {
                     self?.lastError = "Tạo lỗi: \(error.localizedDescription)"
                     return
                 }
-                self?.loadConfiguration()
+                self?.loadVPNConfiguration()
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                     self?.connectVPN()
                 }
@@ -119,32 +135,21 @@ class VPNManager: ObservableObject {
         if isProcessingCommand { return }
         isProcessingCommand = true
 
-        let targetState = !isBlocking
-        let command = targetState ? "enable" : "disable"
+        let target = !isBlocking
 
-        guard isVPNConnected, let session = manager?.connection as? NETunnelProviderSession else {
-            lastError = "Proxy chưa kết nối"
-            isProcessingCommand = false
-            return
+        // 1. Ghi file
+        writeConfig(enabled: target)
+
+        // 2. Gửi IPC (optional)
+        if isVPNConnected, let session = manager?.connection as? NETunnelProviderSession {
+            do {
+                try session.sendProviderMessage(Data(target ? "enable" : "disable")) { _ in }
+            } catch { }
         }
 
-        do {
-            try session.sendProviderMessage(Data(command.utf8)) { [weak self] response in
-                DispatchQueue.main.async {
-                    if response != nil {
-                        self?.isBlocking = targetState
-                        self?.lastError = nil
-                    } else {
-                        self?.lastError = "Proxy không phản hồi"
-                    }
-                    self?.isProcessingCommand = false
-                }
-            }
-        } catch {
-            DispatchQueue.main.async { [weak self] in
-                self?.lastError = "Gửi lỗi: \(error.localizedDescription)"
-                self?.isProcessingCommand = false
-            }
-        }
+        // 3. UI ngay
+        isBlocking = target
+        isProcessingCommand = false
+        lastError = nil
     }
 }

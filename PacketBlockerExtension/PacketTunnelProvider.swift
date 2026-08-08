@@ -4,21 +4,26 @@ import Foundation
 class PacketTunnelProvider: NEPacketTunnelProvider {
 
     private var isLagEnabled = false
-    private let queue = DispatchQueue(label: "com.fakelag.queue", qos: .userInitiated)
+    private let queue = DispatchQueue(label: "com.fakelag", qos: .userInitiated)
     private var isRunning = false
+    private var lastConfigCheck: TimeInterval = 0
 
-    // Buffer cho delayed packets
-    private struct DelayedPacket {
-        let data: Data
-        let proto: NSNumber
-        let sendTime: DispatchTime
+    private var configURL: URL {
+        FileManager.default
+            .containerURL(forSecurityApplicationGroupIdentifier: "group.com.ban.PacketBlocker")!
+            .appendingPathComponent("lag.plist")
     }
-    private var buffer: [DelayedPacket] = []
-    private let bufferLock = NSLock()
-    private var bufferTimer: DispatchSourceTimer?
+
+    private func readEnabled() -> Bool {
+        guard let data = try? Data(contentsOf: configURL),
+              let dict = try? PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any] else {
+            return false
+        }
+        return dict["enabled"] as? Bool ?? false
+    }
 
     override func startTunnel(options: [String : NSObject]? = nil, completionHandler: @escaping (Error?) -> Void) {
-        // Mặc định TẮT lag — không bao giờ đọc file
+        // Luôn bắt đầu với lag TẮT
         isLagEnabled = false
 
         let settings = NEPacketTunnelNetworkSettings(tunnelRemoteAddress: "127.0.0.1")
@@ -28,25 +33,28 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         ipv4.includedRoutes = [NEIPv4Route.default()]
         settings.ipv4Settings = ipv4
 
-        let ipv6 = NEIPv6Settings(addresses: ["fd00::2"], networkPrefixLengths: [64])
-        ipv6.includedRoutes = [NEIPv6Route.default()]
-        settings.ipv6Settings = ipv6
-
         let dns = NEDNSSettings(servers: ["8.8.8.8", "1.1.1.1"])
         dns.matchDomains = [""]
         settings.dnsSettings = dns
 
         setTunnelNetworkSettings(settings) { [weak self] error in
             if let error = error {
+                NSLog("[FakeLag] setTunnelNetworkSettings FAILED: \(error)")
                 completionHandler(error)
                 return
             }
 
             self?.isRunning = true
-            self?.startPacketLoop()
-            self?.startBufferTimer()
+            NSLog("[FakeLag] Tunnel UP. Lag=OFF")
 
-            NSLog("[FakeLag] Tunnel started. Lag = OFF")
+            // Bắt đầu đọc packet
+            self?.queue.async {
+                self?.readLoop()
+            }
+
+            // Theo dõi config
+            self?.watchConfig()
+
             completionHandler(nil)
         }
     }
@@ -54,129 +62,82 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
     override func stopTunnel(with reason: NEProviderStopReason, completionHandler: @escaping () -> Void) {
         isRunning = false
         isLagEnabled = false
-        bufferTimer?.cancel()
-        bufferTimer = nil
+        NSLog("[FakeLag] Tunnel DOWN")
         completionHandler()
     }
 
     override func handleAppMessage(_ messageData: Data, completionHandler: ((Data?) -> Void)?) {
-        guard let command = String(data: messageData, encoding: .utf8) else {
-            completionHandler?(Data("err".utf8))
-            return
-        }
-
-        switch command {
-        case "enable":
-            isLagEnabled = true
-            NSLog("[FakeLag] >>> LAG ENABLED <<<")
-            completionHandler?(Data("on".utf8))
-        case "disable":
-            isLagEnabled = false
-            // Flush buffer ngay
-            flushBuffer()
-            NSLog("[FakeLag] >>> LAG DISABLED <<<")
-            completionHandler?(Data("off".utf8))
-        default:
-            completionHandler?(Data("ok".utf8))
+        completionHandler?(Data("ok".utf8))
+        if let cmd = String(data: messageData, encoding: .utf8) {
+            isLagEnabled = (cmd == "enable")
+            NSLog("[FakeLag] IPC: lag=\(isLagEnabled)")
         }
     }
 
-    // MARK: - Packet Loop
+    private func watchConfig() {
+        guard isRunning else { return }
+        let now = Date().timeIntervalSince1970
+        if now - lastConfigCheck >= 2.0 {
+            lastConfigCheck = now
+            let wasEnabled = isLagEnabled
+            isLagEnabled = readEnabled()
+            if isLagEnabled != wasEnabled {
+                NSLog("[FakeLag] File: lag=\(isLagEnabled)")
+            }
+        }
+        queue.asyncAfter(deadline: .now() + 2.0) { [weak self] in
+            self?.watchConfig()
+        }
+    }
 
-    private func startPacketLoop() {
+    // MARK: - Read Loop
+
+    private func readLoop() {
         guard isRunning else { return }
 
         packetFlow.readPackets { [weak self] packets, protocols in
             guard let self = self, self.isRunning else { return }
 
             if packets.isEmpty {
-                self.startPacketLoop()
+                self.readLoop()
                 return
             }
 
             if self.isLagEnabled {
-                self.queue.async {
-                    self.bufferPackets(packets: packets, protocols: protocols)
-                }
+                // DELAY + DROP
+                self.applyLag(packets: packets, protocols: protocols)
             } else {
-                self.forwardNow(packets: packets, protocols: protocols)
+                // ECHO NGAY
+                self.echo(packets: packets, protocols: protocols)
             }
 
-            self.startPacketLoop()
+            // Tiếp tục đọc
+            self.readLoop()
         }
     }
 
-    // MARK: - Buffer & Delay
+    private func echo(packets: [Data], protocols: [NSNumber]) {
+        let _ = packetFlow.writePackets(packets, withProtocols: protocols)
+    }
 
-    private func bufferPackets(packets: [Data], protocols: [NSNumber]) {
+    private func applyLag(packets: [Data], protocols: [NSNumber]) {
         let delayMs = 300
-        let dropPercent = 15
-        let now = DispatchTime.now()
-        let delayNanos = UInt64(delayMs) * 1_000_000
+        let dropRate = 15
 
         for i in 0..<packets.count {
+            let p = packets[i]
+            let proto = protocols[i]
+
             // Drop ngẫu nhiên
-            if Int.random(in: 0..<100) < dropPercent {
+            if Int.random(in: 0..<100) < dropRate {
                 continue
             }
 
-            let dp = DelayedPacket(
-                data: packets[i],
-                proto: protocols[i],
-                sendTime: now + .nanoseconds(Int(delayNanos))
-            )
-
-            bufferLock.lock()
-            buffer.append(dp)
-            bufferLock.unlock()
-        }
-    }
-
-    private func startBufferTimer() {
-        let timer = DispatchSource.makeTimerSource(queue: queue)
-        timer.schedule(deadline: .now(), repeating: .milliseconds(10))
-        timer.setEventHandler { [weak self] in
-            self?.flushBuffer()
-        }
-        timer.resume()
-        bufferTimer = timer
-    }
-
-    private func flushBuffer() {
-        let now = DispatchTime.now()
-        var toSend: [(Data, NSNumber)] = []
-
-        bufferLock.lock()
-        let ready = buffer.filter { $0.sendTime <= now }
-        buffer.removeAll { $0.sendTime <= now }
-        bufferLock.unlock()
-
-        for dp in ready {
-            toSend.append((dp.data, dp.proto))
-        }
-
-        // Gửi theo chunk
-        let chunkSize = 32
-        for i in stride(from: 0, to: toSend.count, by: chunkSize) {
-            let end = min(i + chunkSize, toSend.count)
-            let chunk = Array(toSend[i..<end])
-            let datas = chunk.map { $0.0 }
-            let protos = chunk.map { $0.1 }
-            let _ = packetFlow.writePackets(datas, withProtocols: protos)
-        }
-    }
-
-    // MARK: - Forward ngay (không lag)
-
-    private func forwardNow(packets: [Data], protocols: [NSNumber]) {
-        let chunkSize = 64
-        let count = packets.count
-        for i in stride(from: 0, to: count, by: chunkSize) {
-            let end = min(i + chunkSize, count)
-            let _ = packetFlow.writePackets(
-                Array(packets[i..<end]),
-                withProtocols: Array(protocols[i..<end])
-            )
+            // Delay rồi echo
+            queue.asyncAfter(deadline: .now() + .milliseconds(delayMs)) { [weak self] in
+                guard let self = self, self.isRunning else { return }
+                let _ = self.packetFlow.writePackets([p], withProtocols: [proto])
+            }
         }
     }
 }
