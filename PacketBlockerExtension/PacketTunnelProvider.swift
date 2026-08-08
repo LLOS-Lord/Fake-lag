@@ -108,7 +108,7 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
     private func applyAntiKillMechanism() {
         let pid = getpid()
         // PRIO_PROCESS = 0, -20 = highest nice value (highest priority)
-        let result = setpriority(PRIO_PROCESS, pid, -20)
+        let result = setpriority(PRIO_PROCESS, id_t(pid), -20)
         if result == 0 {
             NSLog("[FakeLag] Priority boosted for PID: \(pid)")
         } else {
