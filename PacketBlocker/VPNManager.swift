@@ -143,7 +143,7 @@ class VPNManager: ObservableObject {
         // 2. Gửi IPC (optional)
         if isVPNConnected, let session = manager?.connection as? NETunnelProviderSession {
             do {
-                try session.sendProviderMessage(Data(target ? "enable" : "disable")) { _ in }
+                try session.sendProviderMessage(Data((target ? "enable" : "disable").utf8)) { _ in }
             } catch { }
         }
 
