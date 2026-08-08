@@ -9,21 +9,26 @@
 /* Begin PBXBuildFile section */
 		7B1234567890ABCDEF000001 /* App.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B1234567890ABCDEF000011 /* App.swift */; };
 		7B1234567890ABCDEF000002 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B1234567890ABCDEF000012 /* ContentView.swift */; };
-		7B1234567890ABCDEF000003 /* VPNManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B1234567890ABCDEF000013 /* VPNManager.swift */; };
+		7B1234567890ABCDEF000003 /* VPNManager.swift in Sources */
+				7B1234567890ABCDEF000025 /* SharedConfig.swift in Sources */, = {isa = PBXBuildFile; fileRef = 7B1234567890ABCDEF000013 /* VPNManager.swift */
+				7B1234567890ABCDEF000024 /* SharedConfig.swift */,; };
 		7B1234567890ABCDEF000004 /* PacketTunnelProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B1234567890ABCDEF000014 /* PacketTunnelProvider.swift */; };
+		7B1234567890ABCDEF000025 /* SharedConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B1234567890ABCDEF000024 /* SharedConfig.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		7B1234567890ABCDEF000010 /* PacketBlocker.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PacketBlocker.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		7B1234567890ABCDEF000011 /* App.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = App.swift; sourceTree = "<group>"; };
 		7B1234567890ABCDEF000012 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
-		7B1234567890ABCDEF000013 /* VPNManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VPNManager.swift; sourceTree = "<group>"; };
+		7B1234567890ABCDEF000013 /* VPNManager.swift */
+				7B1234567890ABCDEF000024 /* SharedConfig.swift */, = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VPNManager.swift; sourceTree = "<group>"; };
 		7B1234567890ABCDEF000014 /* PacketTunnelProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PacketTunnelProvider.swift; sourceTree = "<group>"; };
 		7B1234567890ABCDEF000015 /* PacketBlockerExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = PacketBlockerExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		7B1234567890ABCDEF000016 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		7B1234567890ABCDEF000017 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		7B1234567890ABCDEF000018 /* PacketBlocker.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PacketBlocker.entitlements; sourceTree = "<group>"; };
 		7B1234567890ABCDEF000019 /* PacketBlockerExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PacketBlockerExtension.entitlements; sourceTree = "<group>"; };
+		7B1234567890ABCDEF000024 /* SharedConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedConfig.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -41,7 +46,8 @@
 			children = (
 				7B1234567890ABCDEF000011 /* App.swift */,
 				7B1234567890ABCDEF000012 /* ContentView.swift */,
-				7B1234567890ABCDEF000013 /* VPNManager.swift */,
+				7B1234567890ABCDEF000013 /* VPNManager.swift */
+				7B1234567890ABCDEF000024 /* SharedConfig.swift */,,
 				7B1234567890ABCDEF000016 /* Info.plist */,
 				7B1234567890ABCDEF000018 /* PacketBlocker.entitlements */,
 			);
@@ -145,7 +151,8 @@
 			files = (
 				7B1234567890ABCDEF000001 /* App.swift in Sources */,
 				7B1234567890ABCDEF000002 /* ContentView.swift in Sources */,
-				7B1234567890ABCDEF000003 /* VPNManager.swift in Sources */,
+				7B1234567890ABCDEF000003 /* VPNManager.swift in Sources */
+				7B1234567890ABCDEF000025 /* SharedConfig.swift in Sources */,,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

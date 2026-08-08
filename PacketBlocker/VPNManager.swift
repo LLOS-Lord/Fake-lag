@@ -11,9 +11,6 @@ class VPNManager: ObservableObject {
 
     private var manager: NETunnelProviderManager?
     private var observer: NSObjectProtocol?
-    private var heartbeatTimer: Timer?
-    private var pendingCommand: String?
-    private var commandCompletion: ((Bool) -> Void)?
 
     private var extensionBundleID: String {
         let mainID = Bundle.main.bundleIdentifier ?? ""
@@ -24,36 +21,11 @@ class VPNManager: ObservableObject {
     private init() {
         loadVPNConfiguration()
         setupStatusObserver()
-        startHeartbeat()
     }
 
     deinit {
-        stopHeartbeat()
         if let observer = observer {
             NotificationCenter.default.removeObserver(observer)
-        }
-    }
-
-    // MARK: - Heartbeat để giữ kết nối sống
-
-    private func startHeartbeat() {
-        stopHeartbeat()
-        heartbeatTimer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: true) { [weak self] _ in
-            self?.sendHeartbeat()
-        }
-    }
-
-    private func stopHeartbeat() {
-        heartbeatTimer?.invalidate()
-        heartbeatTimer = nil
-    }
-
-    private func sendHeartbeat() {
-        guard isVPNConnected, let session = manager?.connection as? NETunnelProviderSession else { return }
-
-        let heartbeatData = Data("heartbeat".utf8)
-        try? session.sendProviderMessage(heartbeatData) { _ in
-            // Không cần xử lý response, chỉ cần giữ pipe sống
         }
     }
 
@@ -62,7 +34,7 @@ class VPNManager: ObservableObject {
             forName: .NEVPNStatusDidChange,
             object: nil,
             queue: .main
-        ) { [weak self] notification in
+        ) { [weak self] _ in
             self?.updateStatus()
         }
     }
@@ -71,41 +43,21 @@ class VPNManager: ObservableObject {
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
             let status = self.manager?.connection.status ?? .invalid
-            let wasConnected = self.isVPNConnected
             self.isVPNConnected = (status == .connected)
-
-            if !self.isVPNConnected {
-                self.isBlocking = false
-            }
-
-            // Nếu vừa connect xong, thử gửi lại command đang pending
-            if !wasConnected && self.isVPNConnected, let pending = self.pendingCommand {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                    self.sendCommand(pending) { success in
-                        self.pendingCommand = nil
-                        self.commandCompletion?(success)
-                        self.commandCompletion = nil
-                    }
-                }
-            }
+            if !self.isVPNConnected { self.isBlocking = false }
         }
     }
 
     func loadVPNConfiguration() {
         NETunnelProviderManager.loadAllFromPreferences { [weak self] managers, error in
             guard let self = self else { return }
-
             if let error = error {
-                DispatchQueue.main.async {
-                    self.lastError = "Lỗi load config: \(error.localizedDescription)"
-                }
+                self.lastError = "Load config lỗi: \(error.localizedDescription)"
                 return
             }
-
             self.manager = managers?.first(where: {
                 ($0.protocolConfiguration as? NETunnelProviderProtocol)?.providerBundleIdentifier == self.extensionBundleID
             }) ?? managers?.first
-
             self.updateStatus()
         }
     }
@@ -119,14 +71,14 @@ class VPNManager: ObservableObject {
             manager.saveToPreferences { [weak self] error in
                 DispatchQueue.main.async {
                     if let error = error {
-                        self?.lastError = "Lỗi save preferences: \(error.localizedDescription)"
+                        self?.lastError = "Save lỗi: \(error.localizedDescription)"
                         return
                     }
                     do {
                         try manager.connection.startVPNTunnel()
                         self?.lastError = nil
                     } catch {
-                        self?.lastError = "Lỗi bật VPN: \(error.localizedDescription)"
+                        self?.lastError = "Bật VPN lỗi: \(error.localizedDescription)"
                     }
                 }
             }
@@ -148,9 +100,6 @@ class VPNManager: ObservableObject {
         proto.serverAddress = "127.0.0.1"
         proto.disconnectOnSleep = false
 
-        // Thêm includeAllNetworks để đảm bảo bắt toàn bộ traffic
-        proto.includeAllNetworks = true
-
         mgr.protocolConfiguration = proto
         mgr.localizedDescription = "Fake Lag Controller"
         mgr.isEnabled = true
@@ -158,7 +107,7 @@ class VPNManager: ObservableObject {
         mgr.saveToPreferences { [weak self] error in
             DispatchQueue.main.async {
                 if let error = error {
-                    self?.lastError = "Lỗi tạo profile: \(error.localizedDescription)"
+                    self?.lastError = "Tạo profile lỗi: \(error.localizedDescription)"
                     return
                 }
                 self?.loadVPNConfiguration()
@@ -169,119 +118,40 @@ class VPNManager: ObservableObject {
         }
     }
 
-    // MARK: - Toggle Blocking (KHÔNG disconnect/connect lại)
+    // MARK: - Toggle Blocking (Ghi file + Ping nhẹ)
 
     func toggleBlocking() {
-        guard isVPNConnected else {
-            self.lastError = "VPN chưa kết nối. Đang khởi động..."
-            pendingCommand = isBlocking ? "disableBlocking" : "enableBlocking"
-            commandCompletion = { [weak self] success in
-                DispatchQueue.main.async {
-                    if success {
-                        self?.isBlocking.toggle()
-                        self?.lastError = nil
-                    } else {
-                        self?.lastError = "Không thể giao tiếp với Extension."
-                    }
-                    self?.isProcessingCommand = false
-                }
-            }
-            connectVPN()
-            return
-        }
-
         if isProcessingCommand { return }
         isProcessingCommand = true
 
         let targetState = !isBlocking
-        let command = targetState ? "enableBlocking" : "disableBlocking"
 
-        sendCommand(command) { [weak self] success in
-            DispatchQueue.main.async {
-                guard let self = self else { return }
-                self.isProcessingCommand = false
-                if success {
-                    self.isBlocking = targetState
-                    self.lastError = nil
-                } else {
-                    // KHÔNG disconnect/connect. Chỉ thử gửi lại 1 lần nữa sau 1s
-                    self.lastError = "Đang thử lại..."
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                        self.sendCommand(command) { retrySuccess in
-                            DispatchQueue.main.async {
-                                self.isProcessingCommand = false
-                                if retrySuccess {
-                                    self.isBlocking = targetState
-                                    self.lastError = nil
-                                } else {
-                                    self.lastError = "Extension không phản hồi. Hãy bật lại VPN từ Cài đặt."
-                                }
-                            }
-                        }
-                    }
+        // 1. Ghi config vào file shared
+        let config = SharedConfig.Config(
+            enabled: targetState,
+            delayMs: 100,
+            dropEnabled: targetState,
+            dropPercent: 30,
+            timestamp: Date().timeIntervalSince1970
+        )
+        SharedConfig.shared.write(config: config)
+
+        // 2. Nếu VPN đang connect, gửi ping nhẹ báo extension đọc file
+        if isVPNConnected, let session = manager?.connection as? NETunnelProviderSession {
+            do {
+                try session.sendProviderMessage(Data("reload".utf8)) { _ in
+                    // Không quan trọng response, file đã ghi xong
                 }
+            } catch {
+                // Ping lỗi cũng không sao, extension sẽ đọc file ở lần tới
             }
         }
-    }
 
-    // MARK: - Gửi command ổn định (KHÔNG reconnect)
-
-    private func sendCommand(_ command: String, completion: @escaping (Bool) -> Void) {
-        guard let session = manager?.connection as? NETunnelProviderSession,
-              manager?.connection.status == .connected else {
-            completion(false)
-            return
-        }
-
-        let data = Data(command.utf8)
-        var didComplete = false
-
-        do {
-            try session.sendProviderMessage(data) { response in
-                guard !didComplete else { return }
-                didComplete = true
-                let success = response != nil
-                DispatchQueue.main.async {
-                    completion(success)
-                }
-            }
-        } catch {
-            didComplete = true
-            DispatchQueue.main.async {
-                completion(false)
-            }
-            return
-        }
-
-        // Timeout 3 giây, KHÔNG tự động reconnect
-        DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) { [weak self] in
-            guard !didComplete else { return }
-            didComplete = true
-            // Thử gửi heartbeat để "đánh thức" pipe
-            self?.sendHeartbeat()
-            completion(false)
-        }
-    }
-
-    // MARK: - Refresh profile (chỉ khi thực sự cần)
-
-    func refreshVPNProfile(completion: @escaping (Bool) -> Void) {
-        // KHÔNG remove profile, chỉ reload và reconnect nếu cần
-        loadVPNConfiguration()
-
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
-            guard let self = self else {
-                completion(false)
-                return
-            }
-            if self.isVPNConnected {
-                completion(true)
-            } else {
-                self.connectVPN()
-                DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-                    completion(self.isVPNConnected)
-                }
-            }
+        // 3. Cập nhật UI ngay (không đợi extension phản hồi)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
+            self?.isBlocking = targetState
+            self?.isProcessingCommand = false
+            self?.lastError = nil
         }
     }
 }

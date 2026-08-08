@@ -8,16 +8,56 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
     private var pulseWorkItem: DispatchWorkItem?
     private let processingQueue = DispatchQueue(label: "com.fakelag.packet", qos: .userInitiated)
     private var isRunning = false
+    private var lastConfigTimestamp: TimeInterval = 0
+
+    // MARK: - Config từ file
+
+    private struct Config: Codable {
+        var enabled: Bool = false
+        var delayMs: Int = 100
+        var dropEnabled: Bool = false
+        var dropPercent: Int = 30
+        var timestamp: TimeInterval = 0
+    }
+
+    private var configFileURL: URL {
+        FileManager.default
+            .containerURL(forSecurityApplicationGroupIdentifier: "group.com.ban.PacketBlocker")!
+            .appendingPathComponent("fakelag_config.plist")
+    }
+
+    private func readConfig() -> Config {
+        guard FileManager.default.fileExists(atPath: configFileURL.path) else {
+            return Config()
+        }
+        do {
+            let data = try Data(contentsOf: configFileURL)
+            return try PropertyListDecoder().decode(Config.self, from: data)
+        } catch {
+            return Config()
+        }
+    }
+
+    private func applyConfig(_ config: Config) {
+        lastConfigTimestamp = config.timestamp
+
+        if config.enabled {
+            if !isPulseActive {
+                isPulseActive = true
+                isCurrentlyDropping = true
+                startPulseLoop()
+            }
+        } else {
+            isPulseActive = false
+            isCurrentlyDropping = false
+            pulseWorkItem?.cancel()
+            pulseWorkItem = nil
+        }
+    }
+
+    // MARK: - Tunnel Lifecycle
 
     override func startTunnel(options: [String : NSObject]? = nil, completionHandler: @escaping (Error?) -> Void) {
-        // Đảm bảo completionHandler LUÔN được gọi
-        var completionCalled = false
-        let safeComplete: (Error?) -> Void = { error in
-            guard !completionCalled else { return }
-            completionCalled = true
-            completionHandler(error)
-        }
-
         let settings = NEPacketTunnelNetworkSettings(tunnelRemoteAddress: "127.0.0.1")
         settings.mtu = 1280
 
@@ -35,18 +75,25 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
 
         setTunnelNetworkSettings(settings) { [weak self] error in
             if let error = error {
-                safeComplete(error)
+                completionHandler(error)
                 return
             }
 
             self?.isRunning = true
 
-            // Bắt đầu packet loop trên background queue
+            // Đọc config từ file ngay khi khởi động
+            let config = self?.readConfig() ?? Config()
+            self?.applyConfig(config)
+
+            // Bắt đầu packet loop
             self?.processingQueue.async {
                 self?.startPacketLoop()
             }
 
-            safeComplete(nil)
+            // Kiểm tra file config định kỳ (5 giây/lần)
+            self?.startConfigWatcher()
+
+            completionHandler(nil)
         }
     }
 
@@ -60,33 +107,30 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
     }
 
     override func handleAppMessage(_ messageData: Data, completionHandler: ((Data?) -> Void)?) {
-        // LUÔN gọi completionHandler ngay, kể cả khi lỗi
-        defer {
-            completionHandler?(Data("ok".utf8))
+        // LUÔN phản hồi ngay
+        completionHandler?(Data("ok".utf8))
+
+        // Đọc lại config từ file
+        let config = readConfig()
+        applyConfig(config)
+    }
+
+    // MARK: - Config Watcher (backup nếu message lỗi)
+
+    private func startConfigWatcher() {
+        guard isRunning else { return }
+
+        let config = readConfig()
+        if config.timestamp > lastConfigTimestamp {
+            applyConfig(config)
         }
 
-        guard let command = String(data: messageData, encoding: .utf8) else {
-            return
-        }
-
-        switch command {
-        case "heartbeat":
-            break
-        case "enableBlocking":
-            isPulseActive = true
-            isCurrentlyDropping = true
-            startPulseLoop()
-        case "disableBlocking":
-            isPulseActive = false
-            isCurrentlyDropping = false
-            pulseWorkItem?.cancel()
-            pulseWorkItem = nil
-        default:
-            break
+        DispatchQueue.global().asyncAfter(deadline: .now() + 5.0) { [weak self] in
+            self?.startConfigWatcher()
         }
     }
 
-    // MARK: - Pulse Loop (Cơ chế Fake Lag)
+    // MARK: - Pulse Loop
 
     private func startPulseLoop() {
         pulseWorkItem?.cancel()
@@ -120,7 +164,6 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
             if !self.isCurrentlyDropping {
                 self.forwardPackets(packets: packets, protocols: protocols)
             }
-            // Nếu dropping -> silently discard
 
             self.processingQueue.async {
                 self.startPacketLoop()
