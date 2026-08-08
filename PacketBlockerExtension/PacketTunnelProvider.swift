@@ -2,7 +2,7 @@ import NetworkExtension
 import Network
 import Foundation
 
-// MARK: - IP Checksum Helpers
+// MARK: - IP Checksum
 fileprivate func ipChecksum(_ data: Data) -> UInt16 {
     var sum: UInt32 = 0
     let count = data.count
@@ -20,45 +20,10 @@ fileprivate func ipChecksum(_ data: Data) -> UInt16 {
     return ~UInt16(sum & 0xFFFF)
 }
 
-fileprivate func tcpChecksum(srcIP: UInt32, dstIP: UInt32, proto: UInt8, tcpPacket: Data) -> UInt16 {
-    var pseudo = Data(count: 12)
-    pseudo[0] = UInt8(srcIP >> 24)
-    pseudo[1] = UInt8(srcIP >> 16)
-    pseudo[2] = UInt8(srcIP >> 8)
-    pseudo[3] = UInt8(srcIP)
-    pseudo[4] = UInt8(dstIP >> 24)
-    pseudo[5] = UInt8(dstIP >> 16)
-    pseudo[6] = UInt8(dstIP >> 8)
-    pseudo[7] = UInt8(dstIP)
-    pseudo[8] = 0
-    pseudo[9] = proto
-    pseudo[10] = UInt8(tcpPacket.count >> 8)
-    pseudo[11] = UInt8(tcpPacket.count & 0xFF)
-
-    var sum: UInt32 = 0
-    var i = 0
-    while i < pseudo.count - 1 {
-        sum += (UInt32(pseudo[i]) << 8) | UInt32(pseudo[i + 1])
-        i += 2
-    }
-    i = 0
-    while i < tcpPacket.count - 1 {
-        sum += (UInt32(tcpPacket[i]) << 8) | UInt32(tcpPacket[i + 1])
-        i += 2
-    }
-    if tcpPacket.count % 2 == 1 {
-        sum += UInt32(tcpPacket[tcpPacket.count - 1]) << 8
-    }
-    while (sum >> 16) != 0 {
-        sum = (sum & 0xFFFF) + (sum >> 16)
-    }
-    return ~UInt16(sum & 0xFFFF)
-}
-
 // MARK: - PacketTunnelProvider
 class PacketTunnelProvider: NEPacketTunnelProvider {
 
-    // MARK: Config & State
+    // MARK: State
     fileprivate var isLagEnabled = false
     private var lastConfigTimestamp: TimeInterval = 0
     let queue = DispatchQueue(label: "com.fakelag", qos: .userInitiated)
@@ -67,13 +32,10 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
     private var cleanupTimer: DispatchSourceTimer?
     private var isReading = false
 
-    // UDP sessions: key = "srcIP:srcPort-dstIP:dstPort"
+    // UDP sessions
     fileprivate var udpSessions: [String: UDPSession] = [:]
     fileprivate let udpLock = NSLock()
-
-    // TCP sessions
-    fileprivate var tcpSessions: [String: TCPSession] = [:]
-    fileprivate let tcpLock = NSLock()
+    fileprivate let maxUDPSessions = 100
 
     private var configURL: URL? {
         guard let container = FileManager.default.containerURL(
@@ -93,8 +55,6 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         lastConfigTimestamp = 0
         isReading = false
 
-        // Always route ALL traffic through tunnel from the start
-        // Toggle lag only changes the delay/drop behavior, NOT the routes
         let settings = NEPacketTunnelNetworkSettings(tunnelRemoteAddress: "127.0.0.1")
         settings.mtu = 1500
 
@@ -136,12 +96,6 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         }
         udpSessions.removeAll()
         udpLock.unlock()
-        tcpLock.lock()
-        for (_, session) in tcpSessions {
-            session.connection.cancel()
-        }
-        tcpSessions.removeAll()
-        tcpLock.unlock()
         completionHandler()
     }
 
@@ -149,7 +103,7 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         completionHandler?(Data("ok".utf8))
     }
 
-    // MARK: - Config Watcher (DispatchSourceTimer, NOT Timer on main thread)
+    // MARK: - Config Watcher
 
     private func startConfigWatcher() {
         let timer = DispatchSource.makeTimerSource(queue: queue)
@@ -168,20 +122,17 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
               let dict = try? PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any] else {
             return
         }
-
         let enabled = dict["enabled"] as? Bool ?? false
         let timestamp = dict["timestamp"] as? TimeInterval ?? 0
-
         guard timestamp > lastConfigTimestamp else { return }
         lastConfigTimestamp = timestamp
-
         if enabled != isLagEnabled {
             isLagEnabled = enabled
             NSLog("[FakeLag] ===== Config changed: lag=\(isLagEnabled) (ts=\(timestamp)) =====")
         }
     }
 
-    // MARK: - Session Cleanup Watcher
+    // MARK: - Cleanup Watcher
 
     private func startCleanupWatcher() {
         let timer = DispatchSource.makeTimerSource(queue: queue)
@@ -195,46 +146,28 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
 
     private func cleanupOldSessions() {
         let now = Date().timeIntervalSince1970
-        // Cleanup UDP sessions idle > 60 seconds
         udpLock.lock()
-        var udpKeysToRemove: [String] = []
+        var keysToRemove: [String] = []
         for (key, session) in udpSessions {
             if now - session.lastActivity > 60.0 {
                 session.connection.cancel()
-                udpKeysToRemove.append(key)
+                keysToRemove.append(key)
             }
         }
-        for key in udpKeysToRemove {
+        for key in keysToRemove {
             udpSessions.removeValue(forKey: key)
         }
+        let count = udpSessions.count
         udpLock.unlock()
-
-        // Cleanup TCP sessions idle > 300 seconds (5 min)
-        tcpLock.lock()
-        var tcpKeysToRemove: [String] = []
-        for (key, session) in tcpSessions {
-            if now - session.lastActivity > 300.0 {
-                session.connection.cancel()
-                tcpKeysToRemove.append(key)
-            }
-        }
-        for key in tcpKeysToRemove {
-            tcpSessions.removeValue(forKey: key)
-        }
-        tcpLock.unlock()
-
-        if !udpKeysToRemove.isEmpty || !tcpKeysToRemove.isEmpty {
-            NSLog("[FakeLag] Cleaned up \(udpKeysToRemove.count) UDP, \(tcpKeysToRemove.count) TCP sessions")
+        if !keysToRemove.isEmpty {
+            NSLog("[FakeLag] Cleaned up \(keysToRemove.count) UDP sessions, remaining: \(count)")
         }
     }
 
-    // MARK: - Read Loop (never stops unless isRunning = false)
+    // MARK: - Read Loop
 
     private func startReadLoop() {
-        guard isRunning, !isReading else {
-            NSLog("[FakeLag] startReadLoop skipped: running=\(isRunning), reading=\(isReading)")
-            return
-        }
+        guard isRunning, !isReading else { return }
         isReading = true
         readLoop()
     }
@@ -242,31 +175,29 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
     private func readLoop() {
         guard isRunning else {
             isReading = false
-            NSLog("[FakeLag] readLoop stopped (not running)")
             return
         }
-
         packetFlow.readPackets { [weak self] packets, protocols in
-            guard let self = self else { return }
-            guard self.isRunning else {
-                self.isReading = false
+            guard let self = self, self.isRunning else {
+                self?.isReading = false
                 return
             }
-
             for i in 0..<packets.count {
-                let packet = packets[i]
-                let proto = protocols[i].int32Value
-                self.handlePacket(packet, proto: proto)
+                do {
+                    let packet = packets[i]
+                    let proto = protocols[i].int32Value
+                    try self.handlePacket(packet, proto: proto)
+                } catch {
+                    NSLog("[FakeLag] Packet handler error: \(error)")
+                }
             }
-
-            // Always continue reading, even if packets is empty
             self.readLoop()
         }
     }
 
     // MARK: - Packet Handler
 
-    private func handlePacket(_ packet: Data, proto: Int32) {
+    private func handlePacket(_ packet: Data, proto: Int32) throws {
         guard proto == AF_INET else { return }
         guard packet.count >= 20 else { return }
         let version = (packet[0] >> 4) & 0x0F
@@ -280,11 +211,13 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
 
         switch ipProto {
         case 1:
-            handleICMP(packet: packet, srcIP: srcIP, dstIP: dstIP, ihl: ihl)
+            try handleICMP(packet: packet, srcIP: srcIP, dstIP: dstIP, ihl: ihl)
         case 6:
-            handleTCP(packet: packet, srcIP: srcIP, dstIP: dstIP, ihl: ihl)
+            // TCP: drop silently to avoid complex proxy crashes
+            // Free Fire mainly uses UDP
+            break
         case 17:
-            handleUDP(packet: packet, srcIP: srcIP, dstIP: dstIP, ihl: ihl)
+            try handleUDP(packet: packet, srcIP: srcIP, dstIP: dstIP, ihl: ihl)
         default:
             break
         }
@@ -292,7 +225,7 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
 
     // MARK: - ICMP Echo Reply
 
-    private func handleICMP(packet: Data, srcIP: UInt32, dstIP: UInt32, ihl: Int) {
+    private func handleICMP(packet: Data, srcIP: UInt32, dstIP: UInt32, ihl: Int) throws {
         guard packet.count >= ihl + 8 else { return }
         let type = packet[ihl]
         guard type == 8 else { return }
@@ -320,7 +253,7 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
 
     // MARK: - UDP Proxy
 
-    private func handleUDP(packet: Data, srcIP: UInt32, dstIP: UInt32, ihl: Int) {
+    private func handleUDP(packet: Data, srcIP: UInt32, dstIP: UInt32, ihl: Int) throws {
         guard packet.count >= ihl + 8 else { return }
         let srcPort = (UInt16(packet[ihl]) << 8) | UInt16(packet[ihl + 1])
         let dstPort = (UInt16(packet[ihl + 2]) << 8) | UInt16(packet[ihl + 3])
@@ -338,6 +271,14 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
             udpLock.unlock()
             forwardUDP(session: session, payload: payload)
         } else {
+            // Enforce max sessions limit
+            if udpSessions.count >= maxUDPSessions {
+                // Remove oldest session
+                if let oldestKey = udpSessions.min(by: { $0.value.lastActivity < $1.value.lastActivity })?.key {
+                    udpSessions[oldestKey]?.connection.cancel()
+                    udpSessions.removeValue(forKey: oldestKey)
+                }
+            }
             let session = UDPSession(srcIP: srcIP, srcPort: srcPort, dstIP: dstIP, dstPort: dstPort, provider: self)
             udpSessions[key] = session
             udpLock.unlock()
@@ -348,7 +289,7 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
     private func forwardUDP(session: UDPSession, payload: Data) {
         if isLagEnabled {
             if Int.random(in: 0..<100) < 15 {
-                return
+                return // Drop
             }
             queue.asyncAfter(deadline: .now() + .milliseconds(300)) { [weak session] in
                 session?.send(payload)
@@ -362,7 +303,7 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         guard isRunning else { return }
         if isLagEnabled {
             if Int.random(in: 0..<100) < 15 {
-                return
+                return // Drop inbound
             }
             queue.asyncAfter(deadline: .now() + .milliseconds(300)) { [weak self] in
                 self?.buildAndWriteUDP(srcIP: srcIP, srcPort: srcPort, dstIP: dstIP, dstPort: dstPort, payload: payload)
@@ -390,94 +331,6 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         full.append(payload)
 
         let ipPacket = buildIPv4Packet(srcIP: srcIP, dstIP: dstIP, protocol: 17, payload: full)
-        let _ = packetFlow.writePackets([ipPacket], withProtocols: [NSNumber(value: AF_INET)])
-    }
-
-    // MARK: - TCP Proxy
-
-    private func handleTCP(packet: Data, srcIP: UInt32, dstIP: UInt32, ihl: Int) {
-        guard packet.count >= ihl + 20 else { return }
-        let srcPort = (UInt16(packet[ihl]) << 8) | UInt16(packet[ihl + 1])
-        let dstPort = (UInt16(packet[ihl + 2]) << 8) | UInt16(packet[ihl + 3])
-        let seq = (UInt32(packet[ihl + 4]) << 24) | (UInt32(packet[ihl + 5]) << 16) | (UInt32(packet[ihl + 6]) << 8) | UInt32(packet[ihl + 7])
-        let _ = (UInt32(packet[ihl + 8]) << 24) | (UInt32(packet[ihl + 9]) << 16) | (UInt32(packet[ihl + 10]) << 8) | UInt32(packet[ihl + 11])
-        let dataOffset = Int((packet[ihl + 12] >> 4) & 0x0F) * 4
-        let flags = packet[ihl + 13]
-        let payloadStart = ihl + dataOffset
-        let payload = payloadStart < packet.count ? packet.subdata(in: payloadStart..<packet.count) : Data()
-
-        let key = "\(srcIP):\(srcPort)-\(dstIP):\(dstPort)"
-        let isSyn = (flags & 0x02) != 0
-        let isAck = (flags & 0x10) != 0
-        let isFin = (flags & 0x01) != 0
-        let isRst = (flags & 0x04) != 0
-
-        tcpLock.lock()
-        if let session = tcpSessions[key] {
-            session.lastActivity = Date().timeIntervalSince1970
-            tcpLock.unlock()
-            if isRst || isFin {
-                session.close()
-                return
-            }
-            if isSyn && isAck {
-                return
-            }
-            if isAck && session.state == .synAckSent {
-                session.state = .established
-            }
-            if !payload.isEmpty && session.state == .established {
-                if isLagEnabled {
-                    if Int.random(in: 0..<100) < 15 { return }
-                    queue.asyncAfter(deadline: .now() + .milliseconds(300)) {
-                        session.sendData(payload)
-                    }
-                } else {
-                    session.sendData(payload)
-                }
-            }
-        } else if isSyn && !isAck {
-            let session = TCPSession(srcIP: srcIP, dstIP: dstIP, srcPort: srcPort, dstPort: dstPort, synSeq: seq, provider: self)
-            tcpSessions[key] = session
-            tcpLock.unlock()
-        } else {
-            tcpLock.unlock()
-        }
-    }
-
-    func writeTCPResponse(srcIP: UInt32, srcPort: UInt16, dstIP: UInt32, dstPort: UInt16, seq: UInt32, ack: UInt32, flags: UInt8, payload: Data) {
-        guard isRunning else { return }
-        var tcp = Data(count: 20)
-        tcp[0] = UInt8(srcPort >> 8)
-        tcp[1] = UInt8(srcPort & 0xFF)
-        tcp[2] = UInt8(dstPort >> 8)
-        tcp[3] = UInt8(dstPort & 0xFF)
-        tcp[4] = UInt8(seq >> 24)
-        tcp[5] = UInt8(seq >> 16)
-        tcp[6] = UInt8(seq >> 8)
-        tcp[7] = UInt8(seq)
-        tcp[8] = UInt8(ack >> 24)
-        tcp[9] = UInt8(ack >> 16)
-        tcp[10] = UInt8(ack >> 8)
-        tcp[11] = UInt8(ack)
-        tcp[12] = 0x50
-        tcp[13] = flags
-        tcp[14] = 0xFF
-        tcp[15] = 0xFF
-        tcp[16] = 0
-        tcp[17] = 0
-        tcp[18] = 0
-        tcp[19] = 0
-
-        if !payload.isEmpty {
-            tcp.append(payload)
-        }
-
-        let cksum = tcpChecksum(srcIP: srcIP, dstIP: dstIP, proto: 6, tcpPacket: tcp)
-        tcp[16] = UInt8(cksum >> 8)
-        tcp[17] = UInt8(cksum & 0xFF)
-
-        let ipPacket = buildIPv4Packet(srcIP: srcIP, dstIP: dstIP, protocol: 6, payload: tcp)
         let _ = packetFlow.writePackets([ipPacket], withProtocols: [NSNumber(value: AF_INET)])
     }
 
@@ -551,114 +404,6 @@ fileprivate class UDPSession {
             if error == nil {
                 self.receive()
             }
-        }
-    }
-}
-
-// MARK: - TCP Session
-fileprivate class TCPSession {
-    let connection: NWConnection
-    let srcIP: UInt32, dstIP: UInt32
-    let srcPort: UInt16, dstPort: UInt16
-    weak var provider: PacketTunnelProvider?
-
-    var localSeq: UInt32
-    var localAck: UInt32
-    var remoteSeq: UInt32
-    var state: TCPState = .synReceived
-    var lastActivity: TimeInterval
-
-    enum TCPState {
-        case synReceived, synAckSent, established, closing, closed
-    }
-
-    init(srcIP: UInt32, dstIP: UInt32, srcPort: UInt16, dstPort: UInt16, synSeq: UInt32, provider: PacketTunnelProvider) {
-        self.srcIP = srcIP; self.dstIP = dstIP
-        self.srcPort = srcPort; self.dstPort = dstPort
-        self.provider = provider
-        self.remoteSeq = synSeq
-        self.localSeq = UInt32.random(in: 1000..<UInt32.max / 2)
-        self.localAck = synSeq + 1
-        self.lastActivity = Date().timeIntervalSince1970
-
-        let ipStr = "\(dstIP >> 24).\(dstIP >> 16 & 0xFF).\(dstIP >> 8 & 0xFF).\(dstIP & 0xFF)"
-        let host = NWEndpoint.Host(ipStr)
-        let port = NWEndpoint.Port(integerLiteral: UInt16(dstPort))
-        let endpoint = NWEndpoint.hostPort(host: host, port: port)
-        connection = NWConnection(to: endpoint, using: .tcp)
-
-        connection.stateUpdateHandler = { [weak self] state in
-            guard let self = self else { return }
-            switch state {
-            case .ready:
-                self.sendSynAck()
-            case .failed(let err):
-                NSLog("[FakeLag] TCP conn failed: \(err)")
-                self.close()
-            case .cancelled:
-                self.close()
-            default:
-                break
-            }
-        }
-
-        connection.start(queue: provider.queue)
-        receiveRemote()
-    }
-
-    func sendData(_ data: Data) {
-        lastActivity = Date().timeIntervalSince1970
-        connection.send(content: data, completion: .contentProcessed { _ in })
-    }
-
-    func close() {
-        guard state != .closed else { return }
-        state = .closed
-        connection.cancel()
-        let key = "\(srcIP):\(srcPort)-\(dstIP):\(dstPort)"
-        provider?.tcpLock.lock()
-        provider?.tcpSessions.removeValue(forKey: key)
-        provider?.tcpLock.unlock()
-    }
-
-    private func sendSynAck() {
-        guard state == .synReceived else { return }
-        provider?.writeTCPResponse(srcIP: dstIP, srcPort: dstPort, dstIP: srcIP, dstPort: srcPort, seq: localSeq, ack: localAck, flags: 0x12, payload: Data())
-        localSeq += 1
-        state = .synAckSent
-    }
-
-    private func receiveRemote() {
-        connection.receive(minimumIncompleteLength: 1, maximumLength: 65535) { [weak self] data, _, isComplete, error in
-            guard let self = self else { return }
-            guard self.state == .established || self.state == .synAckSent else { return }
-            self.lastActivity = Date().timeIntervalSince1970
-
-            if let data = data, !data.isEmpty {
-                if self.provider?.isLagEnabled == true {
-                    if Int.random(in: 0..<100) < 15 {
-                        // Drop inbound
-                    } else {
-                        self.provider?.queue.asyncAfter(deadline: .now() + .milliseconds(300)) { [weak self] in
-                            guard let self = self, self.state == .established else { return }
-                            self.provider?.writeTCPResponse(srcIP: self.dstIP, srcPort: self.dstPort, dstIP: self.srcIP, dstPort: self.srcPort, seq: self.localSeq, ack: self.localAck, flags: 0x18, payload: data)
-                            self.localSeq += UInt32(data.count)
-                        }
-                    }
-                } else {
-                    self.provider?.writeTCPResponse(srcIP: self.dstIP, srcPort: self.dstPort, dstIP: self.srcIP, dstPort: self.srcPort, seq: self.localSeq, ack: self.localAck, flags: 0x18, payload: data)
-                    self.localSeq += UInt32(data.count)
-                }
-            }
-
-            if isComplete || error != nil {
-                if self.state != .closed {
-                    self.provider?.writeTCPResponse(srcIP: self.dstIP, srcPort: self.dstPort, dstIP: self.srcIP, dstPort: self.srcPort, seq: self.localSeq, ack: self.localAck, flags: 0x11, payload: Data())
-                    self.close()
-                }
-                return
-            }
-            self.receiveRemote()
         }
     }
 }
