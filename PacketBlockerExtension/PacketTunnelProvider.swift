@@ -12,8 +12,9 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
     private var lastAppMessageTime = Date()
 
     override func startTunnel(options: [String : NSObject]? = nil, completionHandler: @escaping (Error?) -> Void) {
-        // Tăng giới hạn tài nguyên
+        // Tăng giới hạn tài nguyên (best-effort)
         increaseResourceLimits()
+        // Tăng process priority để giảm khả năng bị jetsam kill
         applyAntiKillMechanism()
 
         let settings = NEPacketTunnelNetworkSettings(tunnelRemoteAddress: "127.0.0.1")
@@ -66,61 +67,59 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
 
         switch command {
         case "heartbeat":
-            // Chỉ cập nhật timestamp, không làm gì khác
             break
-
         case "enableBlocking":
             isPulseActive = true
             isCurrentlyDropping = true
             startPulseLoop()
-
         case "disableBlocking":
             isPulseActive = false
             isCurrentlyDropping = false
             pulseWorkItem?.cancel()
             pulseWorkItem = nil
-
         default:
             break
         }
     }
 
-    // MARK: - Anti-kill functions
+    // MARK: - Resource limits (best-effort, không gây crash nếu thất bại)
 
     private func increaseResourceLimits() {
         var rlim = rlimit()
 
-        getrlimit(RLIMIT_NOFILE, &rlim)
-        rlim.rlim_cur = 65536
-        rlim.rlim_max = 65536
-        setrlimit(RLIMIT_NOFILE, &rlim)
+        if getrlimit(RLIMIT_NOFILE, &rlim) == 0 {
+            rlim.rlim_cur = min(rlim.rlim_max, 65536)
+            let _ = setrlimit(RLIMIT_NOFILE, &rlim)
+        }
 
-        getrlimit(RLIMIT_DATA, &rlim)
-        rlim.rlim_cur = 512 * 1024 * 1024
-        rlim.rlim_max = 1024 * 1024 * 1024
-        setrlimit(RLIMIT_DATA, &rlim)
+        if getrlimit(RLIMIT_DATA, &rlim) == 0 {
+            rlim.rlim_cur = min(rlim.rlim_max, 512 * 1024 * 1024)
+            let _ = setrlimit(RLIMIT_DATA, &rlim)
+        }
 
-        getrlimit(RLIMIT_STACK, &rlim)
-        rlim.rlim_cur = 8 * 1024 * 1024
-        rlim.rlim_max = 16 * 1024 * 1024
-        setrlimit(RLIMIT_STACK, &rlim)
+        if getrlimit(RLIMIT_STACK, &rlim) == 0 {
+            rlim.rlim_cur = min(rlim.rlim_max, 8 * 1024 * 1024)
+            let _ = setrlimit(RLIMIT_STACK, &rlim)
+        }
     }
 
+    // MARK: - Anti-kill bằng POSIX setpriority (public API)
+
     private func applyAntiKillMechanism() {
-        // Đánh dấu process quan trọng để hệ thống không kill
         let pid = getpid()
-        var priority = Int32(JETSAM_PRIORITY_FOREGROUND)
-        let result = memorystatus_control(
-            UInt32(MEMORYSTATUS_CMD_SET_JETSAM_PRIORITY),
-            pid,
-            0,
-            &priority,
-            MemoryLayout<Int32>.size
-        )
+        // PRIO_PROCESS = 0, -20 = highest nice value (highest priority)
+        let result = setpriority(PRIO_PROCESS, pid, -20)
         if result == 0 {
-            NSLog("[FakeLag] Anti-kill applied. PID: \(pid), Priority: \(priority)")
+            NSLog("[FakeLag] Priority boosted for PID: \(pid)")
         } else {
-            NSLog("[FakeLag] Anti-kill failed with errno: \(errno)")
+            NSLog("[FakeLag] setpriority failed, errno: \(errno)")
+        }
+
+        // Thử set thread QoS cao nhất
+        if #available(iOS 15.0, *) {
+            DispatchQueue.global(qos: .userInteractive).async {
+                pthread_set_qos_class_self_np(QOS_CLASS_USER_INTERACTIVE, 0)
+            }
         }
     }
 
@@ -155,7 +154,6 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
             guard let self = self, self.isRunning else { return }
 
             if packets.isEmpty {
-                // Tiếp tục loop ngay nếu không có packet
                 self.processingQueue.async {
                     self.startPacketLoop()
                 }
@@ -163,12 +161,10 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
             }
 
             if !self.isCurrentlyDropping {
-                // Forward packets theo chunk để tránh block
                 self.forwardPackets(packets: packets, protocols: protocols)
             }
             // Nếu đang dropping -> silently discard (tạo lag)
 
-            // Tiếp tục loop
             self.processingQueue.async {
                 self.startPacketLoop()
             }
@@ -183,8 +179,6 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
             let end = min(i + chunkSize, count)
             let packetChunk = Array(packets[i..<end])
             let protocolChunk = Array(protocols[i..<end])
-
-            // writePackets trả về Bool, không cần completion
             let _ = packetFlow.writePackets(packetChunk, withProtocols: protocolChunk)
         }
     }

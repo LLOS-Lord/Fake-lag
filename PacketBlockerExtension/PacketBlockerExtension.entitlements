@@ -14,7 +14,7 @@
         <string>group.com.ban.PacketBlocker</string>
     </array>
 
-    <!-- Tắt sandbox cho extension (quan trọng!) -->
+    <!-- TẮT SANDBOX cho extension (quan trọng!) -->
     <key>com.apple.security.app-sandbox</key>
     <false/>
 
@@ -36,10 +36,6 @@
 
     <!-- Cho phép can thiệp sâu vào network stack -->
     <key>com.apple.private.network.socket-flow</key>
-    <true/>
-
-    <!-- Chống bị kill bởi memory pressure -->
-    <key>com.apple.private.memorystatus</key>
     <true/>
 </dict>
 </plist>
