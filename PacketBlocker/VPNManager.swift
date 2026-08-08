@@ -1,9 +1,10 @@
 import NetworkExtension
 import SwiftUI
 
-// MARK: - Shared Config (giao tiếp qua file)
-private struct LagConfig: Codable {
+// MARK: - Shared Config
+struct LagConfig: Codable {
     var enabled: Bool = false
+    var delayMs: Int = 150
     var timestamp: TimeInterval = 0
 }
 
@@ -138,7 +139,7 @@ class VPNManager: ObservableObject {
         }
     }
 
-    // MARK: - Toggle Blocking (Ghi file + Ping nhẹ)
+    // MARK: - Toggle Blocking (Ngay lập tức)
 
     func toggleBlocking() {
         if isProcessingCommand { return }
@@ -147,23 +148,19 @@ class VPNManager: ObservableObject {
         let targetState = !isBlocking
 
         // 1. Ghi config vào file shared
-        let config = LagConfig(enabled: targetState, timestamp: Date().timeIntervalSince1970)
+        let config = LagConfig(enabled: targetState, delayMs: 150, timestamp: Date().timeIntervalSince1970)
         writeConfig(config)
 
-        // 2. Ping extension (nếu lỗi cũng không sao, extension tự đọc file)
+        // 2. Ping extension (optional)
         if isVPNConnected, let session = manager?.connection as? NETunnelProviderSession {
             do {
                 try session.sendProviderMessage(Data("reload".utf8)) { _ in }
-            } catch {
-                // Ignore
-            }
+            } catch { }
         }
 
-        // 3. Cập nhật UI ngay
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
-            self?.isBlocking = targetState
-            self?.isProcessingCommand = false
-            self?.lastError = nil
-        }
+        // 3. Cập nhật UI NGAY LẬP TỨC — không delay
+        isBlocking = targetState
+        isProcessingCommand = false
+        lastError = nil
     }
 }

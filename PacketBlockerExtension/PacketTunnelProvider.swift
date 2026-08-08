@@ -3,17 +3,18 @@ import Foundation
 
 private struct LagConfig: Codable {
     var enabled: Bool = false
+    var delayMs: Int = 150
     var timestamp: TimeInterval = 0
 }
 
 class PacketTunnelProvider: NEPacketTunnelProvider {
 
-    private var isPulseActive = false
-    private var isCurrentlyDropping = false
-    private var pulseWorkItem: DispatchWorkItem?
+    private var isLagEnabled = false
+    private var currentDelayMs: Int = 150
     private let processingQueue = DispatchQueue(label: "com.fakelag.packet", qos: .userInitiated)
     private var isRunning = false
     private var lastConfigTimestamp: TimeInterval = 0
+    private var packetCount: UInt64 = 0
 
     private var configFileURL: URL {
         FileManager.default
@@ -35,17 +36,12 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
 
     private func applyConfig(_ config: LagConfig) {
         lastConfigTimestamp = config.timestamp
-        if config.enabled {
-            if !isPulseActive {
-                isPulseActive = true
-                isCurrentlyDropping = true
-                startPulseLoop()
-            }
+        isLagEnabled = config.enabled
+        currentDelayMs = config.delayMs
+        if isLagEnabled {
+            NSLog("[FakeLag] ENABLED - delay \(currentDelayMs)ms")
         } else {
-            isPulseActive = false
-            isCurrentlyDropping = false
-            pulseWorkItem?.cancel()
-            pulseWorkItem = nil
+            NSLog("[FakeLag] DISABLED")
         }
     }
 
@@ -86,10 +82,7 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
 
     override func stopTunnel(with reason: NEProviderStopReason, completionHandler: @escaping () -> Void) {
         isRunning = false
-        isPulseActive = false
-        isCurrentlyDropping = false
-        pulseWorkItem?.cancel()
-        pulseWorkItem = nil
+        isLagEnabled = false
         completionHandler()
     }
 
@@ -105,34 +98,38 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         if config.timestamp > lastConfigTimestamp {
             applyConfig(config)
         }
-        DispatchQueue.global().asyncAfter(deadline: .now() + 5.0) { [weak self] in
+        DispatchQueue.global().asyncAfter(deadline: .now() + 2.0) { [weak self] in
             self?.startConfigWatcher()
         }
     }
 
-    private func startPulseLoop() {
-        pulseWorkItem?.cancel()
-        let workItem = DispatchWorkItem { [weak self] in
-            guard let self = self, self.isPulseActive else { return }
-            self.isCurrentlyDropping.toggle()
-            self.startPulseLoop()
-        }
-        pulseWorkItem = workItem
-        let delay = isCurrentlyDropping ? 2.5 : 0.001
-        processingQueue.asyncAfter(deadline: .now() + delay, execute: workItem)
-    }
+    // MARK: - Packet Loop với DELAY THỰC SỰ
 
     private func startPacketLoop() {
         guard isRunning else { return }
+
         packetFlow.readPackets { [weak self] packets, protocols in
             guard let self = self, self.isRunning else { return }
+
             if packets.isEmpty {
                 self.processingQueue.async { self.startPacketLoop() }
                 return
             }
-            if !self.isCurrentlyDropping {
+
+            self.packetCount += UInt64(packets.count)
+
+            if self.isLagEnabled && self.currentDelayMs > 0 {
+                // DELAY THỰC SỰ: đưa vào queue, forward sau delay
+                let delay = Double(self.currentDelayMs) / 1000.0
+                self.processingQueue.asyncAfter(deadline: .now() + delay) {
+                    self.forwardPackets(packets: packets, protocols: protocols)
+                }
+            } else {
+                // Không delay: forward ngay
                 self.forwardPackets(packets: packets, protocols: protocols)
             }
+
+            // Đọc tiếp packet mới ngay — không block
             self.processingQueue.async { self.startPacketLoop() }
         }
     }
