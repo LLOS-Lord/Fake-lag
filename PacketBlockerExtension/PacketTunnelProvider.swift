@@ -3,18 +3,15 @@ import Foundation
 
 private struct LagConfig: Codable {
     var enabled: Bool = false
-    var delayMs: Int = 150
     var timestamp: TimeInterval = 0
 }
 
 class PacketTunnelProvider: NEPacketTunnelProvider {
 
     private var isLagEnabled = false
-    private var currentDelayMs: Int = 150
     private let processingQueue = DispatchQueue(label: "com.fakelag.packet", qos: .userInitiated)
     private var isRunning = false
     private var lastConfigTimestamp: TimeInterval = 0
-    private var packetCount: UInt64 = 0
 
     private var configFileURL: URL {
         FileManager.default
@@ -36,18 +33,22 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
 
     private func applyConfig(_ config: LagConfig) {
         lastConfigTimestamp = config.timestamp
+        let wasEnabled = isLagEnabled
         isLagEnabled = config.enabled
-        currentDelayMs = config.delayMs
-        if isLagEnabled {
-            NSLog("[FakeLag] ENABLED - delay \(currentDelayMs)ms")
-        } else {
-            NSLog("[FakeLag] DISABLED")
+
+        if isLagEnabled && !wasEnabled {
+            NSLog("[FakeLag] >>> LAG ENABLED <<<")
+        } else if !isLagEnabled && wasEnabled {
+            NSLog("[FakeLag] >>> LAG DISABLED <<<")
         }
     }
 
     override func startTunnel(options: [String : NSObject]? = nil, completionHandler: @escaping (Error?) -> Void) {
+        // LUÔN bắt đầu với lag TẮT — để tránh lag ngay khi bật VPN
+        isLagEnabled = false
+
         let settings = NEPacketTunnelNetworkSettings(tunnelRemoteAddress: "127.0.0.1")
-        settings.mtu = 1280
+        settings.mtu = 1500  // MTU chuẩn, tránh fragmentation
 
         let ipv4 = NEIPv4Settings(addresses: ["10.8.0.2"], subnetMasks: ["255.255.255.0"])
         ipv4.includedRoutes = [NEIPv4Route.default()]
@@ -68,14 +69,15 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
             }
 
             self?.isRunning = true
-            let config = self?.readConfig() ?? LagConfig()
-            self?.applyConfig(config)
 
+            // Bắt đầu packet loop
             self?.processingQueue.async {
                 self?.startPacketLoop()
             }
 
+            // Theo dõi config
             self?.startConfigWatcher()
+
             completionHandler(nil)
         }
     }
@@ -103,7 +105,7 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         }
     }
 
-    // MARK: - Packet Loop với DELAY THỰC SỰ
+    // MARK: - Packet Loop
 
     private func startPacketLoop() {
         guard isRunning else { return }
@@ -116,21 +118,39 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
                 return
             }
 
-            self.packetCount += UInt64(packets.count)
-
-            if self.isLagEnabled && self.currentDelayMs > 0 {
-                // DELAY THỰC SỰ: đưa vào queue, forward sau delay
-                let delay = Double(self.currentDelayMs) / 1000.0
-                self.processingQueue.asyncAfter(deadline: .now() + delay) {
-                    self.forwardPackets(packets: packets, protocols: protocols)
-                }
+            if self.isLagEnabled {
+                // FAKE LAG: Delay 300ms + drop ngẫu nhiên 15%
+                self.applyFakeLag(packets: packets, protocols: protocols)
             } else {
-                // Không delay: forward ngay
+                // NORMAL: Forward ngay lập tức, không delay
                 self.forwardPackets(packets: packets, protocols: protocols)
             }
 
-            // Đọc tiếp packet mới ngay — không block
+            // Tiếp tục đọc packet mới
             self.processingQueue.async { self.startPacketLoop() }
+        }
+    }
+
+    private func applyFakeLag(packets: [Data], protocols: [NSNumber]) {
+        let delayMs = 300  // Delay 300ms — đủ để game lag nhưng không disconnect
+        let dropPercent = 15  // Drop 15% packet — tạo lag spike, teleport
+
+        for i in 0..<packets.count {
+            let packet = packets[i]
+            let proto = protocols[i]
+
+            // Drop ngẫu nhiên
+            let r = Int.random(in: 0..<100)
+            if r < dropPercent {
+                continue  // Silently drop
+            }
+
+            // Delay rồi forward
+            let delay = Double(delayMs) / 1000.0
+            processingQueue.asyncAfter(deadline: .now() + delay) { [weak self] in
+                guard let self = self, self.isRunning else { return }
+                let _ = self.packetFlow.writePackets([packet], withProtocols: [proto])
+            }
         }
     }
 

@@ -4,7 +4,6 @@ import SwiftUI
 // MARK: - Shared Config
 struct LagConfig: Codable {
     var enabled: Bool = false
-    var delayMs: Int = 150
     var timestamp: TimeInterval = 0
 }
 
@@ -84,6 +83,11 @@ class VPNManager: ObservableObject {
     }
 
     func connectVPN() {
+        // RESET config về false trước khi bật VPN
+        // Tránh extension đọc config cũ (enabled=true) và bật lag ngay
+        let resetConfig = LagConfig(enabled: false, timestamp: Date().timeIntervalSince1970)
+        writeConfig(resetConfig)
+
         if let manager = manager {
             manager.isEnabled = true
             if let proto = manager.protocolConfiguration as? NETunnelProviderProtocol {
@@ -147,18 +151,18 @@ class VPNManager: ObservableObject {
 
         let targetState = !isBlocking
 
-        // 1. Ghi config vào file shared
-        let config = LagConfig(enabled: targetState, delayMs: 150, timestamp: Date().timeIntervalSince1970)
+        // Ghi config vào file shared
+        let config = LagConfig(enabled: targetState, timestamp: Date().timeIntervalSince1970)
         writeConfig(config)
 
-        // 2. Ping extension (optional)
+        // Ping extension
         if isVPNConnected, let session = manager?.connection as? NETunnelProviderSession {
             do {
                 try session.sendProviderMessage(Data("reload".utf8)) { _ in }
             } catch { }
         }
 
-        // 3. Cập nhật UI NGAY LẬP TỨC — không delay
+        // Cập nhật UI NGAY
         isBlocking = targetState
         isProcessingCommand = false
         lastError = nil
