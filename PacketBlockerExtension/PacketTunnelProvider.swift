@@ -2,7 +2,7 @@ import NetworkExtension
 import Network
 import Foundation
 
-// MARK: - IP Checksum (IPv4)
+// MARK: - IP Checksum
 fileprivate func ipChecksum(_ data: Data) -> UInt16 {
     var sum: UInt32 = 0
     let count = data.count
@@ -20,17 +20,6 @@ fileprivate func ipChecksum(_ data: Data) -> UInt16 {
     return ~UInt16(sum & 0xFFFF)
 }
 
-// MARK: - IPv6 Address String Builder
-fileprivate func ipv6String(_ bytes: Data) -> String {
-    guard bytes.count == 16 else { return "" }
-    var parts: [String] = []
-    for i in stride(from: 0, to: 16, by: 2) {
-        let val = (UInt16(bytes[i]) << 8) | UInt16(bytes[i + 1])
-        parts.append(String(format: "%04x", val))
-    }
-    return parts.joined(separator: ":")
-}
-
 // MARK: - PacketTunnelProvider
 class PacketTunnelProvider: NEPacketTunnelProvider {
 
@@ -41,17 +30,15 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
     private var configTimer: DispatchSourceTimer?
     private var cleanupTimer: DispatchSourceTimer?
     private var isReading = false
-    private var logCounter = 0
 
-    // IPv4 UDP
+    // Per-flow UDP sessions (1 per src-dst pair) - REQUIRED for proper 2-way tracking
     fileprivate var udpV4: [String: UDPSessionV4] = [:]
     fileprivate let udpV4Lock = NSLock()
-    fileprivate let maxUdpV4 = 80
+    fileprivate let maxUdpV4 = 50
 
-    // IPv6 UDP
     fileprivate var udpV6: [String: UDPSessionV6] = [:]
     fileprivate let udpV6Lock = NSLock()
-    fileprivate let maxUdpV6 = 80
+    fileprivate let maxUdpV6 = 30
 
     private var configURL: URL? {
         guard let container = FileManager.default.containerURL(
@@ -67,7 +54,6 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         isLagEnabled = false
         lastConfigTimestamp = 0
         isReading = false
-        logCounter = 0
 
         let settings = NEPacketTunnelNetworkSettings(tunnelRemoteAddress: "127.0.0.1")
         settings.mtu = 1500
@@ -146,11 +132,11 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         }
     }
 
-    // MARK: - Cleanup Watcher
+    // MARK: - Cleanup Watcher (every 5 seconds, aggressive)
 
     private func startCleanupWatcher() {
         let timer = DispatchSource.makeTimerSource(queue: queue)
-        timer.schedule(deadline: .now() + 30.0, repeating: 30.0)
+        timer.schedule(deadline: .now() + 5.0, repeating: 5.0)
         timer.setEventHandler { [weak self] in self?.cleanup() }
         timer.resume()
         cleanupTimer = timer
@@ -161,14 +147,14 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
 
         udpV4Lock.lock()
         var v4r: [String] = []
-        for (k, s) in udpV4 { if now - s.lastActivity > 60.0 { s.connection.cancel(); v4r.append(k) } }
+        for (k, s) in udpV4 { if now - s.lastActivity > 15.0 { s.connection.cancel(); v4r.append(k) } }
         for k in v4r { udpV4.removeValue(forKey: k) }
         let v4c = udpV4.count
         udpV4Lock.unlock()
 
         udpV6Lock.lock()
         var v6r: [String] = []
-        for (k, s) in udpV6 { if now - s.lastActivity > 60.0 { s.connection.cancel(); v6r.append(k) } }
+        for (k, s) in udpV6 { if now - s.lastActivity > 15.0 { s.connection.cancel(); v6r.append(k) } }
         for k in v6r { udpV6.removeValue(forKey: k) }
         let v6c = udpV6.count
         udpV6Lock.unlock()
@@ -223,7 +209,6 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         case 1:
             handleICMPv4(packet: packet, srcIP: srcIP, dstIP: dstIP, ihl: ihl)
         case 6:
-            // TCP: simple RST to close connection gracefully instead of dropping
             sendTCPReset(srcIP: dstIP, dstIP: srcIP, packet: packet, ihl: ihl)
         case 17:
             handleUDPv4(packet: packet, srcIP: srcIP, dstIP: dstIP, ihl: ihl)
@@ -249,10 +234,8 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         case 17:
             handleUDPv6(packet: packet, srcIP: srcIP, dstIP: dstIP)
         case 6:
-            // TCPv6: drop
             break
         case 58:
-            // ICMPv6: echo reply
             if packet.count >= 41 && packet[40] == 128 {
                 sendICMPv6EchoReply(packet: packet, srcIP: srcIP, dstIP: dstIP)
             }
@@ -264,8 +247,7 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
     // MARK: - ICMPv4 Echo Reply
 
     private func handleICMPv4(packet: Data, srcIP: UInt32, dstIP: UInt32, ihl: Int) {
-        guard packet.count >= ihl + 8 else { return }
-        guard packet[ihl] == 8 else { return }
+        guard packet.count >= ihl + 8, packet[ihl] == 8 else { return }
         var reply = Data(count: packet.count - ihl)
         reply[0] = 0; reply[1] = 0; reply[2] = 0; reply[3] = 0
         reply[4] = packet[ihl + 4]; reply[5] = packet[ihl + 5]
@@ -285,24 +267,17 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
     private func sendICMPv6EchoReply(packet: Data, srcIP: Data, dstIP: Data) {
         guard isRunning, packet.count >= 41 else { return }
         var reply = Data(count: packet.count - 40)
-        reply[0] = 129 // Echo Reply
-        reply[1] = 0
-        reply[2] = 0; reply[3] = 0
+        reply[0] = 129; reply[1] = 0; reply[2] = 0; reply[3] = 0
         if packet.count > 41 {
             reply.replaceSubrange(4..<reply.count, with: packet.subdata(in: 41..<packet.count))
         }
-        // ICMPv6 checksum (simplified - would need pseudo header, but many systems accept without)
-        // For now, just send without checksum correction
         var ip6 = Data(count: 40)
         ip6[0] = 0x60
         ip6[4] = UInt8(reply.count >> 8); ip6[5] = UInt8(reply.count & 0xFF)
-        ip6[6] = 58 // ICMPv6
-        ip6[7] = 64
+        ip6[6] = 58; ip6[7] = 64
         ip6.replaceSubrange(8..<24, with: srcIP)
         ip6.replaceSubrange(24..<40, with: dstIP)
-        var full = Data()
-        full.append(ip6)
-        full.append(reply)
+        var full = Data(); full.append(ip6); full.append(reply)
         let _ = packetFlow.writePackets([full], withProtocols: [NSNumber(value: AF_INET6)])
     }
 
@@ -317,19 +292,18 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         var tcp = Data(count: 20)
         tcp[0] = UInt8(dstPort >> 8); tcp[1] = UInt8(dstPort & 0xFF)
         tcp[2] = UInt8(srcPort >> 8); tcp[3] = UInt8(srcPort & 0xFF)
-        tcp[4] = 0; tcp[5] = 0; tcp[6] = 0; tcp[7] = 0 // seq = 0
+        tcp[4] = 0; tcp[5] = 0; tcp[6] = 0; tcp[7] = 0
         tcp[8] = UInt8((ack + 1) >> 24); tcp[9] = UInt8((ack + 1) >> 16)
         tcp[10] = UInt8((ack + 1) >> 8); tcp[11] = UInt8((ack + 1) & 0xFF)
-        tcp[12] = 0x50; tcp[13] = 0x14 // RST+ACK
-        tcp[14] = 0; tcp[15] = 0
-        tcp[16] = 0; tcp[17] = 0; tcp[18] = 0; tcp[19] = 0
+        tcp[12] = 0x50; tcp[13] = 0x14
+        tcp[14] = 0; tcp[15] = 0; tcp[16] = 0; tcp[17] = 0; tcp[18] = 0; tcp[19] = 0
 
         guard isRunning else { return }
         let ipPacket = buildIPv4(srcIP: srcIP, dstIP: dstIP, proto: 6, payload: tcp)
         let _ = packetFlow.writePackets([ipPacket], withProtocols: [NSNumber(value: AF_INET)])
     }
 
-    // MARK: - UDPv4 Proxy
+    // MARK: - UDPv4 (Per-flow, lightweight)
 
     private func handleUDPv4(packet: Data, srcIP: UInt32, dstIP: UInt32, ihl: Int) {
         guard packet.count >= ihl + 8 else { return }
@@ -347,22 +321,19 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         if let session = udpV4[key] {
             session.lastActivity = Date().timeIntervalSince1970
             udpV4Lock.unlock()
-            forwardUdpV4(session, payload)
+            session.send(payload, lag: isLagEnabled)
         } else {
             if udpV4.count >= maxUdpV4 {
-                if let oldest = udpV4.min(by: { $0.value.lastActivity < $1.value.lastActivity })?.key {
-                    udpV4[oldest]?.connection.cancel()
-                    udpV4.removeValue(forKey: oldest)
-                }
+                // Drop new packet if at limit - don't create more connections
+                udpV4Lock.unlock()
+                return
             }
             udpV4Lock.unlock()
 
-            // Create connection OUTSIDE lock
+            // Build endpoint string
             let ipStr = "\(dstIP >> 24).\(dstIP >> 16 & 0xFF).\(dstIP >> 8 & 0xFF).\(dstIP & 0xFF)"
             let host = NWEndpoint.Host(ipStr)
-            guard let port = NWEndpoint.Port(rawValue: UInt16(dstPort)) else {
-                return
-            }
+            guard let port = NWEndpoint.Port(rawValue: UInt16(dstPort)) else { return }
             let endpoint = NWEndpoint.hostPort(host: host, port: port)
             let conn = NWConnection(to: endpoint, using: .udp)
             let session = UDPSessionV4(key: key, connection: conn, srcIP: srcIP, srcPort: srcPort, dstIP: dstIP, dstPort: dstPort, provider: self)
@@ -372,19 +343,8 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
             udpV4Lock.unlock()
 
             conn.start(queue: queue)
-            session.startReceive()
-            forwardUdpV4(session, payload)
-        }
-    }
-
-    private func forwardUdpV4(_ session: UDPSessionV4, _ payload: Data) {
-        if isLagEnabled {
-            if Int.random(in: 0..<100) < 15 { return }
-            queue.asyncAfter(deadline: .now() + .milliseconds(300)) { [weak session] in
-                session?.send(payload)
-            }
-        } else {
-            session.send(payload)
+            session.beginReceive()
+            session.send(payload, lag: isLagEnabled)
         }
     }
 
@@ -413,7 +373,7 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         let _ = packetFlow.writePackets([ipPacket], withProtocols: [NSNumber(value: AF_INET)])
     }
 
-    // MARK: - UDPv6 Proxy
+    // MARK: - UDPv6 (Per-flow, lightweight)
 
     private func handleUDPv6(packet: Data, srcIP: Data, dstIP: Data) {
         guard packet.count >= 48 else { return }
@@ -433,23 +393,18 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         if let session = udpV6[key] {
             session.lastActivity = Date().timeIntervalSince1970
             udpV6Lock.unlock()
-            forwardUdpV6(session, payload)
+            session.send(payload, lag: isLagEnabled)
         } else {
             if udpV6.count >= maxUdpV6 {
-                if let oldest = udpV6.min(by: { $0.value.lastActivity < $1.value.lastActivity })?.key {
-                    udpV6[oldest]?.connection.cancel()
-                    udpV6.removeValue(forKey: oldest)
-                }
+                udpV6Lock.unlock()
+                return
             }
             udpV6Lock.unlock()
 
-            // Create connection OUTSIDE lock - safe string conversion
             let ipStr = ipv6String(dstIP)
-            guard !ipStr.isEmpty,
-                  let port = NWEndpoint.Port(rawValue: UInt16(dstPort)) else {
-                return
-            }
+            guard !ipStr.isEmpty else { return }
             let host = NWEndpoint.Host(ipStr)
+            guard let port = NWEndpoint.Port(rawValue: UInt16(dstPort)) else { return }
             let endpoint = NWEndpoint.hostPort(host: host, port: port)
             let conn = NWConnection(to: endpoint, using: .udp)
             let session = UDPSessionV6(key: key, connection: conn, srcIP: srcIP, srcPort: srcPort, dstIP: dstIP, dstPort: dstPort, provider: self)
@@ -459,19 +414,8 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
             udpV6Lock.unlock()
 
             conn.start(queue: queue)
-            session.startReceive()
-            forwardUdpV6(session, payload)
-        }
-    }
-
-    private func forwardUdpV6(_ session: UDPSessionV6, _ payload: Data) {
-        if isLagEnabled {
-            if Int.random(in: 0..<100) < 15 { return }
-            queue.asyncAfter(deadline: .now() + .milliseconds(300)) { [weak session] in
-                session?.send(payload)
-            }
-        } else {
-            session.send(payload)
+            session.beginReceive()
+            session.send(payload, lag: isLagEnabled)
         }
     }
 
@@ -499,8 +443,7 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         var ip6 = Data(count: 40)
         ip6[0] = 0x60
         ip6[4] = UInt8(ulen >> 8); ip6[5] = UInt8(ulen & 0xFF)
-        ip6[6] = 17
-        ip6[7] = 64
+        ip6[6] = 17; ip6[7] = 64
         ip6.replaceSubrange(8..<24, with: srcIP)
         ip6.replaceSubrange(24..<40, with: dstIP)
 
@@ -511,7 +454,7 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         let _ = packetFlow.writePackets([full], withProtocols: [NSNumber(value: AF_INET6)])
     }
 
-    // MARK: - IPv4 Packet Builder
+    // MARK: - IPv4 Builder
 
     fileprivate func buildIPv4(srcIP: UInt32, dstIP: UInt32, proto: UInt8, payload: Data) -> Data {
         var packet = Data(count: 20 + payload.count)
@@ -527,9 +470,21 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         packet.replaceSubrange(20..<packet.count, with: payload)
         return packet
     }
+
+    // MARK: - IPv6 String
+
+    fileprivate func ipv6String(_ bytes: Data) -> String {
+        guard bytes.count == 16 else { return "" }
+        var parts: [String] = []
+        for i in stride(from: 0, to: 16, by: 2) {
+            let val = (UInt16(bytes[i]) << 8) | UInt16(bytes[i + 1])
+            parts.append(String(format: "%04x", val))
+        }
+        return parts.joined(separator: ":")
+    }
 }
 
-// MARK: - UDPv4 Session
+// MARK: - UDPv4 Session (Per-flow)
 fileprivate class UDPSessionV4 {
     let key: String
     let connection: NWConnection
@@ -537,6 +492,7 @@ fileprivate class UDPSessionV4 {
     let dstIP: UInt32, dstPort: UInt16
     weak var provider: PacketTunnelProvider?
     var lastActivity: TimeInterval
+    private var isReceiving = false
 
     init(key: String, connection: NWConnection, srcIP: UInt32, srcPort: UInt16, dstIP: UInt32, dstPort: UInt16, provider: PacketTunnelProvider) {
         self.key = key; self.connection = connection
@@ -546,13 +502,27 @@ fileprivate class UDPSessionV4 {
         self.lastActivity = Date().timeIntervalSince1970
     }
 
-    func startReceive() {
+    func beginReceive() {
+        guard !isReceiving else { return }
+        isReceiving = true
         receive()
     }
 
-    func send(_ data: Data) {
+    func send(_ payload: Data, lag: Bool) {
         lastActivity = Date().timeIntervalSince1970
-        connection.send(content: data, completion: .contentProcessed { _ in })
+        if lag {
+            if Int.random(in: 0..<100) < 15 { return }
+            provider?.queue.asyncAfter(deadline: .now() + .milliseconds(300)) { [weak self] in
+                self?.sendNow(payload)
+            }
+        } else {
+            sendNow(payload)
+        }
+    }
+
+    private func sendNow(_ payload: Data) {
+        lastActivity = Date().timeIntervalSince1970
+        connection.send(content: payload, completion: .contentProcessed { _ in })
     }
 
     private func receive() {
@@ -569,7 +539,7 @@ fileprivate class UDPSessionV4 {
     }
 }
 
-// MARK: - UDPv6 Session
+// MARK: - UDPv6 Session (Per-flow)
 fileprivate class UDPSessionV6 {
     let key: String
     let connection: NWConnection
@@ -577,6 +547,7 @@ fileprivate class UDPSessionV6 {
     let srcPort: UInt16, dstPort: UInt16
     weak var provider: PacketTunnelProvider?
     var lastActivity: TimeInterval
+    private var isReceiving = false
 
     init(key: String, connection: NWConnection, srcIP: Data, srcPort: UInt16, dstIP: Data, dstPort: UInt16, provider: PacketTunnelProvider) {
         self.key = key; self.connection = connection
@@ -586,13 +557,27 @@ fileprivate class UDPSessionV6 {
         self.lastActivity = Date().timeIntervalSince1970
     }
 
-    func startReceive() {
+    func beginReceive() {
+        guard !isReceiving else { return }
+        isReceiving = true
         receive()
     }
 
-    func send(_ data: Data) {
+    func send(_ payload: Data, lag: Bool) {
         lastActivity = Date().timeIntervalSince1970
-        connection.send(content: data, completion: .contentProcessed { _ in })
+        if lag {
+            if Int.random(in: 0..<100) < 15 { return }
+            provider?.queue.asyncAfter(deadline: .now() + .milliseconds(300)) { [weak self] in
+                self?.sendNow(payload)
+            }
+        } else {
+            sendNow(payload)
+        }
+    }
+
+    private func sendNow(_ payload: Data) {
+        lastActivity = Date().timeIntervalSince1970
+        connection.send(content: payload, completion: .contentProcessed { _ in })
     }
 
     private func receive() {
