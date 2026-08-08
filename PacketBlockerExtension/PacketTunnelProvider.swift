@@ -2,7 +2,7 @@ import NetworkExtension
 import Network
 import Foundation
 
-// MARK: - IP Checksum
+// MARK: - IP Checksum Helpers
 fileprivate func ipChecksum(_ data: Data) -> UInt16 {
     var sum: UInt32 = 0
     let count = data.count
@@ -58,18 +58,21 @@ fileprivate func tcpChecksum(srcIP: UInt32, dstIP: UInt32, proto: UInt8, tcpPack
 // MARK: - PacketTunnelProvider
 class PacketTunnelProvider: NEPacketTunnelProvider {
 
-    private var isLagEnabled = false
+    // MARK: Config & State
+    fileprivate var isLagEnabled = false
     private var lastConfigTimestamp: TimeInterval = 0
     let queue = DispatchQueue(label: "com.fakelag", qos: .userInitiated)
     private var isRunning = false
     private var watchTimer: Timer?
     private var isReading = false
 
-    private var udpSessions: [String: UDPSession] = [:]
-    private let udpLock = NSLock()
+    // UDP sessions: key = "srcIP:srcPort-dstIP:dstPort"
+    fileprivate var udpSessions: [String: UDPSession] = [:]
+    fileprivate let udpLock = NSLock()
 
-    private var tcpSessions: [String: TCPSession] = [:]
-    private let tcpLock = NSLock()
+    // TCP sessions
+    fileprivate var tcpSessions: [String: TCPSession] = [:]
+    fileprivate let tcpLock = NSLock()
 
     private var configURL: URL? {
         guard let container = FileManager.default.containerURL(
@@ -159,7 +162,7 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         if enabled != isLagEnabled {
             isLagEnabled = enabled
             NSLog("[FakeLag] ===== Config changed: lag=\(isLagEnabled) (ts=\(timestamp)) =====")
-            applySettings(lagEnabled: isLagEnabled) { [weak self] error in
+            applySettings(lagEnabled: isLagEnabled) { error in
                 if let error = error {
                     NSLog("[FakeLag] applySettings error: \(error)")
                 }
@@ -370,7 +373,7 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         let srcPort = (UInt16(packet[ihl]) << 8) | UInt16(packet[ihl + 1])
         let dstPort = (UInt16(packet[ihl + 2]) << 8) | UInt16(packet[ihl + 3])
         let seq = (UInt32(packet[ihl + 4]) << 24) | (UInt32(packet[ihl + 5]) << 16) | (UInt32(packet[ihl + 6]) << 8) | UInt32(packet[ihl + 7])
-        let ack = (UInt32(packet[ihl + 8]) << 24) | (UInt32(packet[ihl + 9]) << 16) | (UInt32(packet[ihl + 10]) << 8) | UInt32(packet[ihl + 11])
+        let _ = (UInt32(packet[ihl + 8]) << 24) | (UInt32(packet[ihl + 9]) << 16) | (UInt32(packet[ihl + 10]) << 8) | UInt32(packet[ihl + 11])
         let dataOffset = Int((packet[ihl + 12] >> 4) & 0x0F) * 4
         let flags = packet[ihl + 13]
         let payloadStart = ihl + dataOffset
@@ -557,8 +560,10 @@ fileprivate class TCPSession {
             switch state {
             case .ready:
                 self.sendSynAck()
-            case .failed(let err), .cancelled:
+            case .failed(let err):
                 NSLog("[FakeLag] TCP conn failed: \(err)")
+                self.close()
+            case .cancelled:
                 self.close()
             default:
                 break
