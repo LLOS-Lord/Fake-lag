@@ -352,7 +352,7 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
             tcpSessions[key] = session
             tcpLock.unlock()
 
-            conn.stateUpdateHandler = { [weak self, weak session] state: NWConnection.State in
+            conn.stateUpdateHandler = { [weak self, weak session] (state: NWConnection.State) in
                 guard let self = self, let session = session, self.isRunning else { return }
                 switch state {
                 case .ready:
