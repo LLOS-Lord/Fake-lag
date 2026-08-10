@@ -495,26 +495,55 @@ fileprivate class UDPSessionV6 {
         self.server = server
         self.lastActivity = Date().timeIntervalSince1970
 
-        var addr = in6_addr()
-        dstIP.withUnsafeBytes { ptr in
-            memcpy(&addr, ptr.baseAddress!, 16)
-        }
-        var buffer = [CChar](repeating: 0, count: INET6_ADDRSTRLEN)
-        var sin6 = sockaddr_in6()
-        sin6.sin6_family = sa_family_t(AF_INET6)
-        sin6.sin6_addr = addr
-        withUnsafePointer(to: &sin6) {
-            $0.withMemoryRebound(to: sockaddr.self, capacity: 1) {
-                inet_ntop(AF_INET6, &sin6.sin6_addr, &buffer, socklen_t(INET6_ADDRSTRLEN))
-            }
-        }
-        let ipStr = String(cString: buffer)
+        // Convert 16-byte IPv6 to string format
+        let ipStr = Self.ipv6ToString(dstIP)
         let host = NWEndpoint.Host(ipStr)
         let port = NWEndpoint.Port(integerLiteral: UInt16(dstPort))
         let endpoint = NWEndpoint.hostPort(host: host, port: port)
         connection = NWConnection(to: endpoint, using: .udp)
         connection.start(queue: server.queue)
         receive()
+    }
+
+    private static func ipv6ToString(_ data: Data) -> String {
+        guard data.count == 16 else { return "::" }
+        var groups: [String] = []
+        for i in stride(from: 0, to: 16, by: 2) {
+            let val = (UInt16(data[i]) << 8) | UInt16(data[i + 1])
+            groups.append(String(format: "%04x", val))
+        }
+        // Find longest run of zeros to compress
+        var bestStart = -1
+        var bestLen = 0
+        var currStart = -1
+        var currLen = 0
+        for (i, g) in groups.enumerated() {
+            if g == "0000" {
+                if currStart == -1 { currStart = i }
+                currLen += 1
+                if currLen > bestLen {
+                    bestLen = currLen
+                    bestStart = currStart
+                }
+            } else {
+                currStart = -1
+                currLen = 0
+            }
+        }
+        if bestLen >= 2 {
+            let prefix = groups[0..<bestStart].map { $0 }.joined(separator: ":")
+            let suffix = groups[(bestStart + bestLen)..<16].map { $0 }.joined(separator: ":")
+            if prefix.isEmpty && suffix.isEmpty {
+                return "::"
+            } else if prefix.isEmpty {
+                return "::" + suffix
+            } else if suffix.isEmpty {
+                return prefix + "::"
+            } else {
+                return prefix + "::" + suffix
+            }
+        }
+        return groups.joined(separator: ":")
     }
 
     func send(_ data: Data) {
