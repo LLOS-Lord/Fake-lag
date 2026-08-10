@@ -141,7 +141,10 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         tcpLock.lock()
         var tcpRemove: [String] = []
         for (k, s) in tcpSessions {
-            if s.conn.state == .cancelled || s.conn.state == .failed || now - s.lastActivity > 300.0 {
+            var shouldRemove = false
+            if case .cancelled = s.conn.state { shouldRemove = true }
+            if case .failed = s.conn.state { shouldRemove = true }
+            if shouldRemove || now - s.lastActivity > 300.0 {
                 s.conn.cancel()
                 tcpRemove.append(k)
             }
@@ -228,7 +231,7 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
                 }
             }
             let ipStr = "\(dstIP >> 24).\(dstIP >> 16 & 0xFF).\(dstIP >> 8 & 0xFF).\(dstIP & 0xFF)"
-            let endpoint = NWEndpoint.hostPort(host: NWEndpoint.Host(ipStr), port: .integer(Int(dstPort)))
+            let endpoint = NWEndpoint.hostPort(host: NWEndpoint.Host(ipStr), port: NWEndpoint.Port(integerLiteral: UInt16(dstPort)))
             let conn = NWConnection(to: endpoint, using: .udp)
             let session = UDPSession(conn: conn, srcIP: srcIP, srcPort: srcPort, dstIP: dstIP, dstPort: dstPort)
             udpSessions[key] = session
@@ -297,7 +300,7 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         let srcPort = (UInt16(packet[ihl]) << 8) | UInt16(packet[ihl + 1])
         let dstPort = (UInt16(packet[ihl + 2]) << 8) | UInt16(packet[ihl + 3])
         let seq = (UInt32(packet[ihl + 4]) << 24) | (UInt32(packet[ihl + 5]) << 16) | (UInt32(packet[ihl + 6]) << 8) | UInt32(packet[ihl + 7])
-        let _ = (UInt32(packet[ihl + 8]) << 24) | (UInt32(packet[ihl + 9]) << 16) | (UInt32(packet[ihl + 10]) << 8) | UInt32(packet[ihl + 11])
+        let ack = (UInt32(packet[ihl + 8]) << 24) | (UInt32(packet[ihl + 9]) << 16) | (UInt32(packet[ihl + 10]) << 8) | UInt32(packet[ihl + 11])
         let dataOffset = Int((packet[ihl + 12] >> 4) & 0x0F) * 4
         let flags = packet[ihl + 13]
         let payloadStart = ihl + dataOffset
@@ -343,13 +346,13 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
                 return
             }
             let ipStr = "\(dstIP >> 24).\(dstIP >> 16 & 0xFF).\(dstIP >> 8 & 0xFF).\(dstIP & 0xFF)"
-            let endpoint = NWEndpoint.hostPort(host: NWEndpoint.Host(ipStr), port: .integer(Int(dstPort)))
+            let endpoint = NWEndpoint.hostPort(host: NWEndpoint.Host(ipStr), port: NWEndpoint.Port(integerLiteral: UInt16(dstPort)))
             let conn = NWConnection(to: endpoint, using: .tcp)
             let session = TCPSession(conn: conn, srcIP: srcIP, srcPort: srcPort, dstIP: dstIP, dstPort: dstPort, synSeq: seq, synAck: ack)
             tcpSessions[key] = session
             tcpLock.unlock()
 
-            conn.stateUpdateHandler = { [weak self, weak session] state in
+            conn.stateUpdateHandler = { [weak self, weak session] state: NWConnection.State in
                 guard let self = self, let session = session, self.isRunning else { return }
                 switch state {
                 case .ready:
