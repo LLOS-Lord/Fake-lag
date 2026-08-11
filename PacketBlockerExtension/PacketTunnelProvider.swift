@@ -3,11 +3,11 @@ import Network
 import Foundation
 
 // ============================================================================
-// MARK: - PacketTunnelProvider (Ultra-Light v3 - Pass-through)
+// MARK: - PacketTunnelProvider (Ultra-Light v4 - Stable Pass-through)
 // ============================================================================
+// Logic: Đọc packet → delay/drop (nếu lag ON) → write lại
 // Không proxy qua NWConnection → không giới hạn session, không crash
-// Chỉ đọc packet → delay/drop → write lại
-// Hoạt động ổn định trên iOS 16+
+// Đã fix: IPv6 pass-through, async write tránh deadlock, đúng protocol
 // ============================================================================
 
 class PacketTunnelProvider: NEPacketTunnelProvider {
@@ -34,10 +34,16 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
 
         let settings = NEPacketTunnelNetworkSettings(tunnelRemoteAddress: "127.0.0.1")
         settings.mtu = 1500
+
+        // IPv4: route all
         let ipv4 = NEIPv4Settings(addresses: ["10.8.0.2"], subnetMasks: ["255.255.255.0"])
         ipv4.includedRoutes = [NEIPv4Route.default()]
         settings.ipv4Settings = ipv4
-        // Không set ipv6Settings → bỏ hoàn toàn IPv6, giảm tải cực lớn
+
+        // IPv6: route all (pass-through, không xử lý sâu)
+        let ipv6 = NEIPv6Settings(addresses: ["fd00::2"], networkPrefixLengths: [64])
+        ipv6.includedRoutes = [NEIPv6Route.default()]
+        settings.ipv6Settings = ipv6
 
         setTunnelNetworkSettings(settings) { [weak self] error in
             if let error = error {
@@ -89,7 +95,7 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         }
     }
 
-    // MARK: - Read Loop (Non-recursive)
+    // MARK: - Read Loop (Non-blocking)
 
     private func startReadLoop() {
         queue.async { [weak self] in
@@ -101,9 +107,11 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         guard isRunning else { return }
         packetFlow.readPackets { [weak self] packets, protocols in
             guard let self = self, self.isRunning else { return }
-            // Xử lý ngay trên background queue, callback trả về nhanh
-            for i in 0..<packets.count {
-                self.handlePacket(packets[i], proto: protocols[i].int32Value)
+            // Tránh xử lý nặng trong callback → schedule lên queue
+            self.queue.async {
+                for i in 0..<packets.count {
+                    self.handlePacket(packets[i], proto: protocols[i].int32Value)
+                }
             }
             // Schedule read tiếp theo async → không đệ quy đồng bộ
             self.queue.async { [weak self] in
@@ -115,70 +123,86 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
     // MARK: - Packet Handler
 
     private func handlePacket(_ packet: Data, proto: Int32) {
-        guard proto == AF_INET else {
-            // Không phải IPv4 → pass-through ngay
-            passThrough(packet: packet)
+        guard isRunning else { return }
+
+        // IPv6: pass-through ngay, không xử lý sâu
+        if proto == AF_INET6 {
+            passThrough(packet: packet, proto: AF_INET6)
             return
         }
+
+        // Không phải IPv4/IPv6: pass-through
+        if proto != AF_INET {
+            passThrough(packet: packet, proto: proto)
+            return
+        }
+
+        // IPv4
         guard packet.count >= 20 else {
-            passThrough(packet: packet)
+            passThrough(packet: packet, proto: AF_INET)
             return
         }
         guard (packet[0] >> 4) & 0x0F == 4 else {
-            passThrough(packet: packet)
+            passThrough(packet: packet, proto: AF_INET)
             return
         }
 
         let ipProto = packet[9]
 
         if !isLagEnabled {
-            // Không lag → pass-through ngay
-            passThrough(packet: packet)
+            // Không lag → pass-through async (tránh deadlock với readPackets callback)
+            passThrough(packet: packet, proto: AF_INET)
             return
         }
 
         // Lag enabled
         switch ipProto {
         case 17: // UDP
-            handleUDPLag(packet: packet)
+            handleUDPLag(packet: packet, proto: AF_INET)
         case 6:  // TCP
-            handleTCPLag(packet: packet)
+            handleTCPLag(packet: packet, proto: AF_INET)
         default:
             // ICMP, v.v. → pass-through
-            passThrough(packet: packet)
+            passThrough(packet: packet, proto: AF_INET)
         }
     }
 
-    // MARK: - Pass-through (no lag)
+    // MARK: - Pass-through
 
-    private func passThrough(packet: Data) {
+    /// Ghi packet lại tunnel. Luôn async trên queue để tránh block/block readPackets callback.
+    private func passThrough(packet: Data, proto: Int32) {
         guard isRunning else { return }
-        packetFlow.writePackets([packet], withProtocols: [NSNumber(value: AF_INET)])
+        queue.async { [weak self] in
+            guard let self = self, self.isRunning else { return }
+            let written = self.packetFlow.writePackets([packet], withProtocols: [NSNumber(value: proto)])
+            if written == 0 {
+                NSLog("[FakeLag] writePackets failed proto=\(proto) len=\(packet.count)")
+            }
+        }
     }
 
     // MARK: - UDP Lag
 
-    private func handleUDPLag(packet: Data) {
+    private func handleUDPLag(packet: Data, proto: Int32) {
         // Drop 15% UDP packet
         if Int.random(in: 0..<100) < 15 {
             return // Drop silently
         }
         // Delay 300ms cho 85% còn lại
         queue.asyncAfter(deadline: .now() + .milliseconds(300)) { [weak self] in
-            self?.passThrough(packet: packet)
+            self?.passThrough(packet: packet, proto: proto)
         }
     }
 
     // MARK: - TCP Lag
 
-    private func handleTCPLag(packet: Data) {
-        // TCP nhạy cảm hơn: chỉ delay, không drop (tránh broken connection)
-        // Hoặc drop ít hơn: 5%
+    private func handleTCPLag(packet: Data, proto: Int32) {
+        // TCP nhạy cảm: chỉ drop 5%, delay 300ms
         if Int.random(in: 0..<100) < 5 {
-            return // Drop 5%
+            return
         }
         queue.asyncAfter(deadline: .now() + .milliseconds(300)) { [weak self] in
-            self?.passThrough(packet: packet)
+            self?.passThrough(packet: packet, proto: proto)
         }
     }
 }
