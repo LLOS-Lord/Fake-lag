@@ -174,8 +174,8 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         guard isRunning else { return }
         queue.async { [weak self] in
             guard let self = self, self.isRunning else { return }
-            let written = self.packetFlow.writePackets([packet], withProtocols: [NSNumber(value: proto)])
-            if written == 0 {
+            let ok = self.packetFlow.writePackets([packet], withProtocols: [NSNumber(value: proto)])
+            if !ok {
                 NSLog("[FakeLag] writePackets failed proto=\(proto) len=\(packet.count)")
             }
         }
