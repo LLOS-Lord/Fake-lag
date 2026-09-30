@@ -5,6 +5,8 @@
 #import <Foundation/Foundation.h>
 #import <UIKit/UIKit.h>
 #import <dlfcn.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 extern "C" int HUDMain(int argc, char *argv[]);
 extern BOOL gAetherIsDaemon;
