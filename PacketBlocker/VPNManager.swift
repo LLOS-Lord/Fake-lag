@@ -73,7 +73,7 @@ class VPNManager: ObservableObject {
             guard let self = self else { return }
             if let e = error {
                 self.lastError = "Load: \(e.localizedDescription)"
-                AppGroupStore.logAction("VPN_LOAD_FAIL", details: "\(e.localizedDescription) (code \(e.code))", level: "ERROR")
+                AppGroupStore.logAction("VPN_LOAD_FAIL", details: "\(e.localizedDescription) (code \((e as NSError).code))", level: "ERROR")
                 return
             }
             let found = managers ?? []
@@ -142,7 +142,7 @@ class VPNManager: ObservableObject {
                 DispatchQueue.main.async {
                     if let err = err {
                         self?.lastError = "Save: \(err.localizedDescription)"
-                        AppGroupStore.logAction("VPN_SAVE_FAIL", details: "\(err.localizedDescription) (code \(err.code))", level: "ERROR")
+                        AppGroupStore.logAction("VPN_SAVE_FAIL", details: "\(err.localizedDescription) (code \((err as NSError).code))", level: "ERROR")
                         return
                     }
                     do {
@@ -178,7 +178,7 @@ class VPNManager: ObservableObject {
             DispatchQueue.main.async {
                 if let err = err {
                     self?.lastError = "Create: \(err.localizedDescription)"
-                    AppGroupStore.logAction("VPN_CREATE_FAIL", details: "\(err.localizedDescription) (code \(err.code))", level: "ERROR")
+                    AppGroupStore.logAction("VPN_CREATE_FAIL", details: "\(err.localizedDescription) (code \((err as NSError).code))", level: "ERROR")
                     return
                 }
                 AppGroupStore.logAction("VPN_CREATE", details: "created manager")

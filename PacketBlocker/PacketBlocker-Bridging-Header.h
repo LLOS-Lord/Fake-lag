@@ -4,3 +4,4 @@
 #import "headers/PrivateSystemSPI.h"
 #import "HUD/FloatingToggleButton.h"
 #import "HUD/HUDMainWindow.h"
+#import <notify.h>

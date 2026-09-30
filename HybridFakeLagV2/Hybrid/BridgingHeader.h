@@ -14,6 +14,7 @@
 
 #import <Foundation/Foundation.h>
 #import <stdbool.h>
+#import <notify.h>
 
 // NOTE: deliberately NO NS_ASSUME_NONNULL here — the char* parameters must
 // import into Swift as optional pointers so callers can pass `nil`

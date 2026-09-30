@@ -109,7 +109,7 @@ class FloatingHUDManager: ObservableObject {
     private func doSpawn(execPath: String) {
         #if os(iOS)
         let rc = execPath.withCString { cPath -> Int32 in
-            Int32(HybridSpawnRoot(cPath, "-hud", nil))
+            Int32(HybridSpawnRoot(cPath, "-hud", ""))
         }
         AppGroupStore.logAction("HUD_SPAWN_RESULT", details: "posix_spawn rc=\(rc) (0=ok) exec=\(execPath)")
         if rc != 0 {

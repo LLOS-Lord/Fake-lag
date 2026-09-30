@@ -31,7 +31,7 @@ struct ContentView: View {
                         .frame(maxWidth:.infinity).padding().background(vpn.isBlocking ? Color.orange : Color.purple).cornerRadius(12).foregroundColor(.white)
                     }.padding(.horizontal).disabled(!vpn.isVPNConnected)
                     if !vpn.lastStats.isEmpty {
-                        Text(vpn.lastStats).font(.caption2.monospaced()).foregroundColor(.secondary).padding(.horizontal)
+                        Text(vpn.lastStats).font(.system(.caption2, design: .monospaced)).foregroundColor(.secondary).padding(.horizontal)
                     }
                     Button(action:{ hud.setEnabled(!hud.isRunning)}){
                         HStack{Image(systemName: hud.isRunning ? "xmark.circle" : "plus.circle"); Text(hud.isRunning ? "Remove Floating Button" : "Create Floating Button (TrollNet style)")}
