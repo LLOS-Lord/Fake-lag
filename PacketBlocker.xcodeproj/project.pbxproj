@@ -1,334 +1,82 @@
 // !$*UTF8*$!
 {
 	archiveVersion = 1;
-	classes = {
-	};
+	classes = {};
 	objectVersion = 56;
 	objects = {
-
 /* Begin PBXBuildFile section */
-		7B1234567890ABCDEF000001 /* App.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B1234567890ABCDEF000011 /* App.swift */; };
-		7B1234567890ABCDEF000002 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B1234567890ABCDEF000012 /* ContentView.swift */; };
-		7B1234567890ABCDEF000003 /* VPNManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B1234567890ABCDEF000013 /* VPNManager.swift */; };
-		7B1234567890ABCDEF000004 /* PacketTunnelProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B1234567890ABCDEF000014 /* PacketTunnelProvider.swift */; };
+		530FD8EC997A44DEB4500413 /* App.swift in Sources */ = {isa = PBXBuildFile; fileRef = 577202902121485D8D66AE99 /* App.swift */; };
+		ECE3E04CD4DF4F919834EC3B /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A248C6869DA6422EA43AB67B /* ContentView.swift */; };
+		B7CF207A0C594AF4A6DE20B7 /* AppGroup.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAC0A5C2BED74CD38325BEB9 /* AppGroup.swift */; };
+		8C0D44D4D63E4FD7BABE179A /* VPNManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 398884BE336F4921B02C6F6C /* VPNManager.swift */; };
+		507F02E88B664A309E2DC3A4 /* ProcessManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E766333C6254A36BEF1B0B3 /* ProcessManager.swift */; };
+		FE7588D360054DA0AE45421E /* FloatingHUDManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 171B0811C5AD4397A462AFAA /* FloatingHUDManager.swift */; };
+		7CABC5FC958D490DBCDA8974 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6478286782CD4930AD5A1FA5 /* SettingsView.swift */; };
+		EC7D7749ACD349A6B449C53A /* LogsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3719CF1ADEFB42AAA55AFC1B /* LogsView.swift */; };
+		E7474FE4E9254DE0A86F9B06 /* PacketTunnelProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD8F0D86417C4453AC3849C9 /* PacketTunnelProvider.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		7B1234567890ABCDEF000010 /* PacketBlocker.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PacketBlocker.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		7B1234567890ABCDEF000011 /* App.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = App.swift; sourceTree = "<group>"; };
-		7B1234567890ABCDEF000012 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
-		7B1234567890ABCDEF000013 /* VPNManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VPNManager.swift; sourceTree = "<group>"; };
-		7B1234567890ABCDEF000014 /* PacketTunnelProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PacketTunnelProvider.swift; sourceTree = "<group>"; };
-		7B1234567890ABCDEF000015 /* PacketBlockerExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = PacketBlockerExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
-		7B1234567890ABCDEF000016 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		7B1234567890ABCDEF000017 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		7B1234567890ABCDEF000018 /* PacketBlocker.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PacketBlocker.entitlements; sourceTree = "<group>"; };
-		7B1234567890ABCDEF000019 /* PacketBlockerExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PacketBlockerExtension.entitlements; sourceTree = "<group>"; };
+		7F4200FF0C154E9BA6A418F2 /* PacketBlocker.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PacketBlocker.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		71BDC149E251407BA555CC1D /* PacketBlockerExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = PacketBlockerExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		577202902121485D8D66AE99 /* App.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = App.swift; sourceTree = "<group>"; };
+		A248C6869DA6422EA43AB67B /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		DAC0A5C2BED74CD38325BEB9 /* AppGroup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppGroup.swift; sourceTree = "<group>"; };
+		398884BE336F4921B02C6F6C /* VPNManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VPNManager.swift; sourceTree = "<group>"; };
+		0E766333C6254A36BEF1B0B3 /* ProcessManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProcessManager.swift; sourceTree = "<group>"; };
+		171B0811C5AD4397A462AFAA /* FloatingHUDManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FloatingHUDManager.swift; sourceTree = "<group>"; };
+		6478286782CD4930AD5A1FA5 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		3719CF1ADEFB42AAA55AFC1B /* LogsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogsView.swift; sourceTree = "<group>"; };
+		FD8F0D86417C4453AC3849C9 /* PacketTunnelProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PacketTunnelProvider.swift; sourceTree = "<group>"; };
+		336A0EC87057422CA212DAF4 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		D5C711196E3D4783B4A91260 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		3F4B88570ADA452BA739626B /* PacketBlocker.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PacketBlocker.entitlements; sourceTree = "<group>"; };
+		2ED09CB6F16B4445A9E4B55D /* PacketBlockerExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PacketBlockerExtension.entitlements; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
-		7B1234567890ABCDEF000020 = {
-			isa = PBXGroup;
-			children = (
-				7B1234567890ABCDEF000021 /* PacketBlocker */,
-				7B1234567890ABCDEF000022 /* PacketBlockerExtension */,
-				7B1234567890ABCDEF000023 /* Products */,
-			);
-			sourceTree = "<group>";
-		};
-		7B1234567890ABCDEF000021 /* PacketBlocker */ = {
-			isa = PBXGroup;
-			children = (
-				7B1234567890ABCDEF000011 /* App.swift */,
-				7B1234567890ABCDEF000012 /* ContentView.swift */,
-				7B1234567890ABCDEF000013 /* VPNManager.swift */,
-				7B1234567890ABCDEF000016 /* Info.plist */,
-				7B1234567890ABCDEF000018 /* PacketBlocker.entitlements */,
-			);
-			path = PacketBlocker;
-			sourceTree = "<group>";
-		};
-		7B1234567890ABCDEF000022 /* PacketBlockerExtension */ = {
-			isa = PBXGroup;
-			children = (
-				7B1234567890ABCDEF000014 /* PacketTunnelProvider.swift */,
-				7B1234567890ABCDEF000017 /* Info.plist */,
-				7B1234567890ABCDEF000019 /* PacketBlockerExtension.entitlements */,
-			);
-			path = PacketBlockerExtension;
-			sourceTree = "<group>";
-		};
-		7B1234567890ABCDEF000023 /* Products */ = {
-			isa = PBXGroup;
-			children = (
-				7B1234567890ABCDEF000010 /* PacketBlocker.app */,
-				7B1234567890ABCDEF000015 /* PacketBlockerExtension.appex */,
-			);
-			name = Products;
-			sourceTree = "<group>";
-		};
+		FD0075998208433A871BD2A3 /* main */ = {isa = PBXGroup; children = (BA6C90C9396B4F81846B63CB, B115CBE9E6E34ECAB8D9D02A, 612A740AECD44985A33F06AF); sourceTree = "<group>"; };
+		BA6C90C9396B4F81846B63CB /* PacketBlocker */ = {isa = PBXGroup; children = (577202902121485D8D66AE99, A248C6869DA6422EA43AB67B, DAC0A5C2BED74CD38325BEB9, 398884BE336F4921B02C6F6C, 0E766333C6254A36BEF1B0B3, 171B0811C5AD4397A462AFAA, 6478286782CD4930AD5A1FA5, 3719CF1ADEFB42AAA55AFC1B, 336A0EC87057422CA212DAF4, 3F4B88570ADA452BA739626B); path = PacketBlocker; sourceTree = "<group>"; };
+		B115CBE9E6E34ECAB8D9D02A /* PacketBlockerExtension */ = {isa = PBXGroup; children = (FD8F0D86417C4453AC3849C9, D5C711196E3D4783B4A91260, 2ED09CB6F16B4445A9E4B55D); path = PacketBlockerExtension; sourceTree = "<group>"; };
+		612A740AECD44985A33F06AF /* Products */ = {isa = PBXGroup; children = (); name = Products; sourceTree = "<group>"; };
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		7B1234567890ABCDEF000030 /* PacketBlocker */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = 7B1234567890ABCDEF000040 /* Build configuration list for PBXNativeTarget "PacketBlocker" */;
-			buildPhases = (
-				7B1234567890ABCDEF000050 /* Sources */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-				7B1234567890ABCDEF000060 /* PBXTargetDependency */,
-			);
-			name = PacketBlocker;
-			productName = PacketBlocker;
-			productReference = 7B1234567890ABCDEF000010 /* PacketBlocker.app */;
-			productType = "com.apple.product-type.application";
-		};
-		7B1234567890ABCDEF000031 /* PacketBlockerExtension */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = 7B1234567890ABCDEF000041 /* Build configuration list for PBXNativeTarget "PacketBlockerExtension" */;
-			buildPhases = (
-				7B1234567890ABCDEF000051 /* Sources */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-			);
-			name = PacketBlockerExtension;
-			productName = PacketBlockerExtension;
-			productReference = 7B1234567890ABCDEF000015 /* PacketBlockerExtension.appex */;
-			productType = "com.apple.product-type.app-extension";
-		};
+		2546981098A54957B31C26B3 /* PacketBlocker */ = {isa = PBXNativeTarget; buildConfigurationList = B34C2D64078344AEA0C56A26; buildPhases = (BBAFF2A8CF8742239042F3F3); buildRules = (); dependencies = (080B864B3ABE4B469E88D867); name = PacketBlocker; productName = PacketBlocker; productType = "com.apple.product-type.application"; };
+		AA32DF9E9CFE45DF8FB1ADB6 /* PacketBlockerExtension */ = {isa = PBXNativeTarget; buildConfigurationList = 0A1D019D27EE44ECB28AA780; buildPhases = (AE7ABB03C0FE45CE95F8C23C); buildRules = (); dependencies = (); name = PacketBlockerExtension; productName = PacketBlockerExtension; productType = "com.apple.product-type.app-extension"; };
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
-		7B1234567890ABCDEF000100 /* Project object */ = {
-			isa = PBXProject;
-			attributes = {
-				LastSwiftUpdateCheck = 1540;
-				LastUpgradeCheck = 1540;
-				ORGANIZATIONNAME = "";
-				TargetAttributes = {
-					7B1234567890ABCDEF000030 = {
-						CreatedOnToolsVersion = 15.4;
-					};
-					7B1234567890ABCDEF000031 = {
-						CreatedOnToolsVersion = 15.4;
-					};
-				};
-			};
-			buildConfigurationList = 7B1234567890ABCDEF000110 /* Build configuration list for PBXProject "PacketBlocker" */;
-			compatibilityVersion = "Xcode 14.0";
-			developmentRegion = en;
-			hasScannedForEncodings = 0;
-			knownRegions = (
-				en,
-				Base,
-			);
-			mainGroup = 7B1234567890ABCDEF000020;
-			productRefGroup = 7B1234567890ABCDEF000023 /* Products */;
-			projectDirPath = "";
-			projectRoot = "";
-			targets = (
-				7B1234567890ABCDEF000030 /* PacketBlocker */,
-				7B1234567890ABCDEF000031 /* PacketBlockerExtension */,
-			);
-		};
+		EEE4ECDBAFF24F6482B54D73 /* Project object */ = {isa = PBXProject; attributes = {ORGANIZATIONNAME = "";}; buildConfigurationList = 0ADE46AB410B4F82AFFC396B; compatibilityVersion = "Xcode 14.0"; developmentRegion = en; hasScannedForEncodings = 0; knownRegions = (en, Base); mainGroup = BA6C90C9396B4F81846B63CB; productRefGroup = 612A740AECD44985A33F06AF; projectDirPath = ""; projectRoot = ""; targets = (2546981098A54957B31C26B3, AA32DF9E9CFE45DF8FB1ADB6); };
 /* End PBXProject section */
 
 /* Begin PBXSourcesBuildPhase section */
-		7B1234567890ABCDEF000050 /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				7B1234567890ABCDEF000001 /* App.swift in Sources */,
-				7B1234567890ABCDEF000002 /* ContentView.swift in Sources */,
-				7B1234567890ABCDEF000003 /* VPNManager.swift in Sources */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		7B1234567890ABCDEF000051 /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				7B1234567890ABCDEF000004 /* PacketTunnelProvider.swift in Sources */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
+		BBAFF2A8CF8742239042F3F3 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (530FD8EC997A44DEB4500413, ECE3E04CD4DF4F919834EC3B, B7CF207A0C594AF4A6DE20B7, 8C0D44D4D63E4FD7BABE179A, 507F02E88B664A309E2DC3A4, FE7588D360054DA0AE45421E, 7CABC5FC958D490DBCDA8974, EC7D7749ACD349A6B449C53A); runOnlyForDeploymentPostprocessing = 0; };
+		AE7ABB03C0FE45CE95F8C23C /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (E7474FE4E9254DE0A86F9B06); runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
-		7B1234567890ABCDEF000060 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = 7B1234567890ABCDEF000031 /* PacketBlockerExtension */;
-			targetProxy = 7B1234567890ABCDEF000070 /* PBXContainerItemProxy */;
-		};
+		080B864B3ABE4B469E88D867 /* PBXTargetDependency */ = {isa = PBXTargetDependency; target = AA32DF9E9CFE45DF8FB1ADB6; targetProxy = 0A34F7C4B6354023A3F33BF5; };
 /* End PBXTargetDependency section */
 
 /* Begin PBXContainerItemProxy section */
-		7B1234567890ABCDEF000070 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = 7B1234567890ABCDEF000100 /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = 7B1234567890ABCDEF000031;
-			remoteInfo = PacketBlockerExtension;
-		};
+		0A34F7C4B6354023A3F33BF5 /* PBXContainerItemProxy */ = {isa = PBXContainerItemProxy; containerPortal = EEE4ECDBAFF24F6482B54D73; proxyType = 1; remoteGlobalIDString = AA32DF9E9CFE45DF8FB1ADB6; remoteInfo = PacketBlockerExtension; };
 /* End PBXContainerItemProxy section */
 
 /* Begin XCBuildConfiguration section */
-		7B1234567890ABCDEF000200 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ALWAYS_SEARCH_USER_PATHS = NO;
-				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
-				CLANG_ANALYZER_NONNULL = YES;
-				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
-				CLANG_ENABLE_MODULES = YES;
-				CLANG_ENABLE_OBJC_ARC = YES;
-				COPY_PHASE_STRIP = NO;
-				DEBUG_INFORMATION_FORMAT = dwarf;
-				ENABLE_STRICT_OBJC_MSGSEND = YES;
-				ENABLE_TESTABILITY = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = NO;
-				GCC_DYNAMIC_NO_PIC = NO;
-				GCC_OPTIMIZATION_LEVEL = 0;
-				GCC_PREPROCESSOR_DEFINITIONS = (
-					"DEBUG=1",
-					"$(inherited)",
-				);
-				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
-				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
-				ONLY_ACTIVE_ARCH = YES;
-				SDKROOT = iphoneos;
-				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
-				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
-			};
-			name = Debug;
-		};
-		7B1234567890ABCDEF000201 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ALWAYS_SEARCH_USER_PATHS = NO;
-				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
-				CLANG_ANALYZER_NONNULL = YES;
-				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
-				CLANG_ENABLE_MODULES = YES;
-				CLANG_ENABLE_OBJC_ARC = YES;
-				COPY_PHASE_STRIP = NO;
-				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-				ENABLE_NS_ASSERTIONS = NO;
-				ENABLE_STRICT_OBJC_MSGSEND = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = NO;
-				GCC_OPTIMIZATION_LEVEL = s;
-				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
-				MTL_ENABLE_DEBUG_INFO = NO;
-				SDKROOT = iphoneos;
-				SWIFT_COMPILATION_MODE = wholemodule;
-				VALIDATE_PRODUCT = YES;
-			};
-			name = Release;
-		};
-		7B1234567890ABCDEF000202 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CODE_SIGN_ENTITLEMENTS = PacketBlocker/PacketBlocker.entitlements;
-				CODE_SIGN_STYLE = Manual;
-				INFOPLIST_FILE = PacketBlocker/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.ban.PacketBlocker;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				PROVISIONING_PROFILE_SPECIFIER = "";
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = Debug;
-		};
-		7B1234567890ABCDEF000203 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CODE_SIGN_ENTITLEMENTS = PacketBlocker/PacketBlocker.entitlements;
-				CODE_SIGN_STYLE = Manual;
-				INFOPLIST_FILE = PacketBlocker/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.ban.PacketBlocker;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				PROVISIONING_PROFILE_SPECIFIER = "";
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = Release;
-		};
-		7B1234567890ABCDEF000204 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CODE_SIGN_ENTITLEMENTS = PacketBlockerExtension/PacketBlockerExtension.entitlements;
-				CODE_SIGN_STYLE = Manual;
-				INFOPLIST_FILE = PacketBlockerExtension/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.ban.PacketBlocker.extension;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				PROVISIONING_PROFILE_SPECIFIER = "";
-				SKIP_INSTALL = YES;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = Debug;
-		};
-		7B1234567890ABCDEF000205 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CODE_SIGN_ENTITLEMENTS = PacketBlockerExtension/PacketBlockerExtension.entitlements;
-				CODE_SIGN_STYLE = Manual;
-				INFOPLIST_FILE = PacketBlockerExtension/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.ban.PacketBlocker.extension;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				PROVISIONING_PROFILE_SPECIFIER = "";
-				SKIP_INSTALL = YES;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = Release;
-		};
+		0A00F7460AB34CA0B60015A7 /* Debug */ = {isa = XCBuildConfiguration; buildSettings = {ALWAYS_SEARCH_USER_PATHS = NO; CLANG_ENABLE_MODULES = YES; CLANG_ENABLE_OBJC_ARC = YES; COPY_PHASE_STRIP = NO; DEBUG_INFORMATION_FORMAT = dwarf; ENABLE_TESTABILITY = YES; ENABLE_USER_SCRIPT_SANDBOXING = NO; IPHONEOS_DEPLOYMENT_TARGET = 16.0; SDKROOT = iphoneos; SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)"; SWIFT_OPTIMIZATION_LEVEL = "-Onone";}; name = Debug; };
+		219242F7534D4DBE83DC1E8A /* Release */ = {isa = XCBuildConfiguration; buildSettings = {ALWAYS_SEARCH_USER_PATHS = NO; CLANG_ENABLE_MODULES = YES; CLANG_ENABLE_OBJC_ARC = YES; COPY_PHASE_STRIP = NO; DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym"; ENABLE_NS_ASSERTIONS = NO; ENABLE_USER_SCRIPT_SANDBOXING = NO; IPHONEOS_DEPLOYMENT_TARGET = 16.0; SDKROOT = iphoneos; SWIFT_COMPILATION_MODE = wholemodule;}; name = Release; };
+		05D911F519024CFA80E45C77 /* Debug */ = {isa = XCBuildConfiguration; buildSettings = {CODE_SIGN_ENTITLEMENTS = PacketBlocker/PacketBlocker.entitlements; CODE_SIGN_STYLE = Manual; INFOPLIST_FILE = PacketBlocker/Info.plist; IPHONEOS_DEPLOYMENT_TARGET = 16.0; PRODUCT_BUNDLE_IDENTIFIER = com.ban.PacketBlocker; PRODUCT_NAME = "$(TARGET_NAME)"; SWIFT_EMIT_LOC_STRINGS = YES; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = "1,2";}; name = Debug; };
+		0E757EB4B20C44C6A484A888 /* Release */ = {isa = XCBuildConfiguration; buildSettings = {CODE_SIGN_ENTITLEMENTS = PacketBlocker/PacketBlocker.entitlements; CODE_SIGN_STYLE = Manual; INFOPLIST_FILE = PacketBlocker/Info.plist; IPHONEOS_DEPLOYMENT_TARGET = 16.0; PRODUCT_BUNDLE_IDENTIFIER = com.ban.PacketBlocker; PRODUCT_NAME = "$(TARGET_NAME)"; SWIFT_EMIT_LOC_STRINGS = YES; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = "1,2";}; name = Release; };
+		9BF3E98D39EC4F2CB5737593 /* Debug */ = {isa = XCBuildConfiguration; buildSettings = {CODE_SIGN_ENTITLEMENTS = PacketBlockerExtension/PacketBlockerExtension.entitlements; CODE_SIGN_STYLE = Manual; INFOPLIST_FILE = PacketBlockerExtension/Info.plist; IPHONEOS_DEPLOYMENT_TARGET = 16.0; PRODUCT_BUNDLE_IDENTIFIER = com.ban.PacketBlocker.extension; PRODUCT_NAME = "$(TARGET_NAME)"; SKIP_INSTALL = YES; SWIFT_EMIT_LOC_STRINGS = YES; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = "1,2";}; name = Debug; };
+		C0FEF1AFEB894494B027FF92 /* Release */ = {isa = XCBuildConfiguration; buildSettings = {CODE_SIGN_ENTITLEMENTS = PacketBlockerExtension/PacketBlockerExtension.entitlements; CODE_SIGN_STYLE = Manual; INFOPLIST_FILE = PacketBlockerExtension/Info.plist; IPHONEOS_DEPLOYMENT_TARGET = 16.0; PRODUCT_BUNDLE_IDENTIFIER = com.ban.PacketBlocker.extension; PRODUCT_NAME = "$(TARGET_NAME)"; SKIP_INSTALL = YES; SWIFT_EMIT_LOC_STRINGS = YES; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = "1,2";}; name = Release; };
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		7B1234567890ABCDEF000040 /* Build configuration list for PBXNativeTarget "PacketBlocker" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				7B1234567890ABCDEF000202 /* Debug */,
-				7B1234567890ABCDEF000203 /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
-		7B1234567890ABCDEF000041 /* Build configuration list for PBXNativeTarget "PacketBlockerExtension" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				7B1234567890ABCDEF000204 /* Debug */,
-				7B1234567890ABCDEF000205 /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
-		7B1234567890ABCDEF000110 /* Build configuration list for PBXProject "PacketBlocker" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				7B1234567890ABCDEF000200 /* Debug */,
-				7B1234567890ABCDEF000201 /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
+		B34C2D64078344AEA0C56A26 /* Build configuration list for PBXNativeTarget "PacketBlocker" */ = {isa = XCConfigurationList; buildConfigurations = (05D911F519024CFA80E45C77, 0E757EB4B20C44C6A484A888); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+		0A1D019D27EE44ECB28AA780 /* Build configuration list for PBXNativeTarget "PacketBlockerExtension" */ = {isa = XCConfigurationList; buildConfigurations = (9BF3E98D39EC4F2CB5737593, C0FEF1AFEB894494B027FF92); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+		0ADE46AB410B4F82AFFC396B /* Build configuration list for PBXProject */ = {isa = XCConfigurationList; buildConfigurations = (0A00F7460AB34CA0B60015A7, 219242F7534D4DBE83DC1E8A); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
 /* End XCConfigurationList section */
 	};
-	rootObject = 7B1234567890ABCDEF000100 /* Project object */;
+	rootObject = EEE4ECDBAFF24F6482B54D73 /* Project object */;
 }

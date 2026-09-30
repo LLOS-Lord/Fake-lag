@@ -1,96 +1,57 @@
 import SwiftUI
-
 struct ContentView: View {
     @StateObject private var vpn = VPNManager.shared
-
+    @StateObject private var hud = FloatingHUDManager.shared
+    @StateObject private var procMgr = ProcessManager()
+    @State private var showSheet = false
+    @State private var search = ""
     var body: some View {
-        NavigationView {
-            VStack(spacing: 24) {
-                VStack(spacing: 12) {
-                    HStack {
-                        Image(systemName: vpn.isVPNConnected ? "checkmark.shield.fill" : "shield.slash")
-                            .font(.system(size: 40))
-                            .foregroundColor(vpn.isVPNConnected ? .green : .gray)
-                        VStack(alignment: .leading) {
-                            Text(vpn.isVPNConnected ? "VPN Dang Bat" : "VPN Da Tat")
-                                .font(.headline)
-                            Text(vpn.isBlocking ? "Fake Lag: ON" : "Fake Lag: OFF")
-                                .font(.subheadline)
-                                .foregroundColor(vpn.isBlocking ? .red : .secondary)
+        TabView {
+            NavigationView {
+                VStack(spacing:12){
+                    HStack{
+                        Image(systemName: vpn.isVPNConnected ? "checkmark.shield.fill" : "shield.slash").font(.system(size:30)).foregroundColor(vpn.isVPNConnected ? .green : .gray)
+                        VStack(alignment:.leading){
+                            Text(vpn.isVPNConnected ? "VPN ON (Fixed)" : "VPN OFF").font(.headline)
+                            Text(vpn.isBlocking ? "FakeLag ON \(vpn.mode)" : "FakeLag OFF").font(.subheadline)
                         }
+                        Spacer()
+                    }.padding().background(Color(.systemGray6)).cornerRadius(12)
+                    Button(action:{ procMgr.scan(); showSheet=true }){
+                        HStack{Image(systemName:"scope"); Text(vpn.selectedProcess == nil ? "Chọn PID (GLOBAL)" : "PID: \(vpn.selectedProcess!.displayName)"); Spacer(); Image(systemName:"chevron.right")}
+                    }.padding(.horizontal)
+                    Picker("Mode", selection: $vpn.mode){ Text("Hold").tag("hold"); Text("Drop").tag("drop"); Text("Delay").tag("delay") }.pickerStyle(SegmentedPickerStyle()).onChange(of: vpn.mode){_ in vpn.saveConfig()}.padding(.horizontal)
+                    Button(action:{ vpn.isVPNConnected ? vpn.disconnectVPN() : vpn.connectVPN()}){
+                        HStack{Image(systemName: vpn.isVPNConnected ? "power" : "bolt.shield"); Text(vpn.isVPNConnected ? "Tắt VPN" : "Bật VPN Fix Kill")}
+                        .frame(maxWidth:.infinity).padding().background(vpn.isVPNConnected ? Color.red : Color.blue).cornerRadius(12).foregroundColor(.white)
+                    }.padding(.horizontal)
+                    Button(action:{ vpn.toggleBlocking()}){
+                        HStack{Image(systemName: vpn.isBlocking ? "pause.fill" : "play.fill"); Text(vpn.isBlocking ? "Tắt FakeLag" : "Bật FakeLag")}
+                        .frame(maxWidth:.infinity).padding().background(vpn.isBlocking ? Color.orange : Color.purple).cornerRadius(12).foregroundColor(.white)
+                    }.padding(.horizontal).disabled(!vpn.isVPNConnected)
+                    Button(action:{ hud.setEnabled(!hud.isRunning)}){
+                        HStack{Image(systemName: hud.isRunning ? "xmark.circle" : "plus.circle"); Text(hud.isRunning ? "Remove Floating Button" : "Create Floating Button (TrollNet style)")}
+                        .frame(maxWidth:.infinity).padding().background(Color.yellow.opacity(0.3)).cornerRadius(12)
+                    }.padding(.horizontal)
+                    Spacer()
+                }.navigationTitle("Hybrid V2").sheet(isPresented:$showSheet){
+                    NavigationView{
+                        VStack{
+                            HStack{ TextField("Tìm PID", text:$search).textFieldStyle(RoundedBorderTextFieldStyle()); Button("Scan"){ procMgr.scan(filter:search)} }.padding()
+                            List{
+                                Button(action:{ vpn.selectProcess(nil); showSheet=false}){ HStack{Image(systemName:"globe"); Text("GLOBAL"); Spacer(); if vpn.selectedProcess==nil{Image(systemName:"checkmark")}} }
+                                ForEach(procMgr.processes){ p in
+                                    Button(action:{ vpn.selectProcess(p); showSheet=false}){
+                                        HStack{VStack(alignment:.leading){Text(p.displayName).font(.subheadline); Text("PID:\(p.pid) TCP:\(p.tcpCount) UDP:\(p.udpCount)").font(.caption2)}; Spacer(); if vpn.selectedProcess?.pid==p.pid{Image(systemName:"checkmark")}}
+                                    }
+                                }
+                            }
+                        }.navigationTitle("Chọn PID")
                     }
-                    .padding()
-                    .frame(maxWidth: .infinity)
-                    .background(Color(.systemGray6))
-                    .cornerRadius(12)
                 }
-                .padding(.horizontal)
-
-                Button(action: {
-                    if vpn.isVPNConnected {
-                        vpn.disconnectVPN()
-                    } else {
-                        vpn.connectVPN()
-                    }
-                }) {
-                    HStack {
-                        Image(systemName: vpn.isVPNConnected ? "power" : "power.circle")
-                        Text(vpn.isVPNConnected ? "Tat VPN" : "Bat VPN")
-                    }
-                    .font(.headline)
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(vpn.isVPNConnected ? Color.red : Color.blue)
-                    .cornerRadius(12)
-                }
-                .padding(.horizontal)
-                .disabled(vpn.isProcessingCommand)
-
-                Button(action: {
-                    vpn.toggleBlocking()
-                }) {
-                    HStack {
-                        Image(systemName: vpn.isBlocking ? "bolt.slash.fill" : "bolt.fill")
-                        Text(vpn.isBlocking ? "Tat Fake Lag" : "Bat Fake Lag")
-                    }
-                    .font(.headline)
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(vpn.isBlocking ? Color.orange : Color.purple)
-                    .cornerRadius(12)
-                }
-                .padding(.horizontal)
-                .disabled(!vpn.isVPNConnected || vpn.isProcessingCommand)
-
-                if let error = vpn.lastError {
-                    Text(error)
-                        .font(.caption)
-                        .foregroundColor(.red)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal)
-                }
-
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Huong dan:").font(.headline)
-                    Text("1. Bat VPN -> mang binh thuong")
-                    Text("2. Vao Free Fire, vao tran")
-                    Text("3. Bat Fake Lag -> delay + drop")
-                    Text("4. Tat Fake Lag -> mang binh thuong")
-                }
-                .font(.caption)
-                .foregroundColor(.secondary)
-                .padding()
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color(.systemGray6))
-                .cornerRadius(12)
-                .padding(.horizontal)
-
-                Spacer()
-            }
-            .padding(.top)
-            .navigationTitle("Fake Lag")
+            }.tabItem{Label("Home", systemImage:"house")}
+            NavigationView{ SettingsView() }.tabItem{Label("Settings", systemImage:"gear")}
+            NavigationView{ LogsView() }.tabItem{Label("Logs", systemImage:"doc.text")}
         }
     }
 }

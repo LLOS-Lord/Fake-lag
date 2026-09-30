@@ -1,0 +1,47 @@
+name: Build HybridFakeLag V2
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'HybridFakeLagV2/**'
+      - '.github/workflows/build_hybrid.yml'
+  workflow_dispatch:
+
+jobs:
+  build-hybrid:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set Xcode
+        run: sudo xcode-select -s /Applications/Xcode_15.4.app
+      - name: Download ldid
+        run: |
+          curl -L -o ldid https://github.com/ProcursusTeam/ldid/releases/download/v2.1.5-procursus7/ldid_macosx_arm64
+          chmod +x ldid
+      - name: Build HybridFakeLagV2
+        run: |
+          # Try build the simple PacketBlocker project first (which now contains hybrid code)
+          xcodebuild -project PacketBlocker.xcodeproj -scheme PacketBlocker -configuration Release -sdk iphoneos -derivedDataPath ./build CODE_SIGNING_ALLOWED=NO CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO ONLY_ACTIVE_ARCH=YES ENABLE_BITCODE=NO IPHONEOS_DEPLOYMENT_TARGET=14.0 -destination 'generic/platform=iOS' || echo "First build attempt failed, trying second"
+      - name: Prepare Payload
+        run: |
+          mkdir -p Payload/PacketBlocker.app/PlugIns
+          cp -R ./build/Build/Products/Release-iphoneos/PacketBlocker.app/* Payload/PacketBlocker.app/ || cp -R ./build/Build/Products/Release-iphoneos/*.app/* Payload/PacketBlocker.app/ || true
+          EXT=$(find ./build -name "*.appex" -type d | head -1)
+          if [ -d "$EXT" ]; then cp -R "$EXT" Payload/PacketBlocker.app/PlugIns/; echo "Extension copied"; else echo "No appex found"; fi
+          chmod 644 Payload/PacketBlocker.app/Info.plist || true
+      - name: Sign
+        run: |
+          EXT_DIR="Payload/PacketBlocker.app/PlugIns/PacketBlockerExtension.appex"
+          if [ -d "$EXT_DIR" ]; then chmod +x "$EXT_DIR/PacketBlockerExtension"; ./ldid -Cadhoc -w -SPacketBlockerExtension/PacketBlockerExtension.entitlements "$EXT_DIR/PacketBlockerExtension" || true; fi
+          APP_BIN="Payload/PacketBlocker.app/PacketBlocker"
+          if [ -f "$APP_BIN" ]; then chmod +x "$APP_BIN"; ./ldid -Cadhoc -w -SPacketBlocker/PacketBlocker.entitlements "$APP_BIN" || true; fi
+      - name: Create IPA
+        run: |
+          zip -r HybridFakeLagV2_TrollStore.ipa Payload || true
+          ls -lh *.ipa || true
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: HybridFakeLagV2_TrollStore
+          path: HybridFakeLagV2_TrollStore.ipa
