@@ -27,11 +27,59 @@
 #include <mach-o/dyld.h>
 #include <time.h>
 #include <notify.h>
+#include <fcntl.h>
 #include "../headers/AetherNetShared.h"
 #include "../headers/PrivateSystemSPI.h"
 #import "HUDRootApplication.mm"
 #import "TSEventFetcher.h"
 #import "UITouchKIFAdditions.h"
+
+#pragma mark - Visible step/crash diagnostics
+
+static void HUDStepLog(NSString *msg) {
+    @try {
+        NSString *line = [NSString stringWithFormat:@"[%@] [HUD_STEP] %@\n",
+                          [NSDate date], msg];
+        NSString *path = @"/var/mobile/Library/Caches/hybrid_actions.log";
+        NSFileHandle *fh = [NSFileHandle fileHandleForWritingAtPath:path];
+        if (fh) {
+            [fh seekToEndOfFile];
+            [fh writeData:[line dataUsingEncoding:NSUTF8StringEncoding]];
+            [fh closeFile];
+        } else {
+            [line writeToFile:path atomically:NO encoding:NSUTF8StringEncoding error:nil];
+        }
+        chmod(path.UTF8String, 0666);
+    } @catch (...) {}
+}
+
+static void HUDStepLogRaw(const char *text) { // async-signal-safe
+    int fd = open("/var/mobile/Library/Caches/hybrid_actions.log",
+                  O_WRONLY | O_APPEND | O_CREAT, 0666);
+    if (fd >= 0) { write(fd, text, strlen(text)); close(fd); }
+}
+
+static void HUDCrashSignalHandler(int sig) {
+    char buf[160];
+    const char *name = (sig == SIGABRT) ? "SIGABRT" : (sig == SIGSEGV) ? "SIGSEGV"
+                     : (sig == SIGBUS)  ? "SIGBUS"  : (sig == SIGILL)  ? "SIGILL"
+                     : (sig == SIGFPE)  ? "SIGFPE"  : "SIGTRAP";
+    int n = snprintf(buf, sizeof(buf),
+                     "[HUD_CRASH] %s(%d) pid=%d — daemon died right after the last step\n",
+                     name, sig, getpid());
+    HUDStepLogRaw(n > 0 ? buf : "[HUD_CRASH] fatal signal\n");
+    signal(sig, SIG_DFL);
+    raise(sig);
+}
+
+static void HUDInstallCrashHandlers(void) {
+    signal(SIGABRT, HUDCrashSignalHandler);
+    signal(SIGSEGV, HUDCrashSignalHandler);
+    signal(SIGBUS,  HUDCrashSignalHandler);
+    signal(SIGILL,  HUDCrashSignalHandler);
+    signal(SIGFPE,  HUDCrashSignalHandler);
+    signal(SIGTRAP, HUDCrashSignalHandler);
+}
 
 #pragma mark - AXEventRepresentation private interface (AccessibilityUtilities)
 
@@ -768,9 +816,11 @@ int HUDMain(int argc, char *argv[])
 
         if (strcmp(argv[1], "-hud") == 0) {
             pid_t pid = getpid();
+            HUDInstallCrashHandlers();
+            HUDStepLog([NSString stringWithFormat:@"step1 entered -hud pid=%d uid=%d exe=%s", pid, getuid(), argv[0]]);
 
-            // Single-instance guard: two daemons mean two overlapping buttons
-            // and duplicated HID callbacks. The second instance must exit.
+            // Single-instance guard — hardened with proc_pidpath validation
+            // (a recycled pid used to self-lock the daemon forever).
             {
                 NSString *oldPidStr = [NSString stringWithContentsOfFile:@AETHER_HUD_PID_PATH
                                                                 encoding:NSUTF8StringEncoding
@@ -778,7 +828,21 @@ int HUDMain(int argc, char *argv[])
                 pid_t oldPid = (pid_t)oldPidStr.intValue;
                 BOOL otherAlive = NO;
                 if (oldPid > 0 && oldPid != pid) {
-                    if (kill(oldPid, 0) == 0 || errno == EPERM) otherAlive = YES;
+                    if (kill(oldPid, 0) == 0 || errno == EPERM) {
+                        char oldPath[4096] = {0}, selfPath[4096] = {0};
+                        BOOL sameExe = NO;
+                        if (proc_pidpath(oldPid, oldPath, sizeof(oldPath)) > 0) {
+                            uint32_t selfLen = sizeof(selfPath);
+                            if (_NSGetExecutablePath(selfPath, &selfLen) == 0 &&
+                                strcmp(oldPath, selfPath) == 0) sameExe = YES;
+                        }
+                        if (sameExe) {
+                            otherAlive = YES;
+                        } else {
+                            unlink(AETHER_HUD_PID_PATH);
+                            HUDStepLog([NSString stringWithFormat:@"step2 guard: stale pid %d is NOT our exe — cleaned, continuing", oldPid]);
+                        }
+                    }
                 }
                 AetherSharedState *pre = AetherGetSharedState();
                 if (!otherAlive && pre) {
@@ -787,8 +851,10 @@ int HUDMain(int argc, char *argv[])
                 }
                 if (otherAlive) {
                     AetherLog(@"[pid %d] another HUD daemon (pid %d) already alive — exiting", pid, oldPid);
+                    HUDStepLog([NSString stringWithFormat:@"exit: another HUD daemon pid %d alive", oldPid]);
                     return 0;
                 }
+                HUDStepLog(@"step2 single-instance guard passed");
             }
 
             NSString *pidString = [NSString stringWithFormat:@"%d", pid];
@@ -796,9 +862,11 @@ int HUDMain(int argc, char *argv[])
                         atomically:YES
                           encoding:NSUTF8StringEncoding
                              error:nil];
+            HUDStepLog(@"step3 pid file written");
 
             AetherLog(@"[pid %d] HUD daemon starting", getpid());
             AetherInstallHookPayload();
+            HUDStepLog(@"step4 hook payload installer done");
 
             AetherSharedState *state = AetherGetSharedState();
             if (state) {
@@ -806,30 +874,63 @@ int HUDMain(int argc, char *argv[])
             }
 
             AetherLoadPrivateFrameworks();
+            HUDStepLog(@"step5 private frameworks loaded");
+            @try {
+                [UIScreen initialize];
+                CFRunLoopGetCurrent();
 
-            [UIScreen initialize];
-            CFRunLoopGetCurrent();
+                if (GSInitialize) GSInitialize(); else HUDStepLog(@"GSInitialize MISSING on this OS");
+                if (BKSDisplayServicesStart) BKSDisplayServicesStart(); else HUDStepLog(@"BKSDisplayServicesStart MISSING");
+                if (UIApplicationInitialize) UIApplicationInitialize(); else HUDStepLog(@"UIApplicationInitialize MISSING");
+                HUDStepLog(@"step6 GS/BKS/UIApplicationInitialize done");
 
-            GSInitialize();
-            BKSDisplayServicesStart();
-            UIApplicationInitialize();
+                if (UIApplicationInstantiateSingleton) {
+                    UIApplicationInstantiateSingleton(objc_getClass("AetherHUDMainApplication"));
+                    HUDStepLog(@"step7 UIApplicationInstantiateSingleton done");
+                } else {
+                    HUDStepLog(@"FATAL UIApplicationInstantiateSingleton MISSING");
+                }
 
-            UIApplicationInstantiateSingleton(objc_getClass("AetherHUDMainApplication"));
-            static id<UIApplicationDelegate> appDelegate =
-                [[objc_getClass("AetherHUDApplicationDelegate") alloc] init];
-            [UIApplication.sharedApplication setDelegate:appDelegate];
-            [UIApplication.sharedApplication _accessibilityInit];
+                static id<UIApplicationDelegate> appDelegate =
+                    [[objc_getClass("AetherHUDApplicationDelegate") alloc] init];
+                [UIApplication.sharedApplication setDelegate:appDelegate];
+                HUDStepLog(@"step8 delegate set");
+
+                if ([UIApplication.sharedApplication respondsToSelector:@selector(_accessibilityInit)]) {
+                    [UIApplication.sharedApplication _accessibilityInit];
+                    HUDStepLog(@"step9 _accessibilityInit ok");
+                } else {
+                    HUDStepLog(@"step9 _accessibilityInit MISSING — skipped");
+                }
+            } @catch (NSException *ex) {
+                HUDStepLog([NSString stringWithFormat:@"FATAL ObjC exception in UIApplication setup: %@ — %@\n%@",
+                            ex.name, ex.reason, [ex.callStackSymbols componentsJoinedByString:@"\n"]]);
+                @throw;
+            }
 
             [NSRunLoop currentRunLoop];
             AetherResolveRawDigitizer();
-            BKSHIDEventRegisterEventCallback(AetherHUDMainEventCallback);
-
-            if (@available(iOS 15.0, *)) {
-                GSEventInitialize(0);
-                GSEventPushRunLoopMode(kCFRunLoopDefaultMode);
+            if (BKSHIDEventRegisterEventCallback) {
+                BKSHIDEventRegisterEventCallback(AetherHUDMainEventCallback);
+                HUDStepLog(@"step10 digitizer resolved + HID callback registered");
+            } else {
+                HUDStepLog(@"FATAL BKSHIDEventRegisterEventCallback MISSING — no touch input");
             }
 
-            [UIApplication.sharedApplication __completeAndRunAsPlugin];
+            if (@available(iOS 15.0, *)) {
+                if (GSEventInitialize) GSEventInitialize(0);
+                if (GSEventPushRunLoopMode) GSEventPushRunLoopMode(kCFRunLoopDefaultMode);
+            }
+            HUDStepLog(@"step11 GSEvent init done — completing plugin");
+
+            @try {
+                [UIApplication.sharedApplication __completeAndRunAsPlugin];
+            } @catch (NSException *ex) {
+                HUDStepLog([NSString stringWithFormat:@"FATAL exception in __completeAndRunAsPlugin: %@ — %@",
+                            ex.name, ex.reason]);
+                @throw;
+            }
+            HUDStepLog(@"step12 __completeAndRunAsPlugin returned — entering runloop (window should be visible)");
 
             // Liveness heartbeat + graceful-exit command channel (shm).
             // Fixes "cannot remove HUD" where the pid file is unreliable across
@@ -860,6 +961,8 @@ int HUDMain(int argc, char *argv[])
                 notify_cancel(token);
                 kill(pid, SIGKILL);
             });
+
+            HUDStepLog(@"step13 entering CFRunLoopRun — daemon fully up");
 
             CFRunLoopRun();
             return EXIT_SUCCESS;

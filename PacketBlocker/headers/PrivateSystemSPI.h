@@ -149,13 +149,18 @@ typedef struct __IOHIDEvent *IOHIDEventRef;
 typedef struct __IOHIDService *IOHIDServiceRef;
 typedef void (*BKSHIDEventCallback)(void *target, void *refcon, IOHIDServiceRef service, IOHIDEventRef event);
 
-void GSInitialize(void);
-void GSEventInitialize(Boolean registerPurpleWorkspacePort);
-void GSEventPushRunLoopMode(CFStringRef mode);
-void BKSDisplayServicesStart(void);
-void UIApplicationInitialize(void);
-void UIApplicationInstantiateSingleton(Class singletonClass);
-void BKSHIDEventRegisterEventCallback(BKSHIDEventCallback callback);
+// weak_import: if a symbol is absent from the running OS the process still
+// LAUNCHES with the symbol = NULL (instead of dyld aborting the daemon before
+// main()); HUDMain checks each pointer before calling and logs the gap.
+#define AETHER_WEAK_SPI __attribute__((weak_import))
+
+AETHER_WEAK_SPI void GSInitialize(void);
+AETHER_WEAK_SPI void GSEventInitialize(Boolean registerPurpleWorkspacePort);
+AETHER_WEAK_SPI void GSEventPushRunLoopMode(CFStringRef mode);
+AETHER_WEAK_SPI void BKSDisplayServicesStart(void);
+AETHER_WEAK_SPI void UIApplicationInitialize(void);
+AETHER_WEAK_SPI void UIApplicationInstantiateSingleton(Class singletonClass);
+AETHER_WEAK_SPI void BKSHIDEventRegisterEventCallback(BKSHIDEventCallback callback);
 
 #ifdef __cplusplus
 }

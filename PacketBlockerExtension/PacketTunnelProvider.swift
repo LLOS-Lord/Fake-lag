@@ -483,10 +483,21 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         sendUDP(key: key, conn: conn, payload: payload)
     }
 
+    /// NWParameters that can NEVER loop back into our own tunnel.
+    /// (utun interfaces report as `.other` — prohibiting it forces every
+    /// provider socket onto the physical Wi-Fi/cellular interface, so the
+    /// relay traffic bypasses the tunnel exactly like any normal VPN app.)
+    private static func makeRelayParams(_ base: NWParameters) -> NWParameters {
+        base.prohibitedInterfaceTypes = [.other]
+        base.includePeerToPeer = false
+        return base
+    }
+
     private func openUDPConn(for flow: UDPFlow) {
         let key = flow.key
         guard let port = NWEndpoint.Port(rawValue: key.dport) else { return }
-        let conn = NWConnection(host: NWEndpoint.Host(key.dstString), port: port, using: .udp)
+        let conn = NWConnection(host: NWEndpoint.Host(key.dstString), port: port,
+                                using: PacketTunnelProvider.makeRelayParams(.udp))
         conn.stateUpdateHandler = { [weak self] state in
             guard let self = self, self.isRunning else { return }
             switch state {
@@ -691,7 +702,7 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
 
     private func openTCPConn(for flow: TCPFlow, key: FlowKey) {
         guard let port = NWEndpoint.Port(rawValue: key.dport) else { return }
-        let params = NWParameters.tcp
+        let params = PacketTunnelProvider.makeRelayParams(NWParameters.tcp)
         let conn = NWConnection(host: NWEndpoint.Host(key.dstString), port: port, using: params)
         conn.stateUpdateHandler = { [weak self] state in
             guard let self = self, self.isRunning else { return }

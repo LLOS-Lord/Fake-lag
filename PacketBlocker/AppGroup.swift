@@ -183,6 +183,12 @@ class AppGroupStore {
         if let hudLogs = try? String(contentsOfFile: hudLogPath) {
             combined += "\n--- HUD Daemon Log ---\n" + String(hudLogs.suffix(8000))
         }
+        // main.mm crash/dispatch log — reveals whether the spawned HUD daemon
+        // even entered main() (invisible failure diagnostics)
+        let mainCrashLog = "/var/mobile/Library/Caches/com.aethernet.main.crash.log"
+        if let crashLogs = try? String(contentsOfFile: mainCrashLog) {
+            combined += "\n--- Main Crash/Dispatch Log ---\n" + String(crashLogs.suffix(8000))
+        }
 
         if let filter = filter, !filter.isEmpty {
             let q = filter.lowercased()
@@ -200,6 +206,7 @@ class AppGroupStore {
         try? FileManager.default.removeItem(atPath: fallbackLog)
         let hudLogPath = "/var/mobile/Library/aethernet-hud.log"
         try? FileManager.default.removeItem(atPath: hudLogPath)
+        try? FileManager.default.removeItem(atPath: "/var/mobile/Library/Caches/com.aethernet.main.crash.log")
         if let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first {
             let appLog = docs.appendingPathComponent("aethernet.log")
             try? FileManager.default.removeItem(at: appLog)

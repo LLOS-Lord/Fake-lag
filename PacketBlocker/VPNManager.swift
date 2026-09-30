@@ -132,11 +132,15 @@ class VPNManager: ObservableObject {
                 proto.providerBundleIdentifier = extBundleID
                 proto.serverAddress = "127.0.0.1"
                 proto.disconnectOnSleep = false
-                if #available(iOS 14.2, *) {
-                    proto.includeAllNetworks = true
-                    proto.excludeLocalNetworks = false
-                    proto.enforceRoutes = true
-                }
+                // ⚠️ DO NOT set includeAllNetworks / enforceRoutes here.
+                // includeAllNetworks=true DISABLES the system's automatic
+                // exclusion of the provider's own traffic → our relay sockets
+                // get routed into OUR OWN tunnel → loop → ENETDOWN → the whole
+                // tunnel dies seconds after start (measured on device).
+                // The IPv4 default route advertised via setTunnelNetworkSettings
+                // is enough to capture all app traffic.
+                proto.includeAllNetworks = false
+                proto.enforceRoutes = false
             }
             mgr.saveToPreferences { [weak self] err in
                 DispatchQueue.main.async {
@@ -166,11 +170,9 @@ class VPNManager: ObservableObject {
         proto.providerBundleIdentifier = extBundleID
         proto.serverAddress = "HybridFakeLag"
         proto.disconnectOnSleep = false
-        if #available(iOS 14.2, *) {
-            proto.includeAllNetworks = true
-            proto.excludeLocalNetworks = false
-            proto.enforceRoutes = true
-        }
+        // See connectVPN(): includeAllNetworks/enforceRoutes kill the tunnel.
+        proto.includeAllNetworks = false
+        proto.enforceRoutes = false
         mgr.protocolConfiguration = proto
         mgr.localizedDescription = "Hybrid FakeLag"
         mgr.isEnabled = true
@@ -224,7 +226,11 @@ class VPNManager: ObservableObject {
     }
 
     /// Pulls a live stats snapshot from the tunnel (handleAppMessage "getstats").
+    /// While a per-PID target is selected this ALSO refreshes its live socket
+    /// dump every few seconds — games open/close sockets constantly, so a
+    /// one-shot dump at selection time goes stale within seconds.
     func refreshStats() {
+        refreshTargetSockets()
         guard let mgr = manager, mgr.connection.status == .connected,
               let session = mgr.connection as? NETunnelProviderSession,
               let data = "getstats".data(using: .utf8) else { return }
@@ -233,11 +239,27 @@ class VPNManager: ObservableObject {
                 guard let self = self, let reply = reply,
                       let str = String(data: reply, encoding: .utf8) else { return }
                 DispatchQueue.main.async { self.lastStats = str }
-                AppGroupStore.logAction("STATS_POLL", details: str)
             }
         } catch {
             AppGroupStore.logAction("STATS_POLL_FAIL", details: error.localizedDescription, level: "WARN")
         }
+    }
+
+    /// Re-dumps the selected PID's live TCP/UDP sockets (proc_pidfdinfo) and
+    /// updates the extension config only when the set actually changed.
+    private var lastSocketSig: Set<String> = []
+    private func refreshTargetSockets() {
+        guard let proc = selectedProcess else { return }
+        let dump = procScanner.dumpSocketsForPID(proc.pid)
+        let sig = Set(dump.map { "\($0.proto)|\($0.remoteIP)|\($0.remotePort)" })
+        guard sig != lastSocketSig else { return }
+        lastSocketSig = sig
+        var cfg = AppGroupStore.load()
+        guard cfg.targetPID == proc.pid else { return }
+        cfg.targetSockets = dump
+        cfg.timestamp = Date().timeIntervalSince1970
+        AppGroupStore.save(cfg)
+        AppGroupStore.logAction("TARGET_REFRESH", details: "pid=\(proc.pid) \(proc.displayName) sockets=\(dump.count)\(dump.isEmpty ? " (fallback match-all for this pid)" : "")")
     }
 
     func selectProcess(_ proc: ProcessInfoModel?) {
