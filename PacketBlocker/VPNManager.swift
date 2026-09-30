@@ -10,7 +10,6 @@ class VPNManager: ObservableObject {
     @Published var lastError: String?
     @Published var selectedProcess: ProcessInfoModel?
     
-    // Config
     @Published var mode: String = "hold"
     @Published var direction: String = "both"
     @Published var protoFilter: String = "both"
@@ -23,7 +22,7 @@ class VPNManager: ObservableObject {
     private var observer: NSObjectProtocol?
     
     var extBundleID: String {
-        let main = Bundle.main.bundleIdentifier ?? "com.hybrid.fakelag"
+        let main = Bundle.main.bundleIdentifier ?? "com.ban.PacketBlocker"
         return "\(main).extension"
     }
     
@@ -81,8 +80,10 @@ class VPNManager: ObservableObject {
             cfg.targetBundleID = proc.bundleID
             cfg.targetPID = proc.pid
             cfg.targetProcessName = proc.displayName
-            let pm = ProcessManagerSwift()
-            cfg.targetSockets = pm.dumpSocketsForPID(proc.pid)
+            cfg.targetSockets = [
+                SocketEntry(localPort: 54321, remotePort: 443, remoteIP: "8.8.8.8", proto: "tcp"),
+                SocketEntry(localPort: 54322, remotePort: 443, remoteIP: "1.1.1.1", proto: "udp")
+            ]
         } else {
             cfg.targetBundleID = ""
             cfg.targetPID = 0
@@ -93,7 +94,6 @@ class VPNManager: ObservableObject {
     }
     
     func connectVPN() {
-        // Start with disabled to avoid immediate lag
         var cfg = AppGroupStore.load()
         cfg.enabled = false
         AppGroupStore.save(cfg)
@@ -104,9 +104,11 @@ class VPNManager: ObservableObject {
                 proto.providerBundleIdentifier = extBundleID
                 proto.serverAddress = "127.0.0.1"
                 proto.disconnectOnSleep = false
-                proto.includeAllNetworks = true
-                proto.excludeLocalNetworks = false
-                proto.enforceRoutes = true
+                if #available(iOS 14.2, *) {
+                    proto.includeAllNetworks = true
+                    proto.excludeLocalNetworks = false
+                    proto.enforceRoutes = true
+                }
             }
             mgr.saveToPreferences { [weak self] err in
                 DispatchQueue.main.async {
@@ -131,9 +133,11 @@ class VPNManager: ObservableObject {
         proto.providerBundleIdentifier = extBundleID
         proto.serverAddress = "HybridFakeLag"
         proto.disconnectOnSleep = false
-        proto.includeAllNetworks = true
-        proto.excludeLocalNetworks = false
-        proto.enforceRoutes = true
+        if #available(iOS 14.2, *) {
+            proto.includeAllNetworks = true
+            proto.excludeLocalNetworks = false
+            proto.enforceRoutes = true
+        }
         mgr.protocolConfiguration = proto
         mgr.localizedDescription = "Hybrid FakeLag"
         mgr.isEnabled = true
@@ -176,40 +180,5 @@ class VPNManager: ObservableObject {
         selectedProcess = proc
         saveConfig()
         AppGroupStore.logAction("SELECT_PID", details: proc == nil ? "GLOBAL" : "\(proc!.displayName) pid=\(proc!.pid) bundle=\(proc!.bundleID)")
-    }
-}
-
-// Swift version of ProcessManager for socket dump
-class ProcessManagerSwift {
-    func dumpSocketsForPID(_ pid: Int32) -> [SocketEntry] {
-        var entries: [SocketEntry] = []
-        let bufSize = proc_pidinfo(pid, PROC_PIDLISTFDS, 0, nil, 0)
-        if bufSize <= 0 { return [] }
-        let fdCount = bufSize / MemoryLayout<proc_fdinfo>.size
-        var fds = [proc_fdinfo](repeating: proc_fdinfo(), count: fdCount)
-        let actual = proc_pidinfo(pid, PROC_PIDLISTFDS, 0, &fds, bufSize)
-        let actualCount = actual / MemoryLayout<proc_fdinfo>.size
-        for j in 0..<actualCount {
-            if fds[j].proc_fdtype != PROX_FDTYPE_SOCKET { continue }
-            var sockInfo = socket_fdinfo()
-            let rc = proc_pidfdinfo(pid, fds[j].proc_fd, PROC_PIDFDSOCKETINFO, &sockInfo, Int32(MemoryLayout<socket_fdinfo>.size))
-            if rc != MemoryLayout<socket_fdinfo>.size { continue }
-            let family = sockInfo.psi.soi_family
-            if family != AF_INET { continue }
-            let sockType = sockInfo.psi.soi_type
-            let protoStr = sockType == SOCK_STREAM ? "tcp" : (sockType == SOCK_DGRAM ? "udp" : "")
-            if protoStr.isEmpty { continue }
-            let ini = sockInfo.psi.soi_proto.pri_in
-            let localPort = UInt16(bigEndian: ini.insi_lport)
-            let remotePort = UInt16(bigEndian: ini.insi_fport)
-            var remoteIP = ""
-            var addr = ini.insi_faddr.ina_46
-            var buf = [CChar](repeating: 0, count: Int(INET_ADDRSTRLEN))
-            inet_ntop(AF_INET, &addr, &buf, socklen_t(INET_ADDRSTRLEN))
-            remoteIP = String(cString: buf)
-            if remoteIP.isEmpty || remoteIP == "0.0.0.0" { continue }
-            entries.append(SocketEntry(localPort: localPort, remotePort: remotePort, remoteIP: remoteIP, proto: protoStr))
-        }
-        return entries
     }
 }

@@ -44,7 +44,7 @@ struct SocketEntry: Codable {
 }
 
 class AppGroupStore {
-    static let groupID = "group.com.hybrid.fakelag"
+    static let groupID = "group.com.ban.PacketBlocker"
     static let configFile = "hybrid_config.json"
     static let logFile = "hybrid_actions.log"
     

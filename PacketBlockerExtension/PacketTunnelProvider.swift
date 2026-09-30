@@ -19,7 +19,7 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
     private var dropped: UInt64 = 0
     private var passed: UInt64 = 0
     
-    private var groupURL: URL? { FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.com.hybrid.fakelag") }
+    private var groupURL: URL? { FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.com.ban.PacketBlocker") }
     private var configURL: URL? { groupURL?.appendingPathComponent("hybrid_config.json") }
     private var legacyURL: URL? { groupURL?.appendingPathComponent("fakelag_config.plist") }
     private var logURL: URL? { groupURL?.appendingPathComponent("hybrid_actions.log") }
