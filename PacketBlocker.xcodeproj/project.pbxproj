@@ -5,78 +5,131 @@
 	objectVersion = 56;
 	objects = {
 /* Begin PBXBuildFile section */
-		FCC059539A424FB8BAD92975 /* App.swift in Sources */ = {isa = PBXBuildFile; fileRef = 901CE5DA08024DB4B63DB083 /* App.swift */; };
-		6F01F522A9764DF2AE86FBCD /* AppGroup.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07EB0647DF60414FB9E720CA /* AppGroup.swift */; };
-		F167D153C0A146798CDC3A57 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C57F5604E01431EAA40DDD4 /* ContentView.swift */; };
-		8854E4C0EEC545458CF181E7 /* FloatingHUDManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F33625F1697548059ABF1978 /* FloatingHUDManager.swift */; };
-		2B1291B274AF40258CB6C010 /* LogsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F06A1989062840F7A2429E63 /* LogsView.swift */; };
-		DFBAB21075A8492DAC856767 /* ProcessManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC60DA16F3F64A72A28A3ACE /* ProcessManager.swift */; };
-		767D70E1E7684BB09B19E2CA /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B3ADA88E87D487D86066E6D /* SettingsView.swift */; };
-		B99B2E5BC9BF48F4B407930E /* VPNManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9FB47FDB12624987999C5F6A /* VPNManager.swift */; };
-		07A6ED6BE110496C95F7B25F /* PacketTunnelProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = A979FB1905984B6B88D70E8E /* PacketTunnelProvider.swift */; };
+		4C861EE800B6433895FFE1F3 /* main.mm in Sources */ = {isa = PBXBuildFile; fileRef = 7F97476FA7F14F9C8B64C3BC /* main.mm */; };
+		69F2456BA1194FD0B0700933 /* App.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAA7128B1FA34CBFA22B01C0 /* App.swift */; };
+		FFE92351CE724590BA383176 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAC1E04EB7AD4F909FB3A55A /* AppDelegate.swift */; };
+		356BAB38A8D647EDB13BB0CD /* AppGroup.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB4B7A7663BF440DA495FE93 /* AppGroup.swift */; };
+		1393D296ED2B4A808334E545 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 157D49D473AC48028FADE68E /* ContentView.swift */; };
+		17925EB56F5F472BA5F153BC /* FloatingHUDManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C7B03846E544F1EB5D08548 /* FloatingHUDManager.swift */; };
+		7C4CAA5450EB4329BFCDFB72 /* LogsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D81049B1E0AF4A37A3821A26 /* LogsView.swift */; };
+		2E9DA71E18C742A59971E7C6 /* ProcessManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F344135C505749838B6D402E /* ProcessManager.swift */; };
+		719A068BAA4643CC959D6FBE /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B38F1348779144428771CDD1 /* SettingsView.swift */; };
+		4ABFA6DE68814DC98BE8D904 /* VPNManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACC991D445B74F10BB7BC80D /* VPNManager.swift */; };
+		6A62BD734BCD4A0C813CE340 /* AetherLog.h in Sources */ = {isa = PBXBuildFile; fileRef = 2E7BD77881F14470A7E56B6F /* AetherLog.h */; };
+		B7A3026BC77446FB8D271638 /* AetherLog.mm in Sources */ = {isa = PBXBuildFile; fileRef = A42C2F2AC64B4D9CBC98C974 /* AetherLog.mm */; };
+		EB3EC228503843B9AA22A644 /* AetherSharedMemory.mm in Sources */ = {isa = PBXBuildFile; fileRef = C0FB8F62B50F4625BE87DD7F /* AetherSharedMemory.mm */; };
+		7C8D45964BB0478EB2972155 /* PersonaHelper.h in Sources */ = {isa = PBXBuildFile; fileRef = AA52C803AB8D4B4EB1914818 /* PersonaHelper.h */; };
+		E242D1AB25D746DAB9AF87D0 /* PersonaHelper.m in Sources */ = {isa = PBXBuildFile; fileRef = 9F095C8182FA40DF90AA88C1 /* PersonaHelper.m */; };
+		F77AFA8652A149ED9D42A309 /* FloatingToggleButton.h in Sources */ = {isa = PBXBuildFile; fileRef = A40FB91D32F644718D829F27 /* FloatingToggleButton.h */; };
+		9C6F81CE3C134077BDB4D60E /* FloatingToggleButton.mm in Sources */ = {isa = PBXBuildFile; fileRef = DBDC30A0849545A888B14A12 /* FloatingToggleButton.mm */; };
+		4329764E973A40F791E993F5 /* HUDMain.mm in Sources */ = {isa = PBXBuildFile; fileRef = DE506BE6AFD44D96A44F1EF8 /* HUDMain.mm */; };
+		B02901EEEA7F42FA9047CA45 /* HUDMainWindow.h in Sources */ = {isa = PBXBuildFile; fileRef = 83F5E452FBB046F48D5A1786 /* HUDMainWindow.h */; };
+		A52CAF96A9A5421088418C9A /* HUDMainWindow.mm in Sources */ = {isa = PBXBuildFile; fileRef = 42143ED6FFF3400DB20223BA /* HUDMainWindow.mm */; };
+		E8320B77AC6E4461A70E519A /* HUDRootApplication.mm in Sources */ = {isa = PBXBuildFile; fileRef = 4B1CFF39870941C2B6AA82F5 /* HUDRootApplication.mm */; };
+		C683B3F7F41042DF8323BBDC /* IOHIDEventKIF.h in Sources */ = {isa = PBXBuildFile; fileRef = 9AD03AA2160940238667EBF5 /* IOHIDEventKIF.h */; };
+		BC40480443324DC9A29655FA /* IOHIDEventKIF.m in Sources */ = {isa = PBXBuildFile; fileRef = 2F5934FF015A44F0B6087FEE /* IOHIDEventKIF.m */; };
+		582F9046E6CD4604BBD80192 /* TSEventFetcher.h in Sources */ = {isa = PBXBuildFile; fileRef = 189693B50A3F4E3AA3A9A934 /* TSEventFetcher.h */; };
+		02FBF6AF650B4CA98738CC4E /* TSEventFetcher.mm in Sources */ = {isa = PBXBuildFile; fileRef = E91178B45D684E8B9B4B8FF8 /* TSEventFetcher.mm */; };
+		CE587BE65E1C49B19E91C1C2 /* UITouchKIFAdditions.h in Sources */ = {isa = PBXBuildFile; fileRef = 5251130784F24453A044633D /* UITouchKIFAdditions.h */; };
+		6A7349A3499245FFA61D5D65 /* UITouchKIFAdditions.m in Sources */ = {isa = PBXBuildFile; fileRef = 85B5B4D0F21845A3B54CA58C /* UITouchKIFAdditions.m */; };
+		D6973C096D914F0C81806EFA /* AppTheme.h in Sources */ = {isa = PBXBuildFile; fileRef = 27C7BB40FB9F4E668B28DBC8 /* AppTheme.h */; };
+		63DA6CE4946C4A2EB54E86E3 /* AppTheme.mm in Sources */ = {isa = PBXBuildFile; fileRef = 43B207B285BE4589B624DFF7 /* AppTheme.mm */; };
+		8632C163574C400D8F9FF035 /* AetherNetShared.h in Sources */ = {isa = PBXBuildFile; fileRef = AB5ADF6C781844E1B39714C7 /* AetherNetShared.h */; };
+		349D146107924F7399A4A260 /* PrivateSystemSPI.h in Sources */ = {isa = PBXBuildFile; fileRef = 564F0ECB357747E38AE578DB /* PrivateSystemSPI.h */; };
+		31BA9262DA36452C9FD81125 /* AetherTouchPrivate.h in Sources */ = {isa = PBXBuildFile; fileRef = 5516B3C486474502ACCE4CF6 /* AetherTouchPrivate.h */; };
+		330120508ED742CAB762E77B /* PacketTunnelProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF17FAFE9D074D23B966E445 /* PacketTunnelProvider.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		FEAD5FA321424630AEFDA712 /* PacketBlocker.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PacketBlocker.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		190F446979B244839F2819A0 /* PacketBlockerExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = PacketBlockerExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
-		901CE5DA08024DB4B63DB083 /* App.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = App.swift; sourceTree = "<group>"; };
-		07EB0647DF60414FB9E720CA /* AppGroup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppGroup.swift; sourceTree = "<group>"; };
-		5C57F5604E01431EAA40DDD4 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
-		F33625F1697548059ABF1978 /* FloatingHUDManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FloatingHUDManager.swift; sourceTree = "<group>"; };
-		F06A1989062840F7A2429E63 /* LogsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogsView.swift; sourceTree = "<group>"; };
-		AC60DA16F3F64A72A28A3ACE /* ProcessManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProcessManager.swift; sourceTree = "<group>"; };
-		9B3ADA88E87D487D86066E6D /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
-		9FB47FDB12624987999C5F6A /* VPNManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VPNManager.swift; sourceTree = "<group>"; };
-		A979FB1905984B6B88D70E8E /* PacketTunnelProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PacketTunnelProvider.swift; sourceTree = "<group>"; };
-		3EC5CC38BA7C45718AA2C20A /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		A567E4FC858B4894B9A314DC /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		88877674337B475EA203FC93 /* PacketBlocker.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PacketBlocker.entitlements; sourceTree = "<group>"; };
-		D445B276B6AA49759E0BB3C5 /* PacketBlockerExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PacketBlockerExtension.entitlements; sourceTree = "<group>"; };
+		547DB05B41FC4CF2A04F6FFE /* PacketBlocker.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PacketBlocker.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		662D7197383C4958B55C7A6E /* PacketBlockerExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = PacketBlockerExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		7F97476FA7F14F9C8B64C3BC /* main.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = main.mm; sourceTree = "<group>"; };
+		FAA7128B1FA34CBFA22B01C0 /* App.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = App.swift; sourceTree = "<group>"; };
+		DAC1E04EB7AD4F909FB3A55A /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		EB4B7A7663BF440DA495FE93 /* AppGroup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppGroup.swift; sourceTree = "<group>"; };
+		157D49D473AC48028FADE68E /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		8C7B03846E544F1EB5D08548 /* FloatingHUDManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FloatingHUDManager.swift; sourceTree = "<group>"; };
+		D81049B1E0AF4A37A3821A26 /* LogsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogsView.swift; sourceTree = "<group>"; };
+		F344135C505749838B6D402E /* ProcessManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProcessManager.swift; sourceTree = "<group>"; };
+		B38F1348779144428771CDD1 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		ACC991D445B74F10BB7BC80D /* VPNManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VPNManager.swift; sourceTree = "<group>"; };
+		2E7BD77881F14470A7E56B6F /* AetherLog.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AetherLog.h; sourceTree = "<group>"; };
+		A42C2F2AC64B4D9CBC98C974 /* AetherLog.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = AetherLog.mm; sourceTree = "<group>"; };
+		C0FB8F62B50F4625BE87DD7F /* AetherSharedMemory.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = AetherSharedMemory.mm; sourceTree = "<group>"; };
+		AA52C803AB8D4B4EB1914818 /* PersonaHelper.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = PersonaHelper.h; sourceTree = "<group>"; };
+		9F095C8182FA40DF90AA88C1 /* PersonaHelper.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = PersonaHelper.m; sourceTree = "<group>"; };
+		A40FB91D32F644718D829F27 /* FloatingToggleButton.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = FloatingToggleButton.h; sourceTree = "<group>"; };
+		DBDC30A0849545A888B14A12 /* FloatingToggleButton.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = FloatingToggleButton.mm; sourceTree = "<group>"; };
+		DE506BE6AFD44D96A44F1EF8 /* HUDMain.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = HUDMain.mm; sourceTree = "<group>"; };
+		83F5E452FBB046F48D5A1786 /* HUDMainWindow.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = HUDMainWindow.h; sourceTree = "<group>"; };
+		42143ED6FFF3400DB20223BA /* HUDMainWindow.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = HUDMainWindow.mm; sourceTree = "<group>"; };
+		4B1CFF39870941C2B6AA82F5 /* HUDRootApplication.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = HUDRootApplication.mm; sourceTree = "<group>"; };
+		9AD03AA2160940238667EBF5 /* IOHIDEventKIF.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = IOHIDEventKIF.h; sourceTree = "<group>"; };
+		2F5934FF015A44F0B6087FEE /* IOHIDEventKIF.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = IOHIDEventKIF.m; sourceTree = "<group>"; };
+		189693B50A3F4E3AA3A9A934 /* TSEventFetcher.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = TSEventFetcher.h; sourceTree = "<group>"; };
+		E91178B45D684E8B9B4B8FF8 /* TSEventFetcher.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = TSEventFetcher.mm; sourceTree = "<group>"; };
+		5251130784F24453A044633D /* UITouchKIFAdditions.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = UITouchKIFAdditions.h; sourceTree = "<group>"; };
+		85B5B4D0F21845A3B54CA58C /* UITouchKIFAdditions.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = UITouchKIFAdditions.m; sourceTree = "<group>"; };
+		27C7BB40FB9F4E668B28DBC8 /* AppTheme.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AppTheme.h; sourceTree = "<group>"; };
+		43B207B285BE4589B624DFF7 /* AppTheme.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = AppTheme.mm; sourceTree = "<group>"; };
+		AB5ADF6C781844E1B39714C7 /* AetherNetShared.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AetherNetShared.h; sourceTree = "<group>"; };
+		564F0ECB357747E38AE578DB /* PrivateSystemSPI.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = PrivateSystemSPI.h; sourceTree = "<group>"; };
+		5516B3C486474502ACCE4CF6 /* AetherTouchPrivate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AetherTouchPrivate.h; sourceTree = "<group>"; };
+		AF17FAFE9D074D23B966E445 /* PacketTunnelProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PacketTunnelProvider.swift; sourceTree = "<group>"; };
+		48C888EC8DD3408C95883E61 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		11CB9DA9637243788B57981E /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		D7328E9EBD094B288E1691B4 /* PacketBlocker.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PacketBlocker.entitlements; sourceTree = "<group>"; };
+		BD825DEAEBDC4909A674016A /* PacketBlockerExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PacketBlockerExtension.entitlements; sourceTree = "<group>"; };
+		ABF641664A3642848D477527 /* PacketBlocker-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = PacketBlocker-Bridging-Header.h; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
-		48FEA225598D4866A21FBA47 = {isa = PBXGroup; children = (59C642D0869E41EA8C621B07, 8A01285E03C64361BB2ABAF8, 7ED28914ABB543D98F4D1D48); sourceTree = "<group>"; };
-		59C642D0869E41EA8C621B07 /* PacketBlocker */ = {isa = PBXGroup; children = (901CE5DA08024DB4B63DB083, 07EB0647DF60414FB9E720CA, 5C57F5604E01431EAA40DDD4, F33625F1697548059ABF1978, F06A1989062840F7A2429E63, AC60DA16F3F64A72A28A3ACE, 9B3ADA88E87D487D86066E6D, 9FB47FDB12624987999C5F6A, 3EC5CC38BA7C45718AA2C20A, 88877674337B475EA203FC93); path = PacketBlocker; sourceTree = "<group>"; };
-		8A01285E03C64361BB2ABAF8 /* PacketBlockerExtension */ = {isa = PBXGroup; children = (A979FB1905984B6B88D70E8E, A567E4FC858B4894B9A314DC, D445B276B6AA49759E0BB3C5); path = PacketBlockerExtension; sourceTree = "<group>"; };
-		7ED28914ABB543D98F4D1D48 /* Products */ = {isa = PBXGroup; children = (FEAD5FA321424630AEFDA712, 190F446979B244839F2819A0); name = Products; sourceTree = "<group>"; };
+		E1ED36D5C98A47BCB96D710C = {isa = PBXGroup; children = (8BBB7996F8814D8F91F1D3B4, 33C9D427214E49909F46E0DC, 382EED9280314235A5CE5A18); sourceTree = "<group>"; };
+		E44241C3B10A4BDABD4BAD59 /* Core */ = {isa = PBXGroup; children = (2E7BD77881F14470A7E56B6F, A42C2F2AC64B4D9CBC98C974, C0FB8F62B50F4625BE87DD7F, AA52C803AB8D4B4EB1914818, 9F095C8182FA40DF90AA88C1); path = Core; sourceTree = "<group>"; };
+		68D8FE0C875B4529BA9E15D1 /* HUD */ = {isa = PBXGroup; children = (A40FB91D32F644718D829F27, DBDC30A0849545A888B14A12, DE506BE6AFD44D96A44F1EF8, 83F5E452FBB046F48D5A1786, 42143ED6FFF3400DB20223BA, 4B1CFF39870941C2B6AA82F5, 9AD03AA2160940238667EBF5, 2F5934FF015A44F0B6087FEE, 189693B50A3F4E3AA3A9A934, E91178B45D684E8B9B4B8FF8, 5251130784F24453A044633D, 85B5B4D0F21845A3B54CA58C); path = HUD; sourceTree = "<group>"; };
+		4E87789F948A4E13A2A26BE0 /* headers */ = {isa = PBXGroup; children = (AB5ADF6C781844E1B39714C7, 564F0ECB357747E38AE578DB, 5516B3C486474502ACCE4CF6); path = headers; sourceTree = "<group>"; };
+		0B10A41FE2FE4F66A98DE68D /* UI */ = {isa = PBXGroup; children = (27C7BB40FB9F4E668B28DBC8, 43B207B285BE4589B624DFF7); path = UI; sourceTree = "<group>"; };
+		8BBB7996F8814D8F91F1D3B4 /* PacketBlocker */ = {isa = PBXGroup; children = (7F97476FA7F14F9C8B64C3BC, FAA7128B1FA34CBFA22B01C0, DAC1E04EB7AD4F909FB3A55A, EB4B7A7663BF440DA495FE93, 157D49D473AC48028FADE68E, 8C7B03846E544F1EB5D08548, D81049B1E0AF4A37A3821A26, F344135C505749838B6D402E, B38F1348779144428771CDD1, ACC991D445B74F10BB7BC80D, E44241C3B10A4BDABD4BAD59, 68D8FE0C875B4529BA9E15D1, 4E87789F948A4E13A2A26BE0, 0B10A41FE2FE4F66A98DE68D, 48C888EC8DD3408C95883E61, D7328E9EBD094B288E1691B4, ABF641664A3642848D477527, 7F97476FA7F14F9C8B64C3BC); path = PacketBlocker; sourceTree = "<group>"; };
+		33C9D427214E49909F46E0DC /* PacketBlockerExtension */ = {isa = PBXGroup; children = (AF17FAFE9D074D23B966E445, 11CB9DA9637243788B57981E, BD825DEAEBDC4909A674016A); path = PacketBlockerExtension; sourceTree = "<group>"; };
+		382EED9280314235A5CE5A18 /* Products */ = {isa = PBXGroup; children = (547DB05B41FC4CF2A04F6FFE, 662D7197383C4958B55C7A6E); name = Products; sourceTree = "<group>"; };
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		ABBED425C20941D0805C3BE8 /* PacketBlocker */ = {isa = PBXNativeTarget; buildConfigurationList = EDBA72B2796748039368E96A; buildPhases = (E8B873307C6249ADA1319A35); buildRules = (); dependencies = (AAEE7544F7004AC68F2B8FD8); name = PacketBlocker; productName = PacketBlocker; productReference = FEAD5FA321424630AEFDA712 /* PacketBlocker.app */; productType = "com.apple.product-type.application"; };
-		8E7BCD264D8047FAB626402E /* PacketBlockerExtension */ = {isa = PBXNativeTarget; buildConfigurationList = B82CD58E6B49489F921BFAAD; buildPhases = (1A0D8A5CAE1246F9ABBA7EF6); buildRules = (); dependencies = (); name = PacketBlockerExtension; productName = PacketBlockerExtension; productReference = 190F446979B244839F2819A0 /* PacketBlockerExtension.appex */; productType = "com.apple.product-type.app-extension"; };
+		F7ED704D5A0141DE971B1F5E /* PacketBlocker */ = {isa = PBXNativeTarget; buildConfigurationList = 3DCC3C57CC384881839DE51C; buildPhases = (E2111B71D4054A52AEE4C0CB); buildRules = (); dependencies = (05F50148FF684430A8699B2B); name = PacketBlocker; productName = PacketBlocker; productReference = 547DB05B41FC4CF2A04F6FFE /* PacketBlocker.app */; productType = "com.apple.product-type.application"; };
+		D5AE180F405C4F5790631EE8 /* PacketBlockerExtension */ = {isa = PBXNativeTarget; buildConfigurationList = F08E264191784C5BAFEF9F88; buildPhases = (694120A036D744EBBD40A186); buildRules = (); dependencies = (); name = PacketBlockerExtension; productName = PacketBlockerExtension; productReference = 662D7197383C4958B55C7A6E /* PacketBlockerExtension.appex */; productType = "com.apple.product-type.app-extension"; };
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
-		561E549E61D64C4AB8019B57 /* Project object */ = {isa = PBXProject; attributes = {LastSwiftUpdateCheck = 1540; LastUpgradeCheck = 1540; ORGANIZATIONNAME = ""; TargetAttributes = {ABBED425C20941D0805C3BE8 = {CreatedOnToolsVersion = 15.4;}; 8E7BCD264D8047FAB626402E = {CreatedOnToolsVersion = 15.4;};};}; buildConfigurationList = 4FF8ABAF140B402D99600C8B; compatibilityVersion = "Xcode 14.0"; developmentRegion = en; hasScannedForEncodings = 0; knownRegions = (en, Base); mainGroup = 48FEA225598D4866A21FBA47; productRefGroup = 7ED28914ABB543D98F4D1D48; projectDirPath = ""; projectRoot = ""; targets = (ABBED425C20941D0805C3BE8, 8E7BCD264D8047FAB626402E); };
+		C66E5E231D6747A7A97077D4 /* Project object */ = {isa = PBXProject; attributes = {LastSwiftUpdateCheck = 1540; LastUpgradeCheck = 1540; ORGANIZATIONNAME = ""; TargetAttributes = {F7ED704D5A0141DE971B1F5E = {CreatedOnToolsVersion = 15.4;}; D5AE180F405C4F5790631EE8 = {CreatedOnToolsVersion = 15.4;};};}; buildConfigurationList = 00C8E7481BE9463E94CC62D9; compatibilityVersion = "Xcode 14.0"; developmentRegion = en; hasScannedForEncodings = 0; knownRegions = (en, Base); mainGroup = E1ED36D5C98A47BCB96D710C; productRefGroup = 382EED9280314235A5CE5A18; projectDirPath = ""; projectRoot = ""; targets = (F7ED704D5A0141DE971B1F5E, D5AE180F405C4F5790631EE8); };
 /* End PBXProject section */
 
 /* Begin PBXSourcesBuildPhase section */
-		E8B873307C6249ADA1319A35 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (FCC059539A424FB8BAD92975, 6F01F522A9764DF2AE86FBCD, F167D153C0A146798CDC3A57, 8854E4C0EEC545458CF181E7, 2B1291B274AF40258CB6C010, DFBAB21075A8492DAC856767, 767D70E1E7684BB09B19E2CA, B99B2E5BC9BF48F4B407930E); runOnlyForDeploymentPostprocessing = 0; };
-		1A0D8A5CAE1246F9ABBA7EF6 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (07A6ED6BE110496C95F7B25F); runOnlyForDeploymentPostprocessing = 0; };
+		E2111B71D4054A52AEE4C0CB /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (4C861EE800B6433895FFE1F3, 69F2456BA1194FD0B0700933, FFE92351CE724590BA383176, 356BAB38A8D647EDB13BB0CD, 1393D296ED2B4A808334E545, 17925EB56F5F472BA5F153BC, 7C4CAA5450EB4329BFCDFB72, 2E9DA71E18C742A59971E7C6, 719A068BAA4643CC959D6FBE, 4ABFA6DE68814DC98BE8D904, B7A3026BC77446FB8D271638, EB3EC228503843B9AA22A644, E242D1AB25D746DAB9AF87D0, 9C6F81CE3C134077BDB4D60E, 4329764E973A40F791E993F5, A52CAF96A9A5421088418C9A, E8320B77AC6E4461A70E519A, BC40480443324DC9A29655FA, 02FBF6AF650B4CA98738CC4E, 6A7349A3499245FFA61D5D65, 63DA6CE4946C4A2EB54E86E3); runOnlyForDeploymentPostprocessing = 0; };
+		694120A036D744EBBD40A186 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (330120508ED742CAB762E77B); runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
-		AAEE7544F7004AC68F2B8FD8 /* PBXTargetDependency */ = {isa = PBXTargetDependency; target = 8E7BCD264D8047FAB626402E; targetProxy = DDAA500F83B040FEB2AB0520; };
+		05F50148FF684430A8699B2B /* PBXTargetDependency */ = {isa = PBXTargetDependency; target = D5AE180F405C4F5790631EE8; targetProxy = E0A33F81B2344DD5A39ABAAA; };
 /* End PBXTargetDependency section */
 
 /* Begin PBXContainerItemProxy section */
-		DDAA500F83B040FEB2AB0520 /* PBXContainerItemProxy */ = {isa = PBXContainerItemProxy; containerPortal = 561E549E61D64C4AB8019B57; proxyType = 1; remoteGlobalIDString = 8E7BCD264D8047FAB626402E; remoteInfo = PacketBlockerExtension; };
+		E0A33F81B2344DD5A39ABAAA /* PBXContainerItemProxy */ = {isa = PBXContainerItemProxy; containerPortal = C66E5E231D6747A7A97077D4; proxyType = 1; remoteGlobalIDString = D5AE180F405C4F5790631EE8; remoteInfo = PacketBlockerExtension; };
 /* End PBXContainerItemProxy section */
 
 /* Begin XCBuildConfiguration section */
-		7B853777F8C24C95A813E851 /* Debug */ = {isa = XCBuildConfiguration; buildSettings = {ALWAYS_SEARCH_USER_PATHS = NO; CLANG_ANALYZER_NONNULL = YES; CLANG_CXX_LANGUAGE_STANDARD = "gnu++20"; CLANG_ENABLE_MODULES = YES; CLANG_ENABLE_OBJC_ARC = YES; COPY_PHASE_STRIP = NO; DEBUG_INFORMATION_FORMAT = dwarf; ENABLE_STRICT_OBJC_MSGSEND = YES; ENABLE_TESTABILITY = YES; ENABLE_USER_SCRIPT_SANDBOXING = NO; GCC_DYNAMIC_NO_PIC = NO; GCC_OPTIMIZATION_LEVEL = 0; GCC_PREPROCESSOR_DEFINITIONS = ("DEBUG=1", "$(inherited)"); IPHONEOS_DEPLOYMENT_TARGET = 16.0; MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE; ONLY_ACTIVE_ARCH = YES; SDKROOT = iphoneos; SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)"; SWIFT_OPTIMIZATION_LEVEL = "-Onone";}; name = Debug; };
-		9F3A4DFFF55140949C92F9DA /* Release */ = {isa = XCBuildConfiguration; buildSettings = {ALWAYS_SEARCH_USER_PATHS = NO; CLANG_ANALYZER_NONNULL = YES; CLANG_CXX_LANGUAGE_STANDARD = "gnu++20"; CLANG_ENABLE_MODULES = YES; CLANG_ENABLE_OBJC_ARC = YES; COPY_PHASE_STRIP = NO; DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym"; ENABLE_NS_ASSERTIONS = NO; ENABLE_STRICT_OBJC_MSGSEND = YES; ENABLE_USER_SCRIPT_SANDBOXING = NO; IPHONEOS_DEPLOYMENT_TARGET = 16.0; MTL_ENABLE_DEBUG_INFO = NO; SDKROOT = iphoneos; SWIFT_COMPILATION_MODE = wholemodule; VALIDATE_PRODUCT = YES;}; name = Release; };
-		BA2EFC1E3FD5440A9EB70C6D /* Debug */ = {isa = XCBuildConfiguration; buildSettings = {ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon; CODE_SIGN_ENTITLEMENTS = PacketBlocker/PacketBlocker.entitlements; CODE_SIGN_STYLE = Manual; INFOPLIST_FILE = PacketBlocker/Info.plist; IPHONEOS_DEPLOYMENT_TARGET = 16.0; PRODUCT_BUNDLE_IDENTIFIER = com.ban.PacketBlocker; PRODUCT_NAME = "$(TARGET_NAME)"; SWIFT_EMIT_LOC_STRINGS = YES; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = "1,2";}; name = Debug; };
-		6DEA5237761C4CB9BAA6E134 /* Release */ = {isa = XCBuildConfiguration; buildSettings = {ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon; CODE_SIGN_ENTITLEMENTS = PacketBlocker/PacketBlocker.entitlements; CODE_SIGN_STYLE = Manual; INFOPLIST_FILE = PacketBlocker/Info.plist; IPHONEOS_DEPLOYMENT_TARGET = 16.0; PRODUCT_BUNDLE_IDENTIFIER = com.ban.PacketBlocker; PRODUCT_NAME = "$(TARGET_NAME)"; SWIFT_EMIT_LOC_STRINGS = YES; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = "1,2";}; name = Release; };
-		AB6B64889BC043E2A6D9284E /* Debug */ = {isa = XCBuildConfiguration; buildSettings = {CODE_SIGN_ENTITLEMENTS = PacketBlockerExtension/PacketBlockerExtension.entitlements; CODE_SIGN_STYLE = Manual; INFOPLIST_FILE = PacketBlockerExtension/Info.plist; IPHONEOS_DEPLOYMENT_TARGET = 16.0; PRODUCT_BUNDLE_IDENTIFIER = com.ban.PacketBlocker.extension; PRODUCT_NAME = "$(TARGET_NAME)"; SKIP_INSTALL = YES; SWIFT_EMIT_LOC_STRINGS = YES; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = "1,2";}; name = Debug; };
-		31A9AC147CBE4883BF5936EC /* Release */ = {isa = XCBuildConfiguration; buildSettings = {CODE_SIGN_ENTITLEMENTS = PacketBlockerExtension/PacketBlockerExtension.entitlements; CODE_SIGN_STYLE = Manual; INFOPLIST_FILE = PacketBlockerExtension/Info.plist; IPHONEOS_DEPLOYMENT_TARGET = 16.0; PRODUCT_BUNDLE_IDENTIFIER = com.ban.PacketBlocker.extension; PRODUCT_NAME = "$(TARGET_NAME)"; SKIP_INSTALL = YES; SWIFT_EMIT_LOC_STRINGS = YES; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = "1,2";}; name = Release; };
+		278BF68901F440A09B3C8242 /* Debug */ = {isa = XCBuildConfiguration; buildSettings = {ALWAYS_SEARCH_USER_PATHS = NO; CLANG_CXX_LANGUAGE_STANDARD = "gnu++20"; CLANG_ENABLE_MODULES = YES; CLANG_ENABLE_OBJC_ARC = YES; COPY_PHASE_STRIP = NO; DEBUG_INFORMATION_FORMAT = dwarf; ENABLE_STRICT_OBJC_MSGSEND = YES; ENABLE_TESTABILITY = YES; ENABLE_USER_SCRIPT_SANDBOXING = NO; GCC_OPTIMIZATION_LEVEL = 0; IPHONEOS_DEPLOYMENT_TARGET = 14.0; SDKROOT = iphoneos; SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)"; SWIFT_OPTIMIZATION_LEVEL = "-Onone";}; name = Debug; };
+		217CC22B4E9C465590DBE857 /* Release */ = {isa = XCBuildConfiguration; buildSettings = {ALWAYS_SEARCH_USER_PATHS = NO; CLANG_CXX_LANGUAGE_STANDARD = "gnu++20"; CLANG_ENABLE_MODULES = YES; CLANG_ENABLE_OBJC_ARC = YES; COPY_PHASE_STRIP = NO; DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym"; ENABLE_NS_ASSERTIONS = NO; ENABLE_STRICT_OBJC_MSGSEND = YES; ENABLE_USER_SCRIPT_SANDBOXING = NO; IPHONEOS_DEPLOYMENT_TARGET = 14.0; SDKROOT = iphoneos; SWIFT_COMPILATION_MODE = wholemodule; VALIDATE_PRODUCT = YES;}; name = Release; };
+		B053CC2DDA07474485DA8A31 /* Debug */ = {isa = XCBuildConfiguration; buildSettings = {CODE_SIGN_ENTITLEMENTS = PacketBlocker/PacketBlocker.entitlements; CODE_SIGN_STYLE = Manual; INFOPLIST_FILE = PacketBlocker/Info.plist; IPHONEOS_DEPLOYMENT_TARGET = 14.0; PRODUCT_BUNDLE_IDENTIFIER = com.ban.PacketBlocker; PRODUCT_NAME = "$(TARGET_NAME)"; SWIFT_EMIT_LOC_STRINGS = YES; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = "1,2"; SWIFT_OBJC_BRIDGING_HEADER = PacketBlocker/PacketBlocker-Bridging-Header.h; HEADER_SEARCH_PATHS = "$(SRCROOT)/PacketBlocker/headers $(SRCROOT)/PacketBlocker/Core $(SRCROOT)/PacketBlocker/HUD $(SRCROOT)/PacketBlocker/UI"; CLANG_ENABLE_MODULES = YES; OTHER_LDFLAGS = "-ObjC -Wl,-undefined,dynamic_lookup"; GCC_PREPROCESSOR_DEFINITIONS = ("$(inherited)", "AETHER_LOG_STANDALONE=0");}; name = Debug; };
+		AD1250D823DB493D9A68C753 /* Release */ = {isa = XCBuildConfiguration; buildSettings = {CODE_SIGN_ENTITLEMENTS = PacketBlocker/PacketBlocker.entitlements; CODE_SIGN_STYLE = Manual; INFOPLIST_FILE = PacketBlocker/Info.plist; IPHONEOS_DEPLOYMENT_TARGET = 14.0; PRODUCT_BUNDLE_IDENTIFIER = com.ban.PacketBlocker; PRODUCT_NAME = "$(TARGET_NAME)"; SWIFT_EMIT_LOC_STRINGS = YES; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = "1,2"; SWIFT_OBJC_BRIDGING_HEADER = PacketBlocker/PacketBlocker-Bridging-Header.h; HEADER_SEARCH_PATHS = "$(SRCROOT)/PacketBlocker/headers $(SRCROOT)/PacketBlocker/Core $(SRCROOT)/PacketBlocker/HUD $(SRCROOT)/PacketBlocker/UI"; CLANG_ENABLE_MODULES = YES; OTHER_LDFLAGS = "-ObjC -Wl,-undefined,dynamic_lookup"; GCC_PREPROCESSOR_DEFINITIONS = ("$(inherited)", "AETHER_LOG_STANDALONE=0");}; name = Release; };
+		9E8C3C689AF0412888AA2EA5 /* Debug */ = {isa = XCBuildConfiguration; buildSettings = {CODE_SIGN_ENTITLEMENTS = PacketBlockerExtension/PacketBlockerExtension.entitlements; CODE_SIGN_STYLE = Manual; INFOPLIST_FILE = PacketBlockerExtension/Info.plist; IPHONEOS_DEPLOYMENT_TARGET = 14.0; PRODUCT_BUNDLE_IDENTIFIER = com.ban.PacketBlocker.extension; PRODUCT_NAME = "$(TARGET_NAME)"; SKIP_INSTALL = YES; SWIFT_EMIT_LOC_STRINGS = YES; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = "1,2";}; name = Debug; };
+		9BD33EB6971448C8B917EDB5 /* Release */ = {isa = XCBuildConfiguration; buildSettings = {CODE_SIGN_ENTITLEMENTS = PacketBlockerExtension/PacketBlockerExtension.entitlements; CODE_SIGN_STYLE = Manual; INFOPLIST_FILE = PacketBlockerExtension/Info.plist; IPHONEOS_DEPLOYMENT_TARGET = 14.0; PRODUCT_BUNDLE_IDENTIFIER = com.ban.PacketBlocker.extension; PRODUCT_NAME = "$(TARGET_NAME)"; SKIP_INSTALL = YES; SWIFT_EMIT_LOC_STRINGS = YES; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = "1,2";}; name = Release; };
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		EDBA72B2796748039368E96A /* Build configuration list for PBXNativeTarget "PacketBlocker" */ = {isa = XCConfigurationList; buildConfigurations = (BA2EFC1E3FD5440A9EB70C6D, 6DEA5237761C4CB9BAA6E134); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
-		B82CD58E6B49489F921BFAAD /* Build configuration list for PBXNativeTarget "PacketBlockerExtension" */ = {isa = XCConfigurationList; buildConfigurations = (AB6B64889BC043E2A6D9284E, 31A9AC147CBE4883BF5936EC); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
-		4FF8ABAF140B402D99600C8B /* Build configuration list for PBXProject */ = {isa = XCConfigurationList; buildConfigurations = (7B853777F8C24C95A813E851, 9F3A4DFFF55140949C92F9DA); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+		3DCC3C57CC384881839DE51C /* Build configuration list for PBXNativeTarget "PacketBlocker" */ = {isa = XCConfigurationList; buildConfigurations = (B053CC2DDA07474485DA8A31, AD1250D823DB493D9A68C753); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+		F08E264191784C5BAFEF9F88 /* Build configuration list for PBXNativeTarget "PacketBlockerExtension" */ = {isa = XCConfigurationList; buildConfigurations = (9E8C3C689AF0412888AA2EA5, 9BD33EB6971448C8B917EDB5); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+		00C8E7481BE9463E94CC62D9 /* Build configuration list for PBXProject */ = {isa = XCConfigurationList; buildConfigurations = (278BF68901F440A09B3C8242, 217CC22B4E9C465590DBE857); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
 /* End XCConfigurationList section */
 	};
-	rootObject = 561E549E61D64C4AB8019B57 /* Project object */;
+	rootObject = C66E5E231D6747A7A97077D4 /* Project object */;
 }

@@ -12,11 +12,24 @@ class FloatingHUDManager: ObservableObject {
     }
     
     func checkRunning() {
+        // Check via shm heartbeat + pid file
+        // Primary: check shm if available (via AppGroup log timestamp)
+        // Fallback: pid file
         let pidPath = "/var/mobile/Library/Caches/com.aethernet.hud.pid"
         if let pidStr = try? String(contentsOfFile: pidPath), let pid = Int32(pidStr.trimmingCharacters(in: .whitespacesAndNewlines)), pid > 0 {
             let alive = kill(pid, 0) == 0 || errno == EPERM
             DispatchQueue.main.async { self.isRunning = alive }
             return
+        }
+        // Also check App Group heartbeat file
+        if let container = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.com.ban.PacketBlocker") {
+            let heartbeatPath = container.appendingPathComponent("hud_heartbeat.txt")
+            if let data = try? Data(contentsOf: heartbeatPath), let str = String(data: data, encoding: .utf8), let ts = TimeInterval(str) {
+                if Date().timeIntervalSince1970 - ts < 5 {
+                    DispatchQueue.main.async { self.isRunning = true }
+                    return
+                }
+            }
         }
         DispatchQueue.main.async { self.isRunning = false }
     }
@@ -28,52 +41,53 @@ class FloatingHUDManager: ObservableObject {
     }
     
     func setEnabled(_ enabled: Bool) {
-        let execPath = Bundle.main.executablePath ?? ""
-        guard !execPath.isEmpty else { return }
+        guard let execPath = Bundle.main.executablePath else { return }
+        
         if enabled {
-            if isRunning { return }
-            AppGroupStore.logAction("HUD_CREATE", details: "spawning daemon")
-            spawn(execPath: execPath, args: ["-hud"])
-            DispatchQueue.main.asyncAfter(deadline: .now()+1.0) { self.checkRunning() }
+            if isRunning {
+                AppGroupStore.logAction("HUD_CREATE_SKIP", details: "already running")
+                return
+            }
+            AppGroupStore.logAction("HUD_CREATE", details: "spawning daemon via PersonaHelper root")
+            let result = spawnRoot(execPath: execPath, args: ["-hud"])
+            AppGroupStore.logAction("HUD_SPAWN_RESULT", details: "result=\(result)")
+            DispatchQueue.main.asyncAfter(deadline: .now()+1.5) { self.checkRunning() }
         } else {
             AppGroupStore.logAction("HUD_REMOVE", details: "removing daemon")
-            spawn(execPath: execPath, args: ["-exit"])
+            // Try graceful via notification + file
+            if let container = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.com.ban.PacketBlocker") {
+                let cmdPath = container.appendingPathComponent("hud_command.txt")
+                try? "exit".write(to: cmdPath, atomically: true, encoding: .utf8)
+            }
+            // Legacy -exit spawn
+            _ = spawnRoot(execPath: execPath, args: ["-exit"])
+            // Also try kill via pid file
+            let pidPath = "/var/mobile/Library/Caches/com.aethernet.hud.pid"
+            if let pidStr = try? String(contentsOfFile: pidPath), let pid = Int32(pidStr) {
+                kill(pid, SIGKILL)
+                try? FileManager.default.removeItem(atPath: pidPath)
+            }
             DispatchQueue.main.async { self.isRunning = false }
         }
     }
     
-    private func spawn(execPath: String, args: [String]) {
+    private func spawnRoot(execPath: String, args: [String]) -> Int32 {
         #if os(iOS)
-        // Real device with TrollStore: use posix_spawn with persona for root
-        var pid: pid_t = 0
-        var attr: posix_spawnattr_t?
-        posix_spawnattr_init(&attr)
-        // Set flags - pass pointer to optional
-        posix_spawnattr_setflags(&attr, Int16(POSIX_SPAWN_SETPGROUP))
-        
-        var fileActions: posix_spawn_file_actions_t?
-        posix_spawn_file_actions_init(&fileActions)
-        
-        let cArgs = [execPath] + args
-        let cStrings = cArgs.map { strdup($0) }
-        var cArgsPtr: [UnsafeMutablePointer<CChar>?] = cStrings.map { $0 } + [nil]
-        
-        let result = cArgsPtr.withUnsafeMutableBufferPointer { buf in
-            posix_spawn(&pid, execPath, &fileActions, &attr, buf.baseAddress, environ)
+        // Use PersonaHelper C function for root spawn
+        let arg1 = args.first ?? ""
+        let arg2 = args.count > 1 ? args[1] : ""
+        // Call C function HybridSpawnRoot
+        let result = execPath.withCString { cPath in
+            arg1.withCString { cArg1 in
+                arg2.withCString { cArg2 in
+                    HybridSpawnRoot(cPath, cArg1, cArg2.isEmpty ? nil : cArg2)
+                }
+            }
         }
-        
-        for ptr in cStrings { free(ptr) }
-        posix_spawnattr_destroy(&attr)
-        posix_spawn_file_actions_destroy(&fileActions)
-        
-        if result == 0 {
-            NSLog("[Hybrid] spawned HUD pid %d", pid)
-        } else {
-            NSLog("[Hybrid] spawn failed %d", result)
-        }
+        return Int32(result)
         #else
-        // macOS GitHub Actions build: skip actual spawn
-        NSLog("[Hybrid] spawn skipped on macOS (GitHub Actions) - execPath: %@ args: %@", execPath, args.joined(separator: " "))
+        NSLog("[Hybrid] spawn skipped on macOS - %@", execPath)
+        return 0
         #endif
     }
 }
