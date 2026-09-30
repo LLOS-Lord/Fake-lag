@@ -52,7 +52,12 @@ int HybridWriteSocketDumpFile(int pid, const char *outfile);
 
 // APP side: spawn the root helper, wait (≤2s) for the result file.
 // YES = file produced (parse it), NO = fall back to the in-process dump.
+// childPid (may be NULL) receives the helper pid right after spawn.
+BOOL HybridSockDumpViaRootPID(int pid, const char *outfile, int * _Nullable childPid);
 BOOL HybridSockDumpViaRoot(int pid, const char *outfile);
+
+// 0 when the pid is gone, 1 when alive, 2 when alive-but-root (EPERM).
+int HybridProcIsAlive(int pid);
 
 // In-process dump via proc_pidfdinfo (needs uid 0 to succeed; fallback path).
 int HybridProcSocketDump(int pid, HybridSocketEntryC * _Nullable out, int max);

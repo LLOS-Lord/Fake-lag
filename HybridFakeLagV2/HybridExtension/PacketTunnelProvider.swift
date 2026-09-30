@@ -1120,14 +1120,16 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
 
         // Idle-flow cleanup + table bounds (collect keys first — never mutate
         // a dictionary while iterating it).
+        // &- (wrap-safe): plain UInt64 − underflowed here when the wall clock
+        // stepped backward (NTP) and crashed the provider (~15s after start).
         var deadUDP: [FlowKey] = []
-        for (key, flow) in udpFlows where now - flow.lastSeen > 60_000 { deadUDP.append(key) }
+        for (key, flow) in udpFlows where now &- flow.lastSeen > 60_000 { deadUDP.append(key) }
         for key in deadUDP { udpFlows[key]?.conn?.cancel(); udpFlows[key] = nil }
 
         var deadTCP: [FlowKey] = []
         for (key, flow) in tcpFlows {
             let idleLimit: UInt64 = (flow.phase == .established) ? 900_000 : 30_000
-            if now - flow.lastSeen > idleLimit { deadTCP.append(key) }
+            if now &- flow.lastSeen > idleLimit { deadTCP.append(key) }
         }
         for key in deadTCP { tcpFlows[key]?.conn?.cancel(); tcpFlows[key] = nil }
 
@@ -1145,7 +1147,9 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
 
     // ═══════════════════════════════ helpers ═════════════════════════════════
 
-    private func nowMs() -> UInt64 { UInt64(Date().timeIntervalSince1970 * 1000) }
+    /// Monotonic milliseconds since boot — NEVER use Date() here (NTP step
+    /// backward used to underflow `now - lastSeen` and SIGTRAP the extension).
+    private func nowMs() -> UInt64 { DispatchTime.now().uptimeNanoseconds / 1_000_000 }
 
     /// Log the first N flow events in detail, then every 100th (detail without spam).
     private func sampleLog(_ action: String, _ details: String) {

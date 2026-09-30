@@ -55,6 +55,12 @@ static void HUDStepLog(NSString *msg) {
             [line writeToFile:path atomically:NO encoding:NSUTF8StringEncoding error:nil];
         }
         chmod(path.UTF8String, 0666);
+        // EARLY liveness: every step stamps the shm heartbeat. The 1s heartbeat
+        // timer only starts AFTER __completeAndRunAsPlugin, and the payload
+        // installer used to delay that by seconds — the app then declared a
+        // healthy daemon dead at 1.5s and respawned on top of it.
+        AetherSharedState *st = AetherGetSharedState();
+        if (st) aether_atomic_store(&st->hudHeartbeatTs, (uint64_t)time(NULL));
     } @catch (...) {}
 }
 
@@ -876,8 +882,15 @@ int HUDMain(int argc, char *argv[])
             AetherLog(@"[pid %d] HUD daemon starting uid=%d euid=%d exe=%s (build %u)",
                       getpid(), getuid(), geteuid(), argv[0], (unsigned)AETHER_BUILD_NUM);
             AetherLog(@"[pid %d] shm=%s pidfile=%s", getpid(), AETHER_SHM_PATH, AETHER_HUD_PID_PATH);
-            AetherInstallHookPayload();
-            HUDStepLog(@"step4 hook payload installer done");
+            // The installer does opendir/fork/exec (fastPathSign) which can take
+            // seconds on a cold device — running it INLINE delayed the UIKit
+            // init past the app's 1.5s verify window, so a healthy daemon was
+            // declared dead and got respawned on top of itself. Dispatch it.
+            dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{
+                AetherInstallHookPayload();
+                HUDStepLog(@"step4 hook payload installer done (background)");
+            });
+            HUDStepLog(@"step4 hook payload installer dispatched (background)");
 
             AetherSharedState *state = AetherGetSharedState();
             if (state) {

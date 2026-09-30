@@ -5,6 +5,14 @@ NS_ASSUME_NONNULL_BEGIN
 // ── Root spawn (persona UID 0) ──────────────────────────────────────────────
 int HybridSpawnWithPersona(uid_t uid, gid_t gid, const char *execPath, char *const argv[], char *const envp[], pid_t *outPID);
 int HybridSpawnRoot(const char *execPath, const char *arg1, const char *arg2);
+// Same spawn but also returns the CHILD PID (outPid may be NULL). rc is the
+// posix_spawn return code (0 = spawned — NOT a guarantee that exec succeeded);
+// probe the child afterwards with HybridProcIsAlive / HybridChildPidPath.
+int HybridSpawnRootPID(const char *execPath, const char *arg1, const char *arg2, int * _Nullable outPid);
+// Convenience liveness probe for a freshly spawned child:
+//   0 = gone, 1 = alive, 2 = alive-but-more-privileged (EPERM on signal 0).
+// When alive, childPath (if non-NULL, <=1024 bytes) receives proc_pidpath.
+int HybridProbeChildPid(int pid, char * _Nullable childPath, int pathMax);
 
 // ── HUD daemon lifecycle helpers (port of TrollNetInterceptor
 //    ProcessManager.setGlobalFloatingHUDEnabled / isGlobalFloatingHUDRunning) ──
@@ -77,6 +85,8 @@ int HybridWriteSocketDumpFile(int pid, const char *outfile);
 
 // APP side: spawn the root helper, wait (≤2s) for the result file.
 // YES = file produced (parse it), NO = fall back to the in-process dump.
+// childPid (may be NULL) receives the helper pid immediately after spawn.
+BOOL HybridSockDumpViaRootPID(int pid, const char *outfile, int * _Nullable childPid);
 BOOL HybridSockDumpViaRoot(int pid, const char *outfile);
 
 // 0 when the pid is gone, 1 when alive, 2 when alive-but-root (EPERM).

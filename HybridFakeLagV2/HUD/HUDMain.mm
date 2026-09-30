@@ -50,6 +50,11 @@ static void HUDStepLog(NSString *msg) {
             [line writeToFile:path atomically:NO encoding:NSUTF8StringEncoding error:nil];
         }
         chmod(path.UTF8String, 0666);
+        // EARLY liveness: every step stamps the shm heartbeat (the 1s heartbeat
+        // timer only starts after __completeAndRunAsPlugin — the installer used
+        // to delay that past the app's verify window; synced w/ PacketBlocker).
+        AetherSharedState *stStep = AetherGetSharedState();
+        if (stStep) aether_atomic_store(&stStep->hudHeartbeatTs, (uint64_t)time(NULL));
     } @catch (...) {}
 }
 
@@ -865,8 +870,13 @@ int HUDMain(int argc, char *argv[])
             HUDStepLog(@"step3 pid file written");
 
             AetherLog(@"[pid %d] HUD daemon starting", getpid());
-            AetherInstallHookPayload();
-            HUDStepLog(@"step4 hook payload installer done");
+            // Installer does opendir/fork/exec — run it in the background so
+            // UIKit init is not delayed past the app's verify window.
+            dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{
+                AetherInstallHookPayload();
+                HUDStepLog(@"step4 hook payload installer done (background)");
+            });
+            HUDStepLog(@"step4 hook payload installer dispatched (background)");
 
             AetherSharedState *state = AetherGetSharedState();
             if (state) {

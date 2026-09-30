@@ -622,8 +622,8 @@ void HybridHUDRequestExit(void) {
     free(execPath);
 }
 
-int HybridSpawnRoot(const char *execPath, const char *argv1, const char *argv2) {
-    if (!execPath) return -1;
+int HybridSpawnRootPID(const char *execPath, const char *argv1, const char *argv2, int *outPid) {
+    if (!execPath) { if (outPid) *outPid = 0; return -1; }
     posix_spawnattr_t attr;
     posix_spawnattr_init(&attr);
 #if !TARGET_OS_SIMULATOR
@@ -634,11 +634,36 @@ int HybridSpawnRoot(const char *execPath, const char *argv1, const char *argv2) 
     posix_spawnattr_setpgroup(&attr, 0);
     posix_spawnattr_setflags(&attr, POSIX_SPAWN_SETPGROUP);
 
+    // Re-exec'd children must not inherit the app's XPC session variables
+    // (launchd wires them to the PARENT's session — a classic silent death).
+    static char **cleanEnv = NULL;
+    static dispatch_once_t envOnce;
+    dispatch_once(&envOnce, ^{
+        NSMutableArray<NSString *> *kept = [NSMutableArray array];
+        for (char **e = environ; e && *e; e++) {
+            NSString *kv = [NSString stringWithUTF8String:*e];
+            if (!kv) continue;
+            if ([kv hasPrefix:@"__XPC_"] || [kv hasPrefix:@"XPC_"]) continue;
+            [kept addObject:kv];
+        }
+        NSUInteger n = kept.count;
+        cleanEnv = (char **)malloc(sizeof(char *) * (n + 1));
+        if (!cleanEnv) return;
+        for (NSUInteger i = 0; i < n; i++) {
+            const char *c = kept[i].UTF8String;
+            char *dup = (char *)malloc(strlen(c) + 1);
+            if (dup) strcpy(dup, c);
+            cleanEnv[i] = dup;
+        }
+        cleanEnv[n] = NULL;
+    });
+
     const char *args[4] = { execPath, argv1, argv2, NULL };
     pid_t child = 0;
-    int rc = posix_spawn(&child, execPath, NULL, &attr, (char **)args, environ);
+    int rc = posix_spawn(&child, execPath, NULL, &attr, (char **)args, cleanEnv ? (char *const *)cleanEnv : environ);
     posix_spawnattr_destroy(&attr);
     AetherLog(@"HybridSpawnRoot %s %s rc=%d pid=%d", execPath, argv1 ?: "", rc, child);
+    if (outPid) *outPid = (int)child;
     if (rc == 0) {
         AetherSharedState *state = AetherGetSharedState();
         if (state && argv1 && strcmp(argv1, "-hud") == 0) {
@@ -646,6 +671,29 @@ int HybridSpawnRoot(const char *execPath, const char *argv1, const char *argv2) 
         }
     }
     return rc;
+}
+
+int HybridSpawnRoot(const char *execPath, const char *argv1, const char *argv2) {
+    return HybridSpawnRootPID(execPath, argv1, argv2, NULL);
+}
+
+int HybridProbeChildPid(int pid, char *childPath, int pathMax) {
+    if (pid <= 0) return 0;
+    errno = 0;
+    int rc = kill((pid_t)pid, 0);
+    int alive = 0;
+    if (rc == 0) alive = 1;
+    else if (errno == EPERM) alive = 2;
+    if (alive && childPath && pathMax > 0) {
+        memset(childPath, 0, (size_t)pathMax);
+        if (proc_pidpath((pid_t)pid, childPath, (size_t)pathMax) <= 0) childPath[0] = '\0';
+    }
+    return alive;
+}
+
+// 0 = gone, 1 = alive, 2 = alive-but-more-privileged (synced w/ PacketBlocker).
+int HybridProcIsAlive(int pid) {
+    return HybridProbeChildPid(pid, NULL, 0);
 }
 
 void HybridHUDSyncFloatingConfig(float size, float opacity, bool edgeSnap,
@@ -758,7 +806,8 @@ int HybridWriteSocketDumpFile(int pid, const char *outfile) {
 }
 
 // APP side: spawn the root helper, wait (≤2s) for the result file.
-BOOL HybridSockDumpViaRoot(int pid, const char *outfile) {
+// childPid (optional) receives the helper pid for exec-level diagnostics.
+BOOL HybridSockDumpViaRootPID(int pid, const char *outfile, int *childPid) {
     if (pid <= 0 || !outfile || !outfile[0]) return NO;
 
     unlink(outfile);
@@ -771,7 +820,7 @@ BOOL HybridSockDumpViaRoot(int pid, const char *outfile) {
 
     char arg2[2048];
     snprintf(arg2, sizeof(arg2), "%d %s", pid, outfile);
-    int rc = HybridSpawnRoot(execPath, "-sockdump", arg2);
+    int rc = HybridSpawnRootPID(execPath, "-sockdump", arg2, childPid);
     free(execPath);
     if (rc != 0) return NO;
 
@@ -781,5 +830,9 @@ BOOL HybridSockDumpViaRoot(int pid, const char *outfile) {
         if (stat(outfile, &st) == 0 && st.st_size >= 2) return YES;
     }
     return NO;
+}
+
+BOOL HybridSockDumpViaRoot(int pid, const char *outfile) {
+    return HybridSockDumpViaRootPID(pid, outfile, NULL);
 }
 

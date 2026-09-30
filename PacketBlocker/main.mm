@@ -8,10 +8,36 @@
 #import <dlfcn.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <fcntl.h>
+#include <time.h>
+#include <stdio.h>
+#include <mach-o/dyld.h>
 
 extern "C" int HUDMain(int argc, char *argv[]);
 extern BOOL gAetherIsDaemon;
 BOOL gAetherIsDaemon = NO;
+
+// Earliest possible boot marker — runs at dyld time, BEFORE main().
+// The persona-root spawn proves rc=0, but rc=0 does NOT prove exec succeeded:
+// a child killed by AMFI/dyld/xpc-bootstrap before main() left NO trace and
+// the HUD failure was undiagnosable ("posix_spawn rc=0 → silence").
+// This constructor is the first line the child can ever write. If it appears
+// without the following [MAIN_CRASH_LOG] main() line → death between ctor and
+// main(); if it never appears → exec-level death (entitlements/trustcache).
+static __attribute__((constructor)) void AetherEarlyBootLog(void) {
+    char buf[640];
+    char exe[1024] = {0};
+    uint32_t exeLen = sizeof(exe);
+    _NSGetExecutablePath(exe, &exeLen); // best effort
+    int n = snprintf(buf, sizeof(buf),
+                     "[%ld] [HUD_EARLY] ctor uid=%d euid=%d pid=%d ppid=%d exe=%s\n",
+                     (long)time(NULL), getuid(), geteuid(), getpid(), getppid(), exe);
+    if (n > 0) {
+        int fd = open("/var/mobile/Library/Caches/hybrid_actions.log",
+                      O_WRONLY | O_APPEND | O_CREAT, 0666);
+        if (fd >= 0) { write(fd, buf, (size_t)n); close(fd); }
+    }
+}
 
 static void LogCrash(NSString *msg) {
     @try {

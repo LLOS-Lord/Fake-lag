@@ -23,7 +23,37 @@ extern char **environ;
 // ─────────────────────────────────────────────────────────────────────────────
 // Root spawn (persona UID 0) — unchanged logic, kept for compatibility
 // ─────────────────────────────────────────────────────────────────────────────
-int HybridSpawnWithPersona(uid_t uid, gid_t gid, const char *execPath, char *const argv[], char *const envp[], pid_t *outPID) {
+
+// Re-exec'd helpers/daemons must NOT inherit the app's XPC session variables
+// (__XPC_*/XPC_*). launchd wires those to the PARENT's XPC session, so the
+// child's own bootstrap/XPC setup can misbehave or bail out silently before
+// main(). Build a cleaned environment once and use it for every spawn.
+static char *const *HybridCleanEnvp(void) {
+    static char **cleanEnv = NULL;
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        NSMutableArray<NSString *> *kept = [NSMutableArray array];
+        for (char **e = environ; e && *e; e++) {
+            NSString *kv = [NSString stringWithUTF8String:*e];
+            if (!kv) continue;
+            if ([kv hasPrefix:@"__XPC_"] || [kv hasPrefix:@"XPC_"]) continue;
+            [kept addObject:kv];
+        }
+        NSUInteger n = kept.count;
+        cleanEnv = (char **)malloc(sizeof(char *) * (n + 1));
+        if (!cleanEnv) return;
+        for (NSUInteger i = 0; i < n; i++) {
+            const char *c = kept[i].UTF8String;
+            char *dup = (char *)malloc(strlen(c) + 1);
+            if (dup) strcpy(dup, c);
+            cleanEnv[i] = dup;
+        }
+        cleanEnv[n] = NULL;
+    });
+    return cleanEnv;
+}
+
+int HybridSpawnWithPersona(uid_t uid, gid_t gid, const char *execPath, char *const argv[], char *const envpIn[], pid_t *outPID) {
     posix_spawnattr_t attr;
     posix_spawnattr_init(&attr);
 
@@ -43,6 +73,9 @@ int HybridSpawnWithPersona(uid_t uid, gid_t gid, const char *execPath, char *con
     posix_spawn_file_actions_t fileActions;
     posix_spawn_file_actions_init(&fileActions);
 
+    // Ignore the caller's envp (usually the raw environ) and use the cleaned
+    // environment instead — XPC session vars must not leak into children.
+    char *const *envp = (char *const *)HybridCleanEnvp();
     int result = posix_spawn(outPID, execPath, &fileActions, &attr, argv, envp);
 
     posix_spawnattr_destroy(&attr);
@@ -51,14 +84,34 @@ int HybridSpawnWithPersona(uid_t uid, gid_t gid, const char *execPath, char *con
     return result;
 }
 
-int HybridSpawnRoot(const char *execPath, const char *arg1, const char *arg2) {
+int HybridSpawnRootPID(const char *execPath, const char *arg1, const char *arg2, int *outPid) {
     pid_t pid = 0;
     const char *argv[4];
     argv[0] = execPath;
     argv[1] = arg1;
     argv[2] = arg2;
     argv[3] = NULL;
-    return HybridSpawnWithPersona(0, 0, execPath, (char *const *)argv, environ, &pid);
+    int rc = HybridSpawnWithPersona(0, 0, execPath, (char *const *)argv, NULL, &pid);
+    if (outPid) *outPid = (int)pid;
+    return rc;
+}
+
+int HybridSpawnRoot(const char *execPath, const char *arg1, const char *arg2) {
+    return HybridSpawnRootPID(execPath, arg1, arg2, NULL);
+}
+
+int HybridProbeChildPid(int pid, char *childPath, int pathMax) {
+    if (pid <= 0) return 0;
+    errno = 0;
+    int rc = kill((pid_t)pid, 0);
+    int alive = 0;
+    if (rc == 0) alive = 1;
+    else if (errno == EPERM) alive = 2;
+    if (alive && childPath && pathMax > 0) {
+        memset(childPath, 0, (size_t)pathMax);
+        if (proc_pidpath((pid_t)pid, childPath, (size_t)pathMax) <= 0) childPath[0] = '\0';
+    }
+    return alive;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -426,7 +479,9 @@ int HybridWriteSocketDumpFile(int pid, const char *outfile) {
 // Returns YES when the helper produced the file (parse it next),
 // NO when spawn failed or the helper did not answer within the timeout —
 // caller falls back to the (possibly empty) in-process dump.
-BOOL HybridSockDumpViaRoot(int pid, const char *outfile) {
+// childPid (optional) receives the helper's pid right after spawn so the
+// caller can probe whether the child even came up (exec-level diagnostics).
+BOOL HybridSockDumpViaRootPID(int pid, const char *outfile, int *childPid) {
     if (pid <= 0 || !outfile || !outfile[0]) return NO;
 
     unlink(outfile); // stale result from a previous dump must not satisfy us
@@ -437,7 +492,7 @@ BOOL HybridSockDumpViaRoot(int pid, const char *outfile) {
 
     char arg2[2048];
     snprintf(arg2, sizeof(arg2), "%d %s", pid, outfile);
-    int rc = HybridSpawnRoot(execPath, "-sockdump", arg2);
+    int rc = HybridSpawnRootPID(execPath, "-sockdump", arg2, childPid);
     if (rc != 0) return NO;
 
     // A cold spawn + proc dump typically completes in 50-300ms.
@@ -447,4 +502,8 @@ BOOL HybridSockDumpViaRoot(int pid, const char *outfile) {
         if (stat(outfile, &st) == 0 && st.st_size >= 2) return YES;
     }
     return NO;
+}
+
+BOOL HybridSockDumpViaRoot(int pid, const char *outfile) {
+    return HybridSockDumpViaRootPID(pid, outfile, NULL);
 }

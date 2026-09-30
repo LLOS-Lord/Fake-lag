@@ -10,10 +10,33 @@
 #import <UIKit/UIKit.h>
 #include <string.h>
 #include <stdio.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <time.h>
+#include <mach-o/dyld.h>
 
 extern "C" int HUDMain(int argc, char *argv[]);
 extern "C" int HybridWriteSocketDumpFile(int pid, const char *outfile);
 extern BOOL gAetherIsDaemon;
+
+// Earliest possible boot marker — runs at dyld time, BEFORE main().
+// posix_spawn rc=0 does NOT prove exec succeeded; a child killed by
+// AMFI/dyld/xpc-bootstrap before main() used to leave NO trace. This ctor is
+// the first line the child can ever write (synced with PacketBlocker/main.mm).
+static __attribute__((constructor)) void AetherEarlyBootLog(void) {
+    char buf[640];
+    char exe[1024] = {0};
+    uint32_t exeLen = sizeof(exe);
+    _NSGetExecutablePath(exe, &exeLen); // best effort
+    int n = snprintf(buf, sizeof(buf),
+                     "[%ld] [HUD_EARLY] ctor uid=%d euid=%d pid=%d ppid=%d exe=%s\n",
+                     (long)time(NULL), getuid(), geteuid(), getpid(), getppid(), exe);
+    if (n > 0) {
+        int fd = open("/var/mobile/Library/Caches/hybrid_actions.log",
+                      O_WRONLY | O_APPEND | O_CREAT, 0666);
+        if (fd >= 0) { write(fd, buf, (size_t)n); close(fd); }
+    }
+}
 
 int main(int argc, char *argv[]) {
     @autoreleasepool {

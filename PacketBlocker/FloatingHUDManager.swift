@@ -6,7 +6,7 @@ import UIKit
 //      heartbeat + remove stale pid file (a leftover "exit" command in shm used
 //      to kill the fresh daemon within 1s → "bấm Create mà không thấy nút").
 //   2. posix_spawn persona-root re-exec of THIS binary with "-hud".
-//   3. Verify after 1.5s that the daemon is really alive (shm heartbeat).
+//   3. Verify after 2.5s that the daemon is really alive (shm heartbeat).
 //   4. Watchdog: if the daemon dies while the user expects it, respawn
 //     (bounded attempts, exactly like the reference app's stale-daemon logic).
 class FloatingHUDManager: ObservableObject {
@@ -19,6 +19,14 @@ class FloatingHUDManager: ObservableObject {
     private let maxRespawnAttempts = 3
     /// True while the user wants the HUD alive (after pressing Create).
     private var expectedEnabled = false
+    /// Debounce + in-flight guards: the button used to be tapped repeatedly
+    /// (nothing appeared yet), and each tap KILLED the previous daemon via
+    /// prepare() — 7 spawns in 1 second on device, every one of them dead
+    /// before it could finish booting. One spawn attempt per 4s, max.
+    private var lastSpawnAt = Date.distantPast
+    private var inFlightSpawn = false
+    /// Pid of the most recently spawned child (diagnostics).
+    private var lastChildPid: Int32 = 0
 
     init() {
         expectedEnabled = HybridHUDIsRunning()
@@ -48,6 +56,9 @@ class FloatingHUDManager: ObservableObject {
     private func startWatchdog() {
         watchdog = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: true) { [weak self] _ in
             guard let self = self, self.expectedEnabled, !self.isRunning else { return }
+            // A spawn is already pending / in its verify window — give it a
+            // chance instead of stacking a second daemon on top (storm bug).
+            guard !self.inFlightSpawn else { return }
             guard self.respawnAttempts < self.maxRespawnAttempts else {
                 AppGroupStore.logAction("HUD_WATCHDOG", details: "give up after \(self.maxRespawnAttempts) respawn attempts")
                 self.expectedEnabled = false
@@ -66,11 +77,18 @@ class FloatingHUDManager: ObservableObject {
                 expectedEnabled = true
                 return
             }
+            // Debounce: impatient re-taps used to prepare+spawn 7 daemons a
+            // second, each prepare() KILLING the previous child mid-boot.
+            if inFlightSpawn || Date().timeIntervalSince(lastSpawnAt) < 4.0 {
+                AppGroupStore.logAction("HUD_CREATE_SKIP", details: "debounce — spawn already in flight, wait for verify")
+                expectedEnabled = true
+                return
+            }
             expectedEnabled = true
             respawnAttempts = 0
             AppGroupStore.logAction("HUD_CREATE", details: "prepare + spawn root HUD daemon (TrollNet flow)")
             spawnDaemon()
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in self?.verifySpawn() }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) { [weak self] in self?.verifySpawn() }
         } else {
             expectedEnabled = false
             respawnAttempts = 0
@@ -94,6 +112,8 @@ class FloatingHUDManager: ObservableObject {
             return
         }
 
+        lastSpawnAt = Date()
+        inFlightSpawn = true
         let prepare = HybridHUDPrepareForSpawn()
         if prepare == 1 {
             // An old daemon needed killing — give it a moment, then spawn.
@@ -108,12 +128,28 @@ class FloatingHUDManager: ObservableObject {
 
     private func doSpawn(execPath: String) {
         #if os(iOS)
+        var childPid: Int32 = 0
         let rc = execPath.withCString { cPath -> Int32 in
-            Int32(HybridSpawnRoot(cPath, "-hud", ""))
+            Int32(HybridSpawnRootPID(cPath, "-hud", "", &childPid))
         }
-        AppGroupStore.logAction("HUD_SPAWN_RESULT", details: "posix_spawn rc=\(rc) (0=ok) exec=\(execPath)")
+        lastChildPid = childPid
+        AppGroupStore.logAction("HUD_SPAWN_RESULT", details: "posix_spawn rc=\(rc) (0=ok) childPid=\(childPid) exec=\(execPath)")
         if rc != 0 {
             DispatchQueue.main.async { self.lastError = "posix_spawn failed rc=\(rc)" }
+            self.inFlightSpawn = false
+            return
+        }
+        // Probe the child shortly after spawn: rc=0 does NOT prove exec worked.
+        // probe: 0=gone, 1=alive, 2=alive-as-root(EPERM). Path proves OUR exe.
+        DispatchQueue.global().asyncAfter(deadline: .now() + 0.5) { [weak self] in
+            guard let self = self else { return }
+            var path = [CChar](repeating: 0, count: 1024)
+            let probe = path.withUnsafeMutableBufferPointer { buf -> Int32 in
+                Int32(HybridProbeChildPid(childPid, buf.baseAddress, 1024))
+            }
+            let exe = String(cString: path).trimmingCharacters(in: .whitespacesAndNewlines)
+            AppGroupStore.logAction("HUD_SPAWN_PID",
+                details: "child pid=\(childPid) probe=\(probe) (0=gone 1=alive 2=alive-root) exe=\(exe.isEmpty ? "?" : exe)")
         }
         #else
         AppGroupStore.logAction("HUD_SPAWN_SKIP", details: "non-iOS build: \(execPath)")
@@ -122,11 +158,12 @@ class FloatingHUDManager: ObservableObject {
 
     private func verifySpawn() {
         checkRunning()
+        inFlightSpawn = false
         if isRunning {
             AppGroupStore.logAction("HUD_ALIVE", details: "daemon verified via shm heartbeat — floating button should be visible")
             DispatchQueue.main.async { self.lastError = nil }
         } else {
-            let msg = "daemon did not come up within 1.5s — check TrollStore entitlements (persona-mgmt, accessibility-window-hosting); watchdog will retry"
+            let msg = "daemon not alive after 2.5s (lastChildPid=\(lastChildPid) — see HUD_SPAWN_PID / HUD_EARLY / HUD_STEP lines); watchdog will retry"
             AppGroupStore.logAction("HUD_VERIFY_FAIL", details: msg)
             DispatchQueue.main.async { self.lastError = msg }
         }

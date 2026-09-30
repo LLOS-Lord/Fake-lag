@@ -43,7 +43,7 @@ template <class T, class V> inline T        aether_atomic_fetch_add(std::atomic<
 // Daemon handshake: HUD daemon stores its build here every heartbeat; the app
 // respawns a stale daemon after an app update. KEEP IN SYNC with build number
 // in scripts/crossbuild-linux.sh
-#define AETHER_BUILD_NUM            361U
+#define AETHER_BUILD_NUM            362U
 
 // Darwin Notifications for instant cross-process wakeups
 #define kAetherNotifyStateChanged   "com.aethernet.interceptor.state_changed"

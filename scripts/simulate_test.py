@@ -1038,11 +1038,14 @@ def test_root_sockdump():
         check(f"{key}: TARGET_REFRESH guard pid vẫn được chọn", "cfg.targetPID == proc.pid" in s)
         check(f"{key}: VPN_STATUS log sau async hop (fix stale flag)",
               re.search(r"updateStatus\(\)\n[^\n]*\n[^\n]*\n[^\n]*\n[^\n]*DispatchQueue\.main\.async \{\n[^\n]*AppGroupStore\.logAction\(\"VPN_STATUS\"", s) is not None)
-    check("pb_pm_swift: root-first + fallback + serial queue + cache",
-          "HybridSockDumpViaRoot(pid, dumpPath)" in srcs["pb_pm_swift"]
+    check("pb_pm_swift: root-first (PID variant) + fallback + serial queue + cache",
+          "HybridSockDumpViaRootPID(pid, dumpPath, &helperPid)" in srcs["pb_pm_swift"]
           and "parseSocketDumpFile" in srcs["pb_pm_swift"]
           and "directDump" in srcs["pb_pm_swift"]
           and "sockQueue" in srcs["pb_pm_swift"] and "socketCache" in srcs["pb_pm_swift"])
+    check("twin_vpn: root-first (PID variant) + helper-probe fallback",
+          "HybridSockDumpViaRootPID(pid, dumpPath, &helperPid)" in srcs["twin_vpn"]
+          and "SOCKET_DUMP_FAIL" in srcs["twin_vpn"] and "directDump" in srcs["twin_vpn"])
     check("pb_bridge: PersonaHelper.h import (Swift thấy HybridSockDumpViaRoot)",
           "Core/PersonaHelper.h" in srcs["pb_bridge"])
     check("twin_bridge: khai báo HybridSockDumpViaRoot + import PrivateSystemSPI",
@@ -1578,6 +1581,69 @@ def test_pbxproj_integrity():
     check("extension: IPv6 loop guard", "NEVER write it back" in swift)
 
 
+def test_v391_fixes():
+    print("\n[18] v3.9.1 — monotonic clock (NTP-step crash) + HUD spawn hygiene")
+    # ── 1. Monotonic clock + wrap-safe maintenance in BOTH engines ──
+    engines = {
+        "pb_ext": "/home/z/my-project/workspace/fakelag/PacketBlockerExtension/PacketTunnelProvider.swift",
+        "twin_ext": "/home/z/my-project/workspace/fakelag/HybridFakeLagV2/HybridExtension/PacketTunnelProvider.swift",
+    }
+    for name, path in engines.items():
+        s = open(path).read()
+        check(f"{name}: nowMs() dùng DispatchTime (monotonic, chống NTP step)",
+              "DispatchTime.now().uptimeNanoseconds / 1_000_000" in s)
+        check(f"{name}: KHÔNG còn nowMs từ wall clock",
+              "UInt64(Date().timeIntervalSince1970 * 1000)" not in s)
+        check(f"{name}: maintenance dùng &- (wrap-safe) cho lastSeen",
+              "now &- flow.lastSeen > 60_000" in s and "now &- flow.lastSeen > idleLimit" in s)
+        check(f"{name}: KHÔNG còn phép trừ thường trên lastSeen",
+              "now - flow.lastSeen" not in s)
+    # ── 2. Earliest-boot ctor logger in BOTH main.mm ──
+    mains = {
+        "pb_main": "/home/z/my-project/workspace/fakelag/PacketBlocker/main.mm",
+        "twin_main": "/home/z/my-project/workspace/fakelag/HybridFakeLagV2/main.mm",
+    }
+    for name, path in mains.items():
+        s = open(path).read()
+        check(f"{name}: constructor AetherEarlyBootLog ghi [HUD_EARLY] trước main()",
+              '__attribute__((constructor))' in s and '[HUD_EARLY] ctor' in s
+              and 'hybrid_actions.log' in s)
+    # ── 3. HUD daemon: early heartbeat + background installer ──
+    huds = {
+        "pb_hud": "/home/z/my-project/workspace/fakelag/PacketBlocker/HUD/HUDMain.mm",
+        "twin_hud": "/home/z/my-project/workspace/fakelag/HybridFakeLagV2/HUD/HUDMain.mm",
+    }
+    for name, path in huds.items():
+        s = open(path).read()
+        check(f"{name}: HUDStepLog stamp heartbeat sớm (không đợi step12)",
+              "hudHeartbeatTs, (uint64_t)time(NULL));" in s)
+        check(f"{name}: installer chạy background (không chậm UIKit init)",
+              "step4 hook payload installer dispatched (background)" in s)
+    # ── 4. Spawn hygiene: clean env + child pid + probe + debounce ──
+    persona = open("/home/z/my-project/workspace/fakelag/PacketBlocker/Core/PersonaHelper.m").read()
+    twin_pm = open("/home/z/my-project/workspace/fakelag/HybridFakeLagV2/Core/ProcessManager.mm").read()
+    for name, s in (("persona", persona), ("twin_pm", twin_pm)):
+        check(f"{name}: HybridSpawnRootPID trả child pid", "int HybridSpawnRootPID" in s)
+        check(f"{name}: HybridProbeChildPid (0=gone 1=alive 2=EPERM)", "int HybridProbeChildPid" in s)
+        check(f"{name}: spawn dùng env sạch (bỏ __XPC_*/XPC_*)",
+              '__XPC_' in s and 'HybridCleanEnvp' in s if name == "persona" else
+              ('__XPC_' in s and 'cleanEnv' in s))
+    for name, path in (("pb_floating", "/home/z/my-project/workspace/fakelag/PacketBlocker/FloatingHUDManager.swift"),
+                       ("twin_floating", "/home/z/my-project/workspace/fakelag/HybridFakeLagV2/Hybrid/FloatingHUDManager.swift")):
+        s = open(path).read()
+        check(f"{name}: debounce HUD_CREATE (chống spawn-storm)",
+              "HUD_CREATE_SKIP" in s and "debounce" in s and "inFlightSpawn" in s)
+        check(f"{name}: spawn PID-variant + probe child",
+              "HybridSpawnRootPID(cPath" in s and "HybridProbeChildPid(childPid" in s
+              and "HUD_SPAWN_PID" in s)
+        check(f"{name}: verify window 2.5s", ".now() + 2.5" in s)
+    # ── 5. Version bump để phân biệt artifact ──
+    info = open("/home/z/my-project/workspace/fakelag/PacketBlocker/Info.plist").read()
+    check("Info.plist 3.9.1/391", "<string>3.9.1</string>" in info and "<string>391</string>" in info)
+    shared = open("/home/z/my-project/workspace/fakelag/PacketBlocker/headers/AetherNetShared.h").read()
+    check("AETHER_BUILD_NUM 362", "AETHER_BUILD_NUM            362U" in shared)
+
+
 def main():
     t0 = time.time()
     print("=" * 78)
@@ -1601,6 +1667,7 @@ def main():
     test_payload_loader()
     test_engine_version_sync()
     test_pbxproj_integrity()
+    test_v391_fixes()
     dt = time.time() - t0
     print("\n" + "=" * 78)
     print(f"KẾT QUẢ: {len(PASS)} PASS / {len(FAIL)} FAIL  ({dt:.2f}s)")

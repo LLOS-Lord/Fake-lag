@@ -324,9 +324,16 @@ class ProcessManagerSwift {
         var out: [SocketEntry] = []
         #if !targetEnvironment(simulator)
         let dumpPath = "/var/mobile/Library/Caches/com.aethernet.sockdump.json"
-        if HybridSockDumpViaRoot(pid, dumpPath) {
+        var helperPid: Int32 = 0
+        if HybridSockDumpViaRootPID(pid, dumpPath, &helperPid) {
             viaRoot = true
             out = Self.parseSocketDumpFile(dumpPath)
+        } else if helperPid != 0 {
+            // Helper spawned but produced no file within 2s — probe whether the
+            // child even exec'd (0=gone ⇒ exec-level death, same as the HUD bug).
+            let probe = Int(HybridProcIsAlive(helperPid))
+            AppGroupStore.logAction("SOCKET_DUMP_FAIL", details: "root helper pid=\(helperPid) no result file; probe=\(probe) (0=gone 1=alive 2=alive-root)", level: "WARN")
+            out = Self.directDump(pid)
         } else {
             out = Self.directDump(pid)
         }

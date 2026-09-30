@@ -39,7 +39,17 @@ void HybridHUDRequestExit(void);
 
 // Root spawn (persona UID 0 / GID 0 via posix_spawnattr_set_persona_np).
 // argv1/argv2 may be NULL. Returns the posix_spawn result code (0 = ok).
+// PID variant also returns the child pid (outPid may be NULL) — probe it with
+// HybridProbeChildPid afterwards, since rc=0 does NOT prove exec succeeded.
 int HybridSpawnRoot(const char *execPath, const char *argv1, const char *argv2);
+int HybridSpawnRootPID(const char *execPath, const char *argv1, const char *argv2, int *outPid);
+
+// 0 = gone, 1 = alive, 2 = alive-but-root (EPERM on signal 0).
+// childPath (may be NULL) receives proc_pidpath of the live child.
+int HybridProbeChildPid(int pid, char *childPath, int pathMax);
+
+// Same probe for arbitrary pids (0=gone 1=alive 2=alive-but-more-privileged).
+int HybridProcIsAlive(int pid);
 
 // Pushes the floating-button customization into the shared memory the HUD
 // daemon reads every frame. Without this the daemon never sees size/opacity/
@@ -63,5 +73,6 @@ void HybridHUDSetInterceptionActive(bool active);
 // YES = file produced (parse it), NO = fall back to the in-process dump
 // (directDump — possible because PrivateSystemSPI.h is imported above).
 bool HybridSockDumpViaRoot(int pid, const char *outfile);
+bool HybridSockDumpViaRootPID(int pid, const char *outfile, int *childPid);
 
 #endif /* HybridBridgingHeader_h */
