@@ -12,6 +12,7 @@
 #import <time.h>
 #import <sys/stat.h>
 #import <sys/sysctl.h>
+#import <mach-o/dyld.h>
 #import <sys/socket.h>
 #import <netinet/in.h>
 #import <arpa/inet.h>
