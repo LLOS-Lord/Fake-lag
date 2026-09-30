@@ -886,6 +886,7 @@ int HUDMain(int argc, char *argv[])
 
             AetherLoadPrivateFrameworks();
             HUDStepLog(@"step5 private frameworks loaded");
+            static id<UIApplicationDelegate> appDelegate = nil;
             @try {
                 [UIScreen initialize];
                 CFRunLoopGetCurrent();
@@ -902,8 +903,7 @@ int HUDMain(int argc, char *argv[])
                     HUDStepLog(@"FATAL UIApplicationInstantiateSingleton MISSING");
                 }
 
-                static id<UIApplicationDelegate> appDelegate =
-                    [[objc_getClass("AetherHUDApplicationDelegate") alloc] init];
+                appDelegate = [[objc_getClass("AetherHUDApplicationDelegate") alloc] init];
                 [UIApplication.sharedApplication setDelegate:appDelegate];
                 HUDStepLog(@"step8 delegate set");
 
