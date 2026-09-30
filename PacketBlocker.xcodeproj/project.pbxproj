@@ -5,78 +5,78 @@
 	objectVersion = 56;
 	objects = {
 /* Begin PBXBuildFile section */
-		530FD8EC997A44DEB4500413 /* App.swift in Sources */ = {isa = PBXBuildFile; fileRef = 577202902121485D8D66AE99 /* App.swift */; };
-		ECE3E04CD4DF4F919834EC3B /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A248C6869DA6422EA43AB67B /* ContentView.swift */; };
-		B7CF207A0C594AF4A6DE20B7 /* AppGroup.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAC0A5C2BED74CD38325BEB9 /* AppGroup.swift */; };
-		8C0D44D4D63E4FD7BABE179A /* VPNManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 398884BE336F4921B02C6F6C /* VPNManager.swift */; };
-		507F02E88B664A309E2DC3A4 /* ProcessManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E766333C6254A36BEF1B0B3 /* ProcessManager.swift */; };
-		FE7588D360054DA0AE45421E /* FloatingHUDManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 171B0811C5AD4397A462AFAA /* FloatingHUDManager.swift */; };
-		7CABC5FC958D490DBCDA8974 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6478286782CD4930AD5A1FA5 /* SettingsView.swift */; };
-		EC7D7749ACD349A6B449C53A /* LogsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3719CF1ADEFB42AAA55AFC1B /* LogsView.swift */; };
-		E7474FE4E9254DE0A86F9B06 /* PacketTunnelProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD8F0D86417C4453AC3849C9 /* PacketTunnelProvider.swift */; };
+		FCC059539A424FB8BAD92975 /* App.swift in Sources */ = {isa = PBXBuildFile; fileRef = 901CE5DA08024DB4B63DB083 /* App.swift */; };
+		6F01F522A9764DF2AE86FBCD /* AppGroup.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07EB0647DF60414FB9E720CA /* AppGroup.swift */; };
+		F167D153C0A146798CDC3A57 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C57F5604E01431EAA40DDD4 /* ContentView.swift */; };
+		8854E4C0EEC545458CF181E7 /* FloatingHUDManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F33625F1697548059ABF1978 /* FloatingHUDManager.swift */; };
+		2B1291B274AF40258CB6C010 /* LogsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F06A1989062840F7A2429E63 /* LogsView.swift */; };
+		DFBAB21075A8492DAC856767 /* ProcessManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC60DA16F3F64A72A28A3ACE /* ProcessManager.swift */; };
+		767D70E1E7684BB09B19E2CA /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B3ADA88E87D487D86066E6D /* SettingsView.swift */; };
+		B99B2E5BC9BF48F4B407930E /* VPNManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9FB47FDB12624987999C5F6A /* VPNManager.swift */; };
+		07A6ED6BE110496C95F7B25F /* PacketTunnelProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = A979FB1905984B6B88D70E8E /* PacketTunnelProvider.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		7F4200FF0C154E9BA6A418F2 /* PacketBlocker.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PacketBlocker.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		71BDC149E251407BA555CC1D /* PacketBlockerExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = PacketBlockerExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
-		577202902121485D8D66AE99 /* App.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = App.swift; sourceTree = "<group>"; };
-		A248C6869DA6422EA43AB67B /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
-		DAC0A5C2BED74CD38325BEB9 /* AppGroup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppGroup.swift; sourceTree = "<group>"; };
-		398884BE336F4921B02C6F6C /* VPNManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VPNManager.swift; sourceTree = "<group>"; };
-		0E766333C6254A36BEF1B0B3 /* ProcessManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProcessManager.swift; sourceTree = "<group>"; };
-		171B0811C5AD4397A462AFAA /* FloatingHUDManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FloatingHUDManager.swift; sourceTree = "<group>"; };
-		6478286782CD4930AD5A1FA5 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
-		3719CF1ADEFB42AAA55AFC1B /* LogsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogsView.swift; sourceTree = "<group>"; };
-		FD8F0D86417C4453AC3849C9 /* PacketTunnelProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PacketTunnelProvider.swift; sourceTree = "<group>"; };
-		336A0EC87057422CA212DAF4 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		D5C711196E3D4783B4A91260 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		3F4B88570ADA452BA739626B /* PacketBlocker.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PacketBlocker.entitlements; sourceTree = "<group>"; };
-		2ED09CB6F16B4445A9E4B55D /* PacketBlockerExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PacketBlockerExtension.entitlements; sourceTree = "<group>"; };
+		FEAD5FA321424630AEFDA712 /* PacketBlocker.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PacketBlocker.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		190F446979B244839F2819A0 /* PacketBlockerExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = PacketBlockerExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		901CE5DA08024DB4B63DB083 /* App.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = App.swift; sourceTree = "<group>"; };
+		07EB0647DF60414FB9E720CA /* AppGroup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppGroup.swift; sourceTree = "<group>"; };
+		5C57F5604E01431EAA40DDD4 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		F33625F1697548059ABF1978 /* FloatingHUDManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FloatingHUDManager.swift; sourceTree = "<group>"; };
+		F06A1989062840F7A2429E63 /* LogsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogsView.swift; sourceTree = "<group>"; };
+		AC60DA16F3F64A72A28A3ACE /* ProcessManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProcessManager.swift; sourceTree = "<group>"; };
+		9B3ADA88E87D487D86066E6D /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		9FB47FDB12624987999C5F6A /* VPNManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VPNManager.swift; sourceTree = "<group>"; };
+		A979FB1905984B6B88D70E8E /* PacketTunnelProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PacketTunnelProvider.swift; sourceTree = "<group>"; };
+		3EC5CC38BA7C45718AA2C20A /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		A567E4FC858B4894B9A314DC /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		88877674337B475EA203FC93 /* PacketBlocker.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PacketBlocker.entitlements; sourceTree = "<group>"; };
+		D445B276B6AA49759E0BB3C5 /* PacketBlockerExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PacketBlockerExtension.entitlements; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
-		FD0075998208433A871BD2A3 /* main */ = {isa = PBXGroup; children = (BA6C90C9396B4F81846B63CB, B115CBE9E6E34ECAB8D9D02A, 612A740AECD44985A33F06AF); sourceTree = "<group>"; };
-		BA6C90C9396B4F81846B63CB /* PacketBlocker */ = {isa = PBXGroup; children = (577202902121485D8D66AE99, A248C6869DA6422EA43AB67B, DAC0A5C2BED74CD38325BEB9, 398884BE336F4921B02C6F6C, 0E766333C6254A36BEF1B0B3, 171B0811C5AD4397A462AFAA, 6478286782CD4930AD5A1FA5, 3719CF1ADEFB42AAA55AFC1B, 336A0EC87057422CA212DAF4, 3F4B88570ADA452BA739626B); path = PacketBlocker; sourceTree = "<group>"; };
-		B115CBE9E6E34ECAB8D9D02A /* PacketBlockerExtension */ = {isa = PBXGroup; children = (FD8F0D86417C4453AC3849C9, D5C711196E3D4783B4A91260, 2ED09CB6F16B4445A9E4B55D); path = PacketBlockerExtension; sourceTree = "<group>"; };
-		612A740AECD44985A33F06AF /* Products */ = {isa = PBXGroup; children = (); name = Products; sourceTree = "<group>"; };
+		48FEA225598D4866A21FBA47 = {isa = PBXGroup; children = (59C642D0869E41EA8C621B07, 8A01285E03C64361BB2ABAF8, 7ED28914ABB543D98F4D1D48); sourceTree = "<group>"; };
+		59C642D0869E41EA8C621B07 /* PacketBlocker */ = {isa = PBXGroup; children = (901CE5DA08024DB4B63DB083, 07EB0647DF60414FB9E720CA, 5C57F5604E01431EAA40DDD4, F33625F1697548059ABF1978, F06A1989062840F7A2429E63, AC60DA16F3F64A72A28A3ACE, 9B3ADA88E87D487D86066E6D, 9FB47FDB12624987999C5F6A, 3EC5CC38BA7C45718AA2C20A, 88877674337B475EA203FC93); path = PacketBlocker; sourceTree = "<group>"; };
+		8A01285E03C64361BB2ABAF8 /* PacketBlockerExtension */ = {isa = PBXGroup; children = (A979FB1905984B6B88D70E8E, A567E4FC858B4894B9A314DC, D445B276B6AA49759E0BB3C5); path = PacketBlockerExtension; sourceTree = "<group>"; };
+		7ED28914ABB543D98F4D1D48 /* Products */ = {isa = PBXGroup; children = (FEAD5FA321424630AEFDA712, 190F446979B244839F2819A0); name = Products; sourceTree = "<group>"; };
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		2546981098A54957B31C26B3 /* PacketBlocker */ = {isa = PBXNativeTarget; buildConfigurationList = B34C2D64078344AEA0C56A26; buildPhases = (BBAFF2A8CF8742239042F3F3); buildRules = (); dependencies = (080B864B3ABE4B469E88D867); name = PacketBlocker; productName = PacketBlocker; productType = "com.apple.product-type.application"; };
-		AA32DF9E9CFE45DF8FB1ADB6 /* PacketBlockerExtension */ = {isa = PBXNativeTarget; buildConfigurationList = 0A1D019D27EE44ECB28AA780; buildPhases = (AE7ABB03C0FE45CE95F8C23C); buildRules = (); dependencies = (); name = PacketBlockerExtension; productName = PacketBlockerExtension; productType = "com.apple.product-type.app-extension"; };
+		ABBED425C20941D0805C3BE8 /* PacketBlocker */ = {isa = PBXNativeTarget; buildConfigurationList = EDBA72B2796748039368E96A; buildPhases = (E8B873307C6249ADA1319A35); buildRules = (); dependencies = (AAEE7544F7004AC68F2B8FD8); name = PacketBlocker; productName = PacketBlocker; productReference = FEAD5FA321424630AEFDA712 /* PacketBlocker.app */; productType = "com.apple.product-type.application"; };
+		8E7BCD264D8047FAB626402E /* PacketBlockerExtension */ = {isa = PBXNativeTarget; buildConfigurationList = B82CD58E6B49489F921BFAAD; buildPhases = (1A0D8A5CAE1246F9ABBA7EF6); buildRules = (); dependencies = (); name = PacketBlockerExtension; productName = PacketBlockerExtension; productReference = 190F446979B244839F2819A0 /* PacketBlockerExtension.appex */; productType = "com.apple.product-type.app-extension"; };
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
-		EEE4ECDBAFF24F6482B54D73 /* Project object */ = {isa = PBXProject; attributes = {ORGANIZATIONNAME = "";}; buildConfigurationList = 0ADE46AB410B4F82AFFC396B; compatibilityVersion = "Xcode 14.0"; developmentRegion = en; hasScannedForEncodings = 0; knownRegions = (en, Base); mainGroup = BA6C90C9396B4F81846B63CB; productRefGroup = 612A740AECD44985A33F06AF; projectDirPath = ""; projectRoot = ""; targets = (2546981098A54957B31C26B3, AA32DF9E9CFE45DF8FB1ADB6); };
+		561E549E61D64C4AB8019B57 /* Project object */ = {isa = PBXProject; attributes = {LastSwiftUpdateCheck = 1540; LastUpgradeCheck = 1540; ORGANIZATIONNAME = ""; TargetAttributes = {ABBED425C20941D0805C3BE8 = {CreatedOnToolsVersion = 15.4;}; 8E7BCD264D8047FAB626402E = {CreatedOnToolsVersion = 15.4;};};}; buildConfigurationList = 4FF8ABAF140B402D99600C8B; compatibilityVersion = "Xcode 14.0"; developmentRegion = en; hasScannedForEncodings = 0; knownRegions = (en, Base); mainGroup = 48FEA225598D4866A21FBA47; productRefGroup = 7ED28914ABB543D98F4D1D48; projectDirPath = ""; projectRoot = ""; targets = (ABBED425C20941D0805C3BE8, 8E7BCD264D8047FAB626402E); };
 /* End PBXProject section */
 
 /* Begin PBXSourcesBuildPhase section */
-		BBAFF2A8CF8742239042F3F3 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (530FD8EC997A44DEB4500413, ECE3E04CD4DF4F919834EC3B, B7CF207A0C594AF4A6DE20B7, 8C0D44D4D63E4FD7BABE179A, 507F02E88B664A309E2DC3A4, FE7588D360054DA0AE45421E, 7CABC5FC958D490DBCDA8974, EC7D7749ACD349A6B449C53A); runOnlyForDeploymentPostprocessing = 0; };
-		AE7ABB03C0FE45CE95F8C23C /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (E7474FE4E9254DE0A86F9B06); runOnlyForDeploymentPostprocessing = 0; };
+		E8B873307C6249ADA1319A35 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (FCC059539A424FB8BAD92975, 6F01F522A9764DF2AE86FBCD, F167D153C0A146798CDC3A57, 8854E4C0EEC545458CF181E7, 2B1291B274AF40258CB6C010, DFBAB21075A8492DAC856767, 767D70E1E7684BB09B19E2CA, B99B2E5BC9BF48F4B407930E); runOnlyForDeploymentPostprocessing = 0; };
+		1A0D8A5CAE1246F9ABBA7EF6 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (07A6ED6BE110496C95F7B25F); runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
-		080B864B3ABE4B469E88D867 /* PBXTargetDependency */ = {isa = PBXTargetDependency; target = AA32DF9E9CFE45DF8FB1ADB6; targetProxy = 0A34F7C4B6354023A3F33BF5; };
+		AAEE7544F7004AC68F2B8FD8 /* PBXTargetDependency */ = {isa = PBXTargetDependency; target = 8E7BCD264D8047FAB626402E; targetProxy = DDAA500F83B040FEB2AB0520; };
 /* End PBXTargetDependency section */
 
 /* Begin PBXContainerItemProxy section */
-		0A34F7C4B6354023A3F33BF5 /* PBXContainerItemProxy */ = {isa = PBXContainerItemProxy; containerPortal = EEE4ECDBAFF24F6482B54D73; proxyType = 1; remoteGlobalIDString = AA32DF9E9CFE45DF8FB1ADB6; remoteInfo = PacketBlockerExtension; };
+		DDAA500F83B040FEB2AB0520 /* PBXContainerItemProxy */ = {isa = PBXContainerItemProxy; containerPortal = 561E549E61D64C4AB8019B57; proxyType = 1; remoteGlobalIDString = 8E7BCD264D8047FAB626402E; remoteInfo = PacketBlockerExtension; };
 /* End PBXContainerItemProxy section */
 
 /* Begin XCBuildConfiguration section */
-		0A00F7460AB34CA0B60015A7 /* Debug */ = {isa = XCBuildConfiguration; buildSettings = {ALWAYS_SEARCH_USER_PATHS = NO; CLANG_ENABLE_MODULES = YES; CLANG_ENABLE_OBJC_ARC = YES; COPY_PHASE_STRIP = NO; DEBUG_INFORMATION_FORMAT = dwarf; ENABLE_TESTABILITY = YES; ENABLE_USER_SCRIPT_SANDBOXING = NO; IPHONEOS_DEPLOYMENT_TARGET = 16.0; SDKROOT = iphoneos; SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)"; SWIFT_OPTIMIZATION_LEVEL = "-Onone";}; name = Debug; };
-		219242F7534D4DBE83DC1E8A /* Release */ = {isa = XCBuildConfiguration; buildSettings = {ALWAYS_SEARCH_USER_PATHS = NO; CLANG_ENABLE_MODULES = YES; CLANG_ENABLE_OBJC_ARC = YES; COPY_PHASE_STRIP = NO; DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym"; ENABLE_NS_ASSERTIONS = NO; ENABLE_USER_SCRIPT_SANDBOXING = NO; IPHONEOS_DEPLOYMENT_TARGET = 16.0; SDKROOT = iphoneos; SWIFT_COMPILATION_MODE = wholemodule;}; name = Release; };
-		05D911F519024CFA80E45C77 /* Debug */ = {isa = XCBuildConfiguration; buildSettings = {CODE_SIGN_ENTITLEMENTS = PacketBlocker/PacketBlocker.entitlements; CODE_SIGN_STYLE = Manual; INFOPLIST_FILE = PacketBlocker/Info.plist; IPHONEOS_DEPLOYMENT_TARGET = 16.0; PRODUCT_BUNDLE_IDENTIFIER = com.ban.PacketBlocker; PRODUCT_NAME = "$(TARGET_NAME)"; SWIFT_EMIT_LOC_STRINGS = YES; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = "1,2";}; name = Debug; };
-		0E757EB4B20C44C6A484A888 /* Release */ = {isa = XCBuildConfiguration; buildSettings = {CODE_SIGN_ENTITLEMENTS = PacketBlocker/PacketBlocker.entitlements; CODE_SIGN_STYLE = Manual; INFOPLIST_FILE = PacketBlocker/Info.plist; IPHONEOS_DEPLOYMENT_TARGET = 16.0; PRODUCT_BUNDLE_IDENTIFIER = com.ban.PacketBlocker; PRODUCT_NAME = "$(TARGET_NAME)"; SWIFT_EMIT_LOC_STRINGS = YES; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = "1,2";}; name = Release; };
-		9BF3E98D39EC4F2CB5737593 /* Debug */ = {isa = XCBuildConfiguration; buildSettings = {CODE_SIGN_ENTITLEMENTS = PacketBlockerExtension/PacketBlockerExtension.entitlements; CODE_SIGN_STYLE = Manual; INFOPLIST_FILE = PacketBlockerExtension/Info.plist; IPHONEOS_DEPLOYMENT_TARGET = 16.0; PRODUCT_BUNDLE_IDENTIFIER = com.ban.PacketBlocker.extension; PRODUCT_NAME = "$(TARGET_NAME)"; SKIP_INSTALL = YES; SWIFT_EMIT_LOC_STRINGS = YES; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = "1,2";}; name = Debug; };
-		C0FEF1AFEB894494B027FF92 /* Release */ = {isa = XCBuildConfiguration; buildSettings = {CODE_SIGN_ENTITLEMENTS = PacketBlockerExtension/PacketBlockerExtension.entitlements; CODE_SIGN_STYLE = Manual; INFOPLIST_FILE = PacketBlockerExtension/Info.plist; IPHONEOS_DEPLOYMENT_TARGET = 16.0; PRODUCT_BUNDLE_IDENTIFIER = com.ban.PacketBlocker.extension; PRODUCT_NAME = "$(TARGET_NAME)"; SKIP_INSTALL = YES; SWIFT_EMIT_LOC_STRINGS = YES; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = "1,2";}; name = Release; };
+		7B853777F8C24C95A813E851 /* Debug */ = {isa = XCBuildConfiguration; buildSettings = {ALWAYS_SEARCH_USER_PATHS = NO; CLANG_ANALYZER_NONNULL = YES; CLANG_CXX_LANGUAGE_STANDARD = "gnu++20"; CLANG_ENABLE_MODULES = YES; CLANG_ENABLE_OBJC_ARC = YES; COPY_PHASE_STRIP = NO; DEBUG_INFORMATION_FORMAT = dwarf; ENABLE_STRICT_OBJC_MSGSEND = YES; ENABLE_TESTABILITY = YES; ENABLE_USER_SCRIPT_SANDBOXING = NO; GCC_DYNAMIC_NO_PIC = NO; GCC_OPTIMIZATION_LEVEL = 0; GCC_PREPROCESSOR_DEFINITIONS = ("DEBUG=1", "$(inherited)"); IPHONEOS_DEPLOYMENT_TARGET = 16.0; MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE; ONLY_ACTIVE_ARCH = YES; SDKROOT = iphoneos; SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)"; SWIFT_OPTIMIZATION_LEVEL = "-Onone";}; name = Debug; };
+		9F3A4DFFF55140949C92F9DA /* Release */ = {isa = XCBuildConfiguration; buildSettings = {ALWAYS_SEARCH_USER_PATHS = NO; CLANG_ANALYZER_NONNULL = YES; CLANG_CXX_LANGUAGE_STANDARD = "gnu++20"; CLANG_ENABLE_MODULES = YES; CLANG_ENABLE_OBJC_ARC = YES; COPY_PHASE_STRIP = NO; DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym"; ENABLE_NS_ASSERTIONS = NO; ENABLE_STRICT_OBJC_MSGSEND = YES; ENABLE_USER_SCRIPT_SANDBOXING = NO; IPHONEOS_DEPLOYMENT_TARGET = 16.0; MTL_ENABLE_DEBUG_INFO = NO; SDKROOT = iphoneos; SWIFT_COMPILATION_MODE = wholemodule; VALIDATE_PRODUCT = YES;}; name = Release; };
+		BA2EFC1E3FD5440A9EB70C6D /* Debug */ = {isa = XCBuildConfiguration; buildSettings = {ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon; CODE_SIGN_ENTITLEMENTS = PacketBlocker/PacketBlocker.entitlements; CODE_SIGN_STYLE = Manual; INFOPLIST_FILE = PacketBlocker/Info.plist; IPHONEOS_DEPLOYMENT_TARGET = 16.0; PRODUCT_BUNDLE_IDENTIFIER = com.ban.PacketBlocker; PRODUCT_NAME = "$(TARGET_NAME)"; SWIFT_EMIT_LOC_STRINGS = YES; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = "1,2";}; name = Debug; };
+		6DEA5237761C4CB9BAA6E134 /* Release */ = {isa = XCBuildConfiguration; buildSettings = {ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon; CODE_SIGN_ENTITLEMENTS = PacketBlocker/PacketBlocker.entitlements; CODE_SIGN_STYLE = Manual; INFOPLIST_FILE = PacketBlocker/Info.plist; IPHONEOS_DEPLOYMENT_TARGET = 16.0; PRODUCT_BUNDLE_IDENTIFIER = com.ban.PacketBlocker; PRODUCT_NAME = "$(TARGET_NAME)"; SWIFT_EMIT_LOC_STRINGS = YES; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = "1,2";}; name = Release; };
+		AB6B64889BC043E2A6D9284E /* Debug */ = {isa = XCBuildConfiguration; buildSettings = {CODE_SIGN_ENTITLEMENTS = PacketBlockerExtension/PacketBlockerExtension.entitlements; CODE_SIGN_STYLE = Manual; INFOPLIST_FILE = PacketBlockerExtension/Info.plist; IPHONEOS_DEPLOYMENT_TARGET = 16.0; PRODUCT_BUNDLE_IDENTIFIER = com.ban.PacketBlocker.extension; PRODUCT_NAME = "$(TARGET_NAME)"; SKIP_INSTALL = YES; SWIFT_EMIT_LOC_STRINGS = YES; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = "1,2";}; name = Debug; };
+		31A9AC147CBE4883BF5936EC /* Release */ = {isa = XCBuildConfiguration; buildSettings = {CODE_SIGN_ENTITLEMENTS = PacketBlockerExtension/PacketBlockerExtension.entitlements; CODE_SIGN_STYLE = Manual; INFOPLIST_FILE = PacketBlockerExtension/Info.plist; IPHONEOS_DEPLOYMENT_TARGET = 16.0; PRODUCT_BUNDLE_IDENTIFIER = com.ban.PacketBlocker.extension; PRODUCT_NAME = "$(TARGET_NAME)"; SKIP_INSTALL = YES; SWIFT_EMIT_LOC_STRINGS = YES; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = "1,2";}; name = Release; };
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		B34C2D64078344AEA0C56A26 /* Build configuration list for PBXNativeTarget "PacketBlocker" */ = {isa = XCConfigurationList; buildConfigurations = (05D911F519024CFA80E45C77, 0E757EB4B20C44C6A484A888); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
-		0A1D019D27EE44ECB28AA780 /* Build configuration list for PBXNativeTarget "PacketBlockerExtension" */ = {isa = XCConfigurationList; buildConfigurations = (9BF3E98D39EC4F2CB5737593, C0FEF1AFEB894494B027FF92); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
-		0ADE46AB410B4F82AFFC396B /* Build configuration list for PBXProject */ = {isa = XCConfigurationList; buildConfigurations = (0A00F7460AB34CA0B60015A7, 219242F7534D4DBE83DC1E8A); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+		EDBA72B2796748039368E96A /* Build configuration list for PBXNativeTarget "PacketBlocker" */ = {isa = XCConfigurationList; buildConfigurations = (BA2EFC1E3FD5440A9EB70C6D, 6DEA5237761C4CB9BAA6E134); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+		B82CD58E6B49489F921BFAAD /* Build configuration list for PBXNativeTarget "PacketBlockerExtension" */ = {isa = XCConfigurationList; buildConfigurations = (AB6B64889BC043E2A6D9284E, 31A9AC147CBE4883BF5936EC); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+		4FF8ABAF140B402D99600C8B /* Build configuration list for PBXProject */ = {isa = XCConfigurationList; buildConfigurations = (7B853777F8C24C95A813E851, 9F3A4DFFF55140949C92F9DA); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
 /* End XCConfigurationList section */
 	};
-	rootObject = EEE4ECDBAFF24F6482B54D73 /* Project object */;
+	rootObject = 561E549E61D64C4AB8019B57 /* Project object */;
 }
