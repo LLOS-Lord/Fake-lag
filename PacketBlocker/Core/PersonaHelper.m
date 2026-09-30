@@ -1,7 +1,7 @@
 #import "PersonaHelper.h"
 #import "AetherLog.h"
-#import "headers/AetherNetShared.h"
-#import "headers/PrivateSystemSPI.h"
+#import "AetherNetShared.h"
+#import "PrivateSystemSPI.h"
 #import <spawn.h>
 #import <dlfcn.h>
 #import <unistd.h>
