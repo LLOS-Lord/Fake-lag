@@ -140,7 +140,7 @@ class VPNManager: ObservableObject {
                 // The IPv4 default route advertised via setTunnelNetworkSettings
                 // is enough to capture all app traffic.
                 proto.includeAllNetworks = false
-                proto.enforceRoutes = false
+                if #available(iOS 14.2, *) { proto.enforceRoutes = false }
             }
             mgr.saveToPreferences { [weak self] err in
                 DispatchQueue.main.async {
@@ -172,7 +172,7 @@ class VPNManager: ObservableObject {
         proto.disconnectOnSleep = false
         // See connectVPN(): includeAllNetworks/enforceRoutes kill the tunnel.
         proto.includeAllNetworks = false
-        proto.enforceRoutes = false
+        if #available(iOS 14.2, *) { proto.enforceRoutes = false }
         mgr.protocolConfiguration = proto
         mgr.localizedDescription = "Hybrid FakeLag"
         mgr.isEnabled = true

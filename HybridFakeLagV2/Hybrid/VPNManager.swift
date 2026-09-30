@@ -141,11 +141,11 @@ class VPNManager: ObservableObject {
                 proto.providerBundleIdentifier = extBundleID
                 proto.serverAddress = "127.0.0.1"
                 proto.disconnectOnSleep = false
-                if #available(iOS 14.2, *) {
-                    proto.includeAllNetworks = true
-                    proto.excludeLocalNetworks = false
-                    proto.enforceRoutes = true
-                }
+                // includeAllNetworks=true disables the system's automatic
+                // exclusion of the provider's own traffic -> relay sockets loop
+                // into our own tunnel -> ENETDOWN -> tunnel dies in seconds.
+                proto.includeAllNetworks = false
+                if #available(iOS 14.2, *) { proto.enforceRoutes = false }
             }
             mgr.saveToPreferences { [weak self] err in
                 DispatchQueue.main.async {
@@ -175,11 +175,9 @@ class VPNManager: ObservableObject {
         proto.providerBundleIdentifier = extBundleID
         proto.serverAddress = "HybridFakeLag"
         proto.disconnectOnSleep = false
-        if #available(iOS 14.2, *) {
-            proto.includeAllNetworks = true
-            proto.excludeLocalNetworks = false
-            proto.enforceRoutes = true
-        }
+        // See connectVPN(): includeAllNetworks/enforceRoutes kill the tunnel.
+        proto.includeAllNetworks = false
+        if #available(iOS 14.2, *) { proto.enforceRoutes = false }
         mgr.protocolConfiguration = proto
         mgr.localizedDescription = "Hybrid FakeLag"
         mgr.isEnabled = true
