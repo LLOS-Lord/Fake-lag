@@ -7,7 +7,8 @@ struct ContentView: View {
     @State private var showProcessSheet = false
     @State private var searchText = ""
     @State private var selectedTab = 0
-    
+    @State private var statsTimer: Timer?
+
     var body: some View {
         TabView(selection: $selectedTab) {
             // Tab 1 Home
@@ -40,11 +41,21 @@ struct ContentView: View {
                             Spacer()
                             Button(hudMgr.isRunning ? "Remove" : "Create") {
                                 hudMgr.setEnabled(!hudMgr.isRunning)
-                                AppGroupStore.logAction(hudMgr.isRunning ? "HUD_REMOVE_UI" : "HUD_CREATE_UI", details: "")
                             }
                             .font(.caption).padding(6).background(Color.yellow.opacity(0.3)).cornerRadius(6)
                         }
                         .padding(8).background(Color(.systemGray5)).cornerRadius(8)
+
+                        // Live relay stats from the tunnel extension (getstats)
+                        if !vpn.lastStats.isEmpty {
+                            Text(vpn.lastStats)
+                                .font(.system(size: 10, design: .monospaced))
+                                .foregroundColor(.secondary)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(8)
+                                .background(Color.black.opacity(0.06))
+                                .cornerRadius(8)
+                        }
                     }.padding(.horizontal)
                     
                     // PID Selector
@@ -115,5 +126,12 @@ struct ContentView: View {
             // Tab 3 Logs
             NavigationView { LogsView() }.tabItem { Label("Logs", systemImage: "doc.text") }.tag(2)
         }
+        .onAppear {
+            hudMgr.syncFloatingConfigFromStore()
+            statsTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: true) { _ in
+                if vpn.isVPNConnected { vpn.refreshStats() }
+            }
+        }
+        .onDisappear { statsTimer?.invalidate() }
     }
 }

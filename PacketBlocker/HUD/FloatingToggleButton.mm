@@ -14,6 +14,8 @@
 #import <QuartzCore/QuartzCore.h>
 #include <math.h>
 #include <notify.h>
+#include <sys/stat.h>
+#include <unistd.h>
 #import "AetherNetShared.h"
 
 
@@ -193,6 +195,41 @@
     AetherLog(@"floating button TAP -> interception %s", nextState ? "ON" : "OFF");
     aether_atomic_store(&state->interceptionActive, nextState);
     notify_post("com.aethernet.interceptor.config_changed");
+
+    // ── Bridge the tap to the VPN relay engine ──
+    // The tunnel extension does NOT read our shared memory; it polls the
+    // config override file (hybrid_ext_override.json) every 0.8s. Persist the
+    // new enabled state there (Caches + any discovered App Group container)
+    // so the HUD button actually starts/stops the fake-lag engine.
+    {
+        NSData *payload = [NSJSONSerialization dataWithJSONObject:
+            @{@"enabled": @(nextState ? YES : NO),
+              @"timestamp": @([NSDate date].timeIntervalSince1970)}
+            options:NSJSONWritingPrettyPrinted error:nil];
+        if (payload) {
+            // 1. Caches copy (extension fallback + daemon always writable)
+            NSString *cachesOverride = @"/var/mobile/Library/Caches/hybrid_ext_override.json";
+            [payload writeToFile:cachesOverride options:NSDataWritingAtomic error:nil];
+            chmod(cachesOverride.fileSystemRepresentation, 0666);
+
+            // 2. App Group containers (glob — the daemon has no UI-framework
+            //    way to resolve the group id mapping)
+            NSFileManager *fm = [NSFileManager defaultManager];
+            NSString *sharedDir = @"/var/mobile/Containers/Shared/AppGroup";
+            NSArray *groups = [fm contentsOfDirectoryAtPath:sharedDir error:nil];
+            for (NSString *g in groups) {
+                NSString *cfgPath = [NSString stringWithFormat:@"%@/%@/hybrid_config.json",
+                                     sharedDir, g];
+                if ([fm fileExistsAtPath:cfgPath]) {
+                    NSString *dst = [NSString stringWithFormat:@"%@/%@/hybrid_ext_override.json",
+                                     sharedDir, g];
+                    [payload writeToFile:dst options:NSDataWritingAtomic error:nil];
+                    chmod(dst.fileSystemRepresentation, 0666);
+                    AetherLog(@"floating tap -> override written to %@", dst);
+                }
+            }
+        }
+    }
 
     if (aether_atomic_load(&state->floatingHapticEnabled)) {
         UIImpactFeedbackGenerator *feedback = [[UIImpactFeedbackGenerator alloc] initWithStyle:

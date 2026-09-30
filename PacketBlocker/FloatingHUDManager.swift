@@ -1,97 +1,134 @@
 import Foundation
 import UIKit
 
+// Floating HUD manager — FIXED to follow the TrollNetInterceptor (.zip) flow:
+//   1. HybridHUDPrepareForSpawn()  → kill old daemon + RESET shm hudCommand /
+//      heartbeat + remove stale pid file (a leftover "exit" command in shm used
+//      to kill the fresh daemon within 1s → "bấm Create mà không thấy nút").
+//   2. posix_spawn persona-root re-exec of THIS binary with "-hud".
+//   3. Verify after 1.5s that the daemon is really alive (shm heartbeat).
+//   4. Watchdog: if the daemon dies while the user expects it, respawn
+//     (bounded attempts, exactly like the reference app's stale-daemon logic).
 class FloatingHUDManager: ObservableObject {
     static let shared = FloatingHUDManager()
     @Published var isRunning = false
+    @Published var lastError: String?
     private var timer: Timer?
-    
+    private var watchdog: Timer?
+    private var respawnAttempts = 0
+    private let maxRespawnAttempts = 3
+    /// True while the user wants the HUD alive (after pressing Create).
+    private var expectedEnabled = false
+
     init() {
+        expectedEnabled = HybridHUDIsRunning()
         checkRunning()
         startWatcher()
+        startWatchdog()
     }
-    
+
     func checkRunning() {
-        // Check via shm heartbeat + pid file
-        // Primary: check shm if available (via AppGroup log timestamp)
-        // Fallback: pid file
-        let pidPath = "/var/mobile/Library/Caches/com.aethernet.hud.pid"
-        if let pidStr = try? String(contentsOfFile: pidPath), let pid = Int32(pidStr.trimmingCharacters(in: .whitespacesAndNewlines)), pid > 0 {
-            let alive = kill(pid, 0) == 0 || errno == EPERM
-            DispatchQueue.main.async { self.isRunning = alive }
-            return
+        // Primary: shm heartbeat via C helper (works across uid 501 <-> root,
+        // tolerates EPERM on the pid probe — same semantics as the .zip app).
+        let alive = HybridHUDIsRunning()
+        if alive != isRunning {
+            AppGroupStore.logAction("HUD_STATUS", details: "daemon \(alive ? "alive" : "gone")")
         }
-        // Also check App Group heartbeat file
-        if let container = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.com.ban.PacketBlocker") {
-            let heartbeatPath = container.appendingPathComponent("hud_heartbeat.txt")
-            if let data = try? Data(contentsOf: heartbeatPath), let str = String(data: data, encoding: .utf8), let ts = TimeInterval(str) {
-                if Date().timeIntervalSince1970 - ts < 5 {
-                    DispatchQueue.main.async { self.isRunning = true }
-                    return
-                }
-            }
-        }
-        DispatchQueue.main.async { self.isRunning = false }
+        DispatchQueue.main.async { self.isRunning = alive }
     }
-    
+
     private func startWatcher() {
-        timer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { _ in
-            self.checkRunning()
+        timer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { [weak self] _ in
+            self?.checkRunning()
         }
     }
-    
+
+    /// Respawns the daemon if it silently died while the user still expects it
+    /// (SpringBoard respring, jetsam, crash...). Bounded to avoid crash-loops.
+    private func startWatchdog() {
+        watchdog = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: true) { [weak self] _ in
+            guard let self = self, self.expectedEnabled, !self.isRunning else { return }
+            guard self.respawnAttempts < self.maxRespawnAttempts else {
+                AppGroupStore.logAction("HUD_WATCHDOG", details: "give up after \(self.maxRespawnAttempts) respawn attempts")
+                self.expectedEnabled = false
+                return
+            }
+            self.respawnAttempts += 1
+            AppGroupStore.logAction("HUD_WATCHDOG", details: "daemon missing — respawn attempt \(self.respawnAttempts)/\(self.maxRespawnAttempts)")
+            self.spawnDaemon()
+        }
+    }
+
     func setEnabled(_ enabled: Bool) {
-        guard let execPath = Bundle.main.executablePath else { return }
-        
         if enabled {
             if isRunning {
                 AppGroupStore.logAction("HUD_CREATE_SKIP", details: "already running")
+                expectedEnabled = true
                 return
             }
-            AppGroupStore.logAction("HUD_CREATE", details: "spawning daemon via PersonaHelper root")
-            let result = spawnRoot(execPath: execPath, args: ["-hud"])
-            AppGroupStore.logAction("HUD_SPAWN_RESULT", details: "result=\(result)")
-            DispatchQueue.main.asyncAfter(deadline: .now()+1.5) { self.checkRunning() }
+            expectedEnabled = true
+            respawnAttempts = 0
+            AppGroupStore.logAction("HUD_CREATE", details: "prepare + spawn root HUD daemon (TrollNet flow)")
+            spawnDaemon()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in self?.verifySpawn() }
         } else {
-            AppGroupStore.logAction("HUD_REMOVE", details: "removing daemon")
-            // Try graceful via notification + file
-            if let container = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.com.ban.PacketBlocker") {
-                let cmdPath = container.appendingPathComponent("hud_command.txt")
-                try? "exit".write(to: cmdPath, atomically: true, encoding: .utf8)
-            }
-            // Legacy -exit spawn
-            _ = spawnRoot(execPath: execPath, args: ["-exit"])
-            // Also try kill via pid file
-            let pidPath = "/var/mobile/Library/Caches/com.aethernet.hud.pid"
-            if let pidStr = try? String(contentsOfFile: pidPath), let pid = Int32(pidStr) {
-                kill(pid, SIGKILL)
-                try? FileManager.default.removeItem(atPath: pidPath)
+            expectedEnabled = false
+            respawnAttempts = 0
+            AppGroupStore.logAction("HUD_REMOVE", details: "graceful exit via shm command + root -exit fallback")
+            HybridHUDRequestExit()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+                self?.checkRunning()
+                if let self = self, !self.isRunning {
+                    AppGroupStore.logAction("HUD_REMOVED", details: "daemon confirmed stopped")
+                }
             }
             DispatchQueue.main.async { self.isRunning = false }
         }
     }
-    
-    private func spawnRoot(execPath: String, args: [String]) -> Int32 {
-        #if os(iOS)
-        // Use PersonaHelper C function for root spawn
-        let arg1 = args.first ?? ""
-        let arg2 = args.count > 1 ? args[1] : ""
-        // Call C function HybridSpawnRoot
-        let result: Int32 = execPath.withCString { cPath in
-            arg1.withCString { cArg1 in
-                if arg2.isEmpty {
-                    return Int32(HybridSpawnRoot(cPath, cArg1, nil))
-                } else {
-                    return arg2.withCString { cArg2 in
-                        Int32(HybridSpawnRoot(cPath, cArg1, cArg2))
-                    }
-                }
-            }
+
+    /// The actual spawn: prepare (kill old + reset shm) → re-exec self with -hud.
+    private func spawnDaemon() {
+        guard let execPath = Bundle.main.executablePath else {
+            lastError = "Bundle.main.executablePath is nil"
+            AppGroupStore.logAction("HUD_SPAWN_FAIL", details: lastError!)
+            return
         }
-        return Int32(result)
+
+        let prepare = HybridHUDPrepareForSpawn()
+        if prepare == 1 {
+            // An old daemon needed killing — give it a moment, then spawn.
+            AppGroupStore.logAction("HUD_PREPARE", details: "old daemon killed, waiting 0.9s before spawn")
+            DispatchQueue.global().asyncAfter(deadline: .now() + 0.9) { [weak self] in
+                self?.doSpawn(execPath: execPath)
+            }
+        } else {
+            doSpawn(execPath: execPath)
+        }
+    }
+
+    private func doSpawn(execPath: String) {
+        #if os(iOS)
+        let rc = execPath.withCString { cPath -> Int32 in
+            Int32(HybridSpawnRoot(cPath, "-hud", nil))
+        }
+        AppGroupStore.logAction("HUD_SPAWN_RESULT", details: "posix_spawn rc=\(rc) (0=ok) exec=\(execPath)")
+        if rc != 0 {
+            DispatchQueue.main.async { self.lastError = "posix_spawn failed rc=\(rc)" }
+        }
         #else
-        NSLog("[Hybrid] spawn skipped on macOS - %@", execPath)
-        return 0
+        AppGroupStore.logAction("HUD_SPAWN_SKIP", details: "non-iOS build: \(execPath)")
         #endif
+    }
+
+    private func verifySpawn() {
+        checkRunning()
+        if isRunning {
+            AppGroupStore.logAction("HUD_ALIVE", details: "daemon verified via shm heartbeat — floating button should be visible")
+            DispatchQueue.main.async { self.lastError = nil }
+        } else {
+            let msg = "daemon did not come up within 1.5s — check TrollStore entitlements (persona-mgmt, accessibility-window-hosting); watchdog will retry"
+            AppGroupStore.logAction("HUD_VERIFY_FAIL", details: msg)
+            DispatchQueue.main.async { self.lastError = msg }
+        }
     }
 }

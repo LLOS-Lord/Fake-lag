@@ -5,6 +5,7 @@ struct ContentView: View {
     @StateObject private var procMgr = ProcessManager()
     @State private var showSheet = false
     @State private var search = ""
+    @State private var statsTimer: Timer?
     var body: some View {
         TabView {
             NavigationView {
@@ -29,6 +30,9 @@ struct ContentView: View {
                         HStack{Image(systemName: vpn.isBlocking ? "pause.fill" : "play.fill"); Text(vpn.isBlocking ? "Tắt FakeLag" : "Bật FakeLag")}
                         .frame(maxWidth:.infinity).padding().background(vpn.isBlocking ? Color.orange : Color.purple).cornerRadius(12).foregroundColor(.white)
                     }.padding(.horizontal).disabled(!vpn.isVPNConnected)
+                    if !vpn.lastStats.isEmpty {
+                        Text(vpn.lastStats).font(.caption2.monospaced()).foregroundColor(.secondary).padding(.horizontal)
+                    }
                     Button(action:{ hud.setEnabled(!hud.isRunning)}){
                         HStack{Image(systemName: hud.isRunning ? "xmark.circle" : "plus.circle"); Text(hud.isRunning ? "Remove Floating Button" : "Create Floating Button (TrollNet style)")}
                         .frame(maxWidth:.infinity).padding().background(Color.yellow.opacity(0.3)).cornerRadius(12)
@@ -49,6 +53,14 @@ struct ContentView: View {
                         }.navigationTitle("Chọn PID")
                     }
                 }
+                .onAppear {
+                    // Poll tunnel stats while Home is visible (VPN connected only).
+                    statsTimer?.invalidate()
+                    statsTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: true) { _ in
+                        if vpn.isVPNConnected { vpn.refreshStats() }
+                    }
+                }
+                .onDisappear { statsTimer?.invalidate(); statsTimer = nil }
             }.tabItem{Label("Home", systemImage:"house")}
             NavigationView{ SettingsView() }.tabItem{Label("Settings", systemImage:"gear")}
             NavigationView{ LogsView() }.tabItem{Label("Logs", systemImage:"doc.text")}

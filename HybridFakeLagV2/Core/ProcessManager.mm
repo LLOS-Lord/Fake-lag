@@ -23,6 +23,30 @@ extern "C" char **environ;
 extern "C" int AetherInjectDylibIntoPID(pid_t pid, const char *dylibPath, char *errBuf, size_t errBufLen);
 extern "C" int AetherApplyRootTrafficControl(pid_t pid, AetherSharedState *state);
 
+// Writes the {enabled,timestamp} override consumed by the VPN relay engine
+// (PacketTunnelProvider). Called from BOTH the app (HybridHUDSetInterceptionActive)
+// and the root HUD daemon (floating button tap) so the extension follows the
+// simulation switch instantly, even with the app closed.
+static void HybridWriteExtOverrideFiles(BOOL active) {
+    NSDictionary *dict = @{@"enabled": @(active), @"timestamp": @(NSDate.date.timeIntervalSince1970)};
+    NSData *data = [NSJSONSerialization dataWithJSONObject:dict options:0 error:nil];
+    if (!data) return;
+    NSString *cachesPath = @"/var/mobile/Library/Caches/hybrid_ext_override.json";
+    [data writeToFile:cachesPath atomically:YES];
+    chmod(cachesPath.UTF8String, 0666);
+
+    NSFileManager *fm = [NSFileManager defaultManager];
+    NSArray<NSURL *> *roots = [fm contentsOfDirectoryAtURL:[NSURL fileURLWithPath:@"/var/mobile/Containers/Shared/AppGroup"]
+                                includingPropertiesForKeys:nil options:0 error:nil];
+    for (NSURL *root in roots) {
+        NSString *marker = [root.path stringByAppendingPathComponent:@"hybrid_config.json"];
+        if ([fm fileExistsAtPath:marker]) {
+            [data writeToFile:[root.path stringByAppendingPathComponent:@"hybrid_ext_override.json"] atomically:YES];
+        }
+    }
+    notify_post("com.aethernet.interceptor.config_changed");
+}
+
 @implementation AetherProcessInfo
 @end
 
@@ -479,7 +503,170 @@ extern "C" int AetherApplyRootTrafficControl(pid_t pid, AetherSharedState *state
         AetherApplyRootTrafficControl(targetPID, state);
     }
 
+    // Keep the VPN relay engine in sync: floating button + app toggle both
+    // land here, so the extension sees the same switch instantly.
+    HybridWriteExtOverrideFiles(active);
+
     notify_post(kAetherNotifyStateChanged);
 }
 
 @end
+
+#pragma mark - C bridge for Swift (see Hybrid/BridgingHeader.h)
+//
+// Plain-C surface so Swift can drive the HUD daemon lifecycle without the
+// bridging importer choking on AetherNetShared.h's `_Atomic` fields.
+
+#import <sys/stat.h>
+
+bool HybridHUDIsRunning(void) {
+    return [[AetherProcessManager sharedManager] isGlobalFloatingHUDRunning];
+}
+
+int HybridHUDPrepareForSpawn(void) {
+    AetherSharedState *state = AetherGetSharedState();
+
+    // 1. Old daemon alive? Ask it to leave (graceful shm command + root -exit).
+    BOOL wasAlive = [[AetherProcessManager sharedManager] isGlobalFloatingHUDRunning];
+    if (wasAlive) {
+        if (state) {
+            aether_atomic_store(&state->hudCommand, 1);
+            aether_atomic_store(&state->hudHeartbeatTs, 0);
+        }
+        uint32_t execSize = 0;
+        _NSGetExecutablePath(NULL, &execSize);
+        char *execPath = (char *)calloc(1, execSize + 1);
+        _NSGetExecutablePath(execPath, &execSize);
+
+        posix_spawnattr_t attr;
+        posix_spawnattr_init(&attr);
+#if !TARGET_OS_SIMULATOR
+        posix_spawnattr_set_persona_np(&attr, 99, POSIX_SPAWN_PERSONA_FLAGS_OVERRIDE);
+        posix_spawnattr_set_persona_uid_np(&attr, 0);
+        posix_spawnattr_set_persona_gid_np(&attr, 0);
+#endif
+        pid_t child = 0;
+        const char *args[] = { execPath, "-exit", NULL };
+        posix_spawn(&child, execPath, NULL, &attr, (char **)args, environ);
+        posix_spawnattr_destroy(&attr);
+        free(execPath);
+
+        // Give the old daemon a moment to die before we clear its pid file.
+        usleep(350 * 1000);
+    }
+
+    // 2. Stale pid file: unlink when the recorded pid is dead OR is not our
+    //    executable (pid reuse by an innocent process would otherwise trip the
+    //    daemon's single-instance guard and make it exit instantly).
+    NSString *pidStr = [NSString stringWithContentsOfFile:@AETHER_HUD_PID_PATH
+                                                 encoding:NSUTF8StringEncoding
+                                                    error:nil];
+    if (pidStr.length) {
+        pid_t oldPid = (pid_t)[pidStr intValue];
+        BOOL stale = YES;
+        if (oldPid > 0 && (kill(oldPid, 0) == 0 || errno == EPERM)) {
+            char pathBuf[4096] = {0};
+            char selfBuf[4096] = {0};
+            uint32_t len = sizeof(selfBuf);
+            if (proc_pidpath(oldPid, pathBuf, sizeof(pathBuf)) > 0 &&
+                _NSGetExecutablePath(selfBuf, &len) == 0 &&
+                strcmp(pathBuf, selfBuf) == 0) {
+                stale = NO; // alive AND ours — isGlobalFloatingHUDRunning missed it
+            }
+        }
+        if (stale) unlink(AETHER_HUD_PID_PATH);
+    }
+
+    // 3. Reset the command channel so the fresh daemon is not killed by a
+    //    leftover exit command (the original "Create does nothing" bug).
+    if (state) {
+        aether_atomic_store(&state->hudCommand, 0);
+        aether_atomic_store(&state->hudHeartbeatTs, 0);
+        aether_atomic_store(&state->hudVisible, false);
+    }
+    return wasAlive ? 1 : 0;
+}
+
+void HybridHUDRequestExit(void) {
+    AetherSharedState *state = AetherGetSharedState();
+    if (state) {
+        aether_atomic_store(&state->hudCommand, 1);
+        aether_atomic_store(&state->hudHeartbeatTs, 0);
+        aether_atomic_store(&state->hudVisible, false);
+        pid_t fp = aether_atomic_load(&state->rootFrozenPid);
+        if (fp > 0) {
+            kill(fp, SIGCONT);
+            aether_atomic_store(&state->rootFrozenPid, 0);
+        }
+    }
+    notify_post(kAetherNotifyHUDToggle);
+
+    // Legacy fallback: root "-exit" re-exec (pid-file based).
+    uint32_t execSize = 0;
+    _NSGetExecutablePath(NULL, &execSize);
+    char *execPath = (char *)calloc(1, execSize + 1);
+    _NSGetExecutablePath(execPath, &execSize);
+    posix_spawnattr_t attr;
+    posix_spawnattr_init(&attr);
+#if !TARGET_OS_SIMULATOR
+    posix_spawnattr_set_persona_np(&attr, 99, POSIX_SPAWN_PERSONA_FLAGS_OVERRIDE);
+    posix_spawnattr_set_persona_uid_np(&attr, 0);
+    posix_spawnattr_set_persona_gid_np(&attr, 0);
+#endif
+    pid_t child = 0;
+    const char *args[] = { execPath, "-exit", NULL };
+    posix_spawn(&child, execPath, NULL, &attr, (char **)args, environ);
+    posix_spawnattr_destroy(&attr);
+    free(execPath);
+}
+
+int HybridSpawnRoot(const char *execPath, const char *argv1, const char *argv2) {
+    if (!execPath) return -1;
+    posix_spawnattr_t attr;
+    posix_spawnattr_init(&attr);
+#if !TARGET_OS_SIMULATOR
+    posix_spawnattr_set_persona_np(&attr, 99, POSIX_SPAWN_PERSONA_FLAGS_OVERRIDE);
+    posix_spawnattr_set_persona_uid_np(&attr, 0);
+    posix_spawnattr_set_persona_gid_np(&attr, 0);
+#endif
+    posix_spawnattr_setpgroup(&attr, 0);
+    posix_spawnattr_setflags(&attr, POSIX_SPAWN_SETPGROUP);
+
+    const char *args[4] = { execPath, argv1, argv2, NULL };
+    pid_t child = 0;
+    int rc = posix_spawn(&child, execPath, NULL, &attr, (char **)args, environ);
+    posix_spawnattr_destroy(&attr);
+    AetherLog(@"HybridSpawnRoot %s %s rc=%d pid=%d", execPath, argv1 ?: "", rc, child);
+    if (rc == 0) {
+        AetherSharedState *state = AetherGetSharedState();
+        if (state && argv1 && strcmp(argv1, "-hud") == 0) {
+            aether_atomic_store(&state->hudVisible, true);
+        }
+    }
+    return rc;
+}
+
+void HybridHUDSyncFloatingConfig(float size, float opacity, bool edgeSnap,
+                                 bool lockPosition, bool haptic,
+                                 float posX, float posY) {
+    AetherSharedState *state = AetherGetSharedState();
+    if (!state) {
+        AetherLog(@"HybridHUDSyncFloatingConfig: no shm yet — settings apply on next daemon spawn");
+        return;
+    }
+    aether_atomic_store(&state->floatingButtonSize, size);
+    aether_atomic_store(&state->floatingButtonOpacity, opacity);
+    aether_atomic_store(&state->floatingEdgeSnap, edgeSnap);
+    aether_atomic_store(&state->floatingLockPosition, lockPosition);
+    aether_atomic_store(&state->floatingHapticEnabled, haptic);
+    aether_atomic_store(&state->floatingPosX, posX);
+    aether_atomic_store(&state->floatingPosY, posY);
+    notify_post(kAetherNotifyConfigChanged);
+}
+
+void HybridHUDSetInterceptionActive(bool active) {
+    // setInterceptionActive: updates shm + retries live injection + applies PF
+    // rules + writes the extension override files (HybridWriteExtOverrideFiles),
+    // so the VPN relay engine follows the same switch instantly.
+    [[AetherProcessManager sharedManager] setInterceptionActive:active ? YES : NO];
+}

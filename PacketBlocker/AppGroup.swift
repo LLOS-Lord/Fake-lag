@@ -1,4 +1,5 @@
 import Foundation
+import Darwin
 
 struct HybridConfig: Codable {
     var enabled: Bool = false
@@ -97,79 +98,98 @@ class AppGroupStore {
     }
     
     static func syncToShm(_ cfg: HybridConfig) {
-        NotificationCenter.default.post(name: Notification.Name("com.aethernet.interceptor.config_changed"), object: nil)
+        // Cross-process wakeup: NSNotification does NOT cross process bounds.
+        // Darwin notifications are what the HUD daemon + (future) payload listen to.
+        notify_post("com.aethernet.interceptor.config_changed")
+        notify_post("com.aethernet.interceptor.state_changed")
         NotificationCenter.default.post(name: Notification.Name("com.hybrid.configChanged"), object: nil)
     }
     
-    static func logAction(_ action: String, details: String = "") {
-        let timestamp = ISO8601DateFormatter().string(from: Date())
-        let line = "[\(timestamp)] \(action) \(details)\n"
-        // Write to primary logURL
+    static func logAction(_ action: String, details: String = "", level: String = "INFO") {
+        let ts = ISO8601DateFormatter().string(from: Date())
+        let line = "[\(ts)] [\(level)] [\(action)] \(details.isEmpty ? "-" : details)\n"
+        writeLogLine(line)
+    }
+
+    // Detailed variant used by the VPN engine: includes a live stats snapshot
+    // so every entry in the log is self-describing (bug #2: "không log chi tiết").
+    static func logAction(_ action: String, details: String, passed: UInt64, dropped: UInt64, held: Int, extra: String = "") {
+        let ts = ISO8601DateFormatter().string(from: Date())
+        let line = "[\(ts)] [\(action)] \(details.isEmpty ? "-" : details) | passed=\(passed) dropped=\(dropped) held=\(held)\(extra.isEmpty ? "" : " | \(extra)")\n"
+        writeLogLine(line)
+    }
+
+    private static func writeLogLine(_ line: String) {
+        // Primary: App Group container (shared with the tunnel extension).
         if let container = containerURL, let url = logURL {
             try? FileManager.default.createDirectory(at: container, withIntermediateDirectories: true)
-            if FileManager.default.fileExists(atPath: url.path) {
-                if let handle = try? FileHandle(forWritingTo: url) {
-                    handle.seekToEndOfFile()
-                    if let data = line.data(using: .utf8) {
-                        handle.write(data)
-                    }
-                    try? handle.close()
-                }
-            } else {
-                try? line.write(to: url, atomically: true, encoding: .utf8)
-            }
+            appendToFile(line, url: url)
             try? FileManager.default.setAttributes([.posixPermissions: 0o666], ofItemAtPath: url.path)
         }
-        // Also write to fallback Caches for HUD daemon to read
+        // Fallback: /var/mobile/Library/Caches (readable by root daemons).
         let fallbackLog = "/var/mobile/Library/Caches/\(logFile)"
-        if FileManager.default.fileExists(atPath: fallbackLog) {
-            if let handle = try? FileHandle(forWritingTo: URL(fileURLWithPath: fallbackLog)) {
+        appendToFile(line, url: URL(fileURLWithPath: fallbackLog))
+        try? FileManager.default.setAttributes([.posixPermissions: 0o666], ofItemAtPath: fallbackLog)
+
+        NSLog("[HybridLog] %@", line.trimmingCharacters(in: .whitespacesAndNewlines))
+
+        rotateIfNeeded(url: logURL, limit: 512 * 1024, keep: 256 * 1024)
+        rotateIfNeeded(url: URL(fileURLWithPath: fallbackLog), limit: 512 * 1024, keep: 256 * 1024)
+    }
+
+    private static func appendToFile(_ line: String, url: URL) {
+        if FileManager.default.fileExists(atPath: url.path) {
+            if let handle = try? FileHandle(forWritingTo: url) {
                 handle.seekToEndOfFile()
-                if let data = line.data(using: .utf8) {
-                    handle.write(data)
-                }
+                if let data = line.data(using: .utf8) { handle.write(data) }
                 try? handle.close()
             }
         } else {
-            try? line.write(to: URL(fileURLWithPath: fallbackLog), atomically: true, encoding: .utf8)
-        }
-        try? FileManager.default.setAttributes([.posixPermissions: 0o666], ofItemAtPath: fallbackLog)
-        
-        // Also NSLog for debugging
-        NSLog("[HybridLog] %@", line.trimmingCharacters(in: .whitespacesAndNewlines))
-        
-        // Trim if >500KB
-        if let url = logURL, let attrs = try? FileManager.default.attributesOfItem(atPath: url.path), let size = attrs[.size] as? UInt64, size > 500*1024 {
-            if let data = try? Data(contentsOf: url), data.count > 250*1024 {
-                let trimmed = data.suffix(250*1024)
-                try? trimmed.write(to: url)
-            }
+            try? line.write(to: url, atomically: true, encoding: .utf8)
         }
     }
-    
-    static func readLogs() -> String {
+
+    private static func rotateIfNeeded(url: URL?, limit: Int, keep: Int) {
+        guard let url = url,
+              let attrs = try? FileManager.default.attributesOfItem(atPath: url.path),
+              let size = attrs[.size] as? UInt64, size > limit else { return }
+        if let data = try? Data(contentsOf: url), data.count > keep {
+            try? data.suffix(keep).write(to: url)
+        }
+    }
+
+    static func readLogs(filter: String? = nil) -> String {
         var combined = ""
         // Primary
         if let url = logURL, let content = try? String(contentsOf: url) {
             combined += content
         }
-        // Fallback Caches
+        // Fallback Caches (avoid duplicating identical tail)
         let fallbackLog = "/var/mobile/Library/Caches/\(logFile)"
         if let content = try? String(contentsOfFile: fallbackLog) {
-            if !combined.contains(content) {
+            if !combined.contains(String(content.suffix(2000))) {
                 combined += "\n--- Fallback Caches Log ---\n" + content
             }
         }
-        // AetherNet logs
+        // AetherNet app log (HUD helper code writes here too)
         if let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first {
             let appLog = docs.appendingPathComponent("aethernet.log")
             if let appLogs = try? String(contentsOf: appLog) {
-                combined += "\n--- AetherNet App Log ---\n" + String(appLogs.suffix(5000))
+                combined += "\n--- AetherNet App Log ---\n" + String(appLogs.suffix(8000))
             }
         }
+        // HUD daemon log
         let hudLogPath = "/var/mobile/Library/aethernet-hud.log"
         if let hudLogs = try? String(contentsOfFile: hudLogPath) {
-            combined += "\n--- HUD Daemon Log ---\n" + String(hudLogs.suffix(5000))
+            combined += "\n--- HUD Daemon Log ---\n" + String(hudLogs.suffix(8000))
+        }
+
+        if let filter = filter, !filter.isEmpty {
+            let q = filter.lowercased()
+            let kept = combined.components(separatedBy: "\n").filter { line in
+                line.isEmpty ? true : line.lowercased().contains(q)
+            }
+            combined = kept.joined(separator: "\n")
         }
         return combined.isEmpty ? "No logs yet. Try actions to generate logs." : combined
     }

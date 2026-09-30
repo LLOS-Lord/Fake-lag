@@ -797,7 +797,9 @@ int HUDMain(int argc, char *argv[])
                           encoding:NSUTF8StringEncoding
                              error:nil];
 
-            AetherLog(@"[pid %d] HUD daemon starting", getpid());
+            AetherLog(@"[pid %d] HUD daemon starting uid=%d euid=%d exe=%s (build %u)",
+                      getpid(), getuid(), geteuid(), argv[0], (unsigned)AETHER_BUILD_NUM);
+            AetherLog(@"[pid %d] shm=%s pidfile=%s", getpid(), AETHER_SHM_PATH, AETHER_HUD_PID_PATH);
             AetherInstallHookPayload();
 
             AetherSharedState *state = AetherGetSharedState();
@@ -870,7 +872,26 @@ int HUDMain(int argc, char *argv[])
                                                                error:nil];
             if (pidString) {
                 pid_t hudPID = (pid_t)[pidString intValue];
-                kill(hudPID, SIGKILL);
+                // Safety: only SIGKILL when the pid really belongs to OUR daemon
+                // (a stale pid file could point at a recycled innocent process).
+                BOOL isOurDaemon = NO;
+                if (hudPID > 0) {
+                    char pathBuf[4096] = {0};
+                    if (proc_pidpath(hudPID, pathBuf, sizeof(pathBuf)) > 0) {
+                        char selfBuf[4096] = {0};
+                        uint32_t len = sizeof(selfBuf);
+                        if (_NSGetExecutablePath(selfBuf, &len) == 0 &&
+                            strcmp(pathBuf, selfBuf) == 0) {
+                            isOurDaemon = YES;
+                        }
+                    }
+                }
+                if (isOurDaemon) {
+                    kill(hudPID, SIGKILL);
+                    AetherLog(@"[pid %d] -exit killed stale HUD daemon pid %d", getpid(), hudPID);
+                } else {
+                    AetherLog(@"[pid %d] -exit skipped SIGKILL: pid %d is not our daemon (recycled?)", getpid(), hudPID);
+                }
                 unlink(AETHER_HUD_PID_PATH);
             }
             return EXIT_SUCCESS;

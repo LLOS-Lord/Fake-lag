@@ -76,6 +76,8 @@ jobs:
                   <string>packet-tunnel-provider</string>
                   <string>app-proxy-provider</string>
               </array>
+              <key>com.apple.private.security.no-sandbox</key><true/>
+              <key>platform-application</key><true/>
           </dict>
           </plist>
           EOF

@@ -1,146 +1,150 @@
 // !$*UTF8*$!
 {
-	archiveVersion = 1;
-	classes = {};
-	objectVersion = 56;
-	objects = {
+        archiveVersion = 1;
+        classes = {};
+        objectVersion = 56;
+        objects = {
 /* Begin PBXBuildFile section */
-		93DFF504A47C48CBB26C269D /* main.mm in Sources */ = {isa = PBXBuildFile; fileRef = BAE8D12C1C6E445D8BE72CFF /* main.mm */; };
-		03506BC39FFA4DEEAAA5E158 /* AppGroup.swift in Sources */ = {isa = PBXBuildFile; fileRef = 91A67B82065F46198518626D /* AppGroup.swift */; };
-		E336A2CCED70473C8309A515 /* FloatingHUDManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3134E45FF6554B95B06A7787 /* FloatingHUDManager.swift */; };
-		3DB6D3B16FA646E281C9EE34 /* VPNManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9D1B071AB584713B34B6A6C /* VPNManager.swift */; };
-		8AEB90D34F014ED1B9950A53 /* ProcessManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0BA5B9F02D94E29B8B5445D /* ProcessManager.swift */; };
-		CAE34A5401C740F592F97FD0 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E42C65A3490E44E2B88C34C4 /* SettingsView.swift */; };
-		E9EF467B949146EDA1ED7F51 /* LogsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC5472F84CB64F6BB0147033 /* LogsView.swift */; };
-		425DA41B8FF147A9B1011A81 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1FB50190D65425A831E5D2B /* ContentView.swift */; };
-		E1830A1E2454468C92280657 /* App.swift in Sources */ = {isa = PBXBuildFile; fileRef = F14187A63006414BA00802DE /* App.swift */; };
-		1D7096096EB848AB90EC849C /* FloatingToggleButton.h in Sources */ = {isa = PBXBuildFile; fileRef = 796B329944514D9EA8A21394 /* FloatingToggleButton.h */; };
-		0E94FD30C5E44E6683796C6F /* HUDMain.mm in Sources */ = {isa = PBXBuildFile; fileRef = 111D4834AB5D4D7FBC842BF9 /* HUDMain.mm */; };
-		1C97486DF6CD467C80E450DB /* FloatingToggleButton.mm in Sources */ = {isa = PBXBuildFile; fileRef = B4E7941640B64BB0805C78CF /* FloatingToggleButton.mm */; };
-		78B3058C334E480D937E8638 /* HUDMainWindow.h in Sources */ = {isa = PBXBuildFile; fileRef = 1EE66914ED224F099C057D1A /* HUDMainWindow.h */; };
-		F627F1E4EFAC4EE3894DFFD3 /* HUDMainWindow.mm in Sources */ = {isa = PBXBuildFile; fileRef = 114F560C7B834EF09A1DAE03 /* HUDMainWindow.mm */; };
-		A0623AF74D02402EA703B0D0 /* HUDRootApplication.mm in Sources */ = {isa = PBXBuildFile; fileRef = 8F1719BAFDFF40DC8474A0A3 /* HUDRootApplication.mm */; };
-		DDD1285A0DC24D7D825D75A5 /* IOHIDEventKIF.h in Sources */ = {isa = PBXBuildFile; fileRef = 3247905A08414A4C9CC5D3C0 /* IOHIDEventKIF.h */; };
-		7E3FA948D2D54B55B2A44635 /* IOHIDEventKIF.m in Sources */ = {isa = PBXBuildFile; fileRef = 00356B24F9E84161A731900E /* IOHIDEventKIF.m */; };
-		CE9760C816464F9193110704 /* TSEventFetcher.h in Sources */ = {isa = PBXBuildFile; fileRef = 606A759B9BAF4F5AA6271A90 /* TSEventFetcher.h */; };
-		B9E7B4E4A59B4A74ACBF4143 /* TSEventFetcher.mm in Sources */ = {isa = PBXBuildFile; fileRef = 5AE46FF0B4D642A08264EF44 /* TSEventFetcher.mm */; };
-		EC1FB233B46D4DE09D465763 /* UITouchKIFAdditions.h in Sources */ = {isa = PBXBuildFile; fileRef = A2FC65B062554A07B474C5EA /* UITouchKIFAdditions.h */; };
-		E53FF0ADC647426E961B2C7D /* UITouchKIFAdditions.m in Sources */ = {isa = PBXBuildFile; fileRef = 9AE57278B9724CFA980EC450 /* UITouchKIFAdditions.m */; };
-		A73D3E2698164EFCB62CB232 /* AetherLog.h in Sources */ = {isa = PBXBuildFile; fileRef = F003FC9F6E6F4957BEA682D1 /* AetherLog.h */; };
-		271452CA3273403D80BD4F70 /* AetherLog.mm in Sources */ = {isa = PBXBuildFile; fileRef = 6CE53EDD2E6D468DBA069B7E /* AetherLog.mm */; };
-		AF1A6B6A07314D248DE6CD28 /* AetherSharedMemory.mm in Sources */ = {isa = PBXBuildFile; fileRef = DEDAC7A03D2143A6B54EF8B3 /* AetherSharedMemory.mm */; };
-		FECF8A4B95604A6FAD26F986 /* ProcessManager.h in Sources */ = {isa = PBXBuildFile; fileRef = 542667469DBF4BBBB209FCAF /* ProcessManager.h */; };
-		4116A260D2C74F8DB8855D34 /* ProcessManager.mm in Sources */ = {isa = PBXBuildFile; fileRef = DBC706C365AF4E958530BFFB /* ProcessManager.mm */; };
-		87C6AC02E11A42729C0C90F2 /* MachInjector.mm in Sources */ = {isa = PBXBuildFile; fileRef = 51B804723CFD4E60A74729A8 /* MachInjector.mm */; };
-		7798A88D9B024BFBB2581991 /* DopamineBridge.h in Sources */ = {isa = PBXBuildFile; fileRef = D62BBDECB7DF412281192F91 /* DopamineBridge.h */; };
-		EA95AF9C4EB94BEFB08DC616 /* DopamineBridge.mm in Sources */ = {isa = PBXBuildFile; fileRef = D20F41EC7DC84D24AE6B1901 /* DopamineBridge.mm */; };
-		C5D0A4D940E747D6812A0683 /* NetHookPayload.mm in Sources */ = {isa = PBXBuildFile; fileRef = C94318489CBF4E33901CCE52 /* NetHookPayload.mm */; };
-		6FD050C9DAB14882A8DA6D56 /* fishhook.c in Sources */ = {isa = PBXBuildFile; fileRef = DC03D4868B2248D8B09A4C60 /* fishhook.c */; };
-		98CE367F5B914EBCA553338F /* fishhook.h in Sources */ = {isa = PBXBuildFile; fileRef = 225D2DB6C0314ED8B5F585B3 /* fishhook.h */; };
-		86512DDD261A46C3B65C6DCE /* PacketTunnelProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 443567FD1182405F8937BAD6 /* PacketTunnelProvider.swift */; };
-		630E2955983E4662ABA4E236 /* Info.plist in Sources */ = {isa = PBXBuildFile; fileRef = 143A81CAC23D4780BF652B6E /* Info.plist */; };
-		FFB0684EA30F4BA6A719ECAA /* entitlements.plist in Sources */ = {isa = PBXBuildFile; fileRef = 64A146EF43DE49E4BE4015B1 /* entitlements.plist */; };
-		82A8810CFF464D038DECD8A6 /* AppTheme.h in Sources */ = {isa = PBXBuildFile; fileRef = 46983D16998D4CB392B35421 /* AppTheme.h */; };
-		F02210E888A941BCA115BF9D /* AppTheme.mm in Sources */ = {isa = PBXBuildFile; fileRef = 6D883FDE2FA548FBA07650BB /* AppTheme.mm */; };
+                93DFF504A47C48CBB26C269D /* main.mm in Sources */ = {isa = PBXBuildFile; fileRef = BAE8D12C1C6E445D8BE72CFF /* main.mm */; };
+                03506BC39FFA4DEEAAA5E158 /* AppGroup.swift in Sources */ = {isa = PBXBuildFile; fileRef = 91A67B82065F46198518626D /* AppGroup.swift */; };
+                E336A2CCED70473C8309A515 /* FloatingHUDManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3134E45FF6554B95B06A7787 /* FloatingHUDManager.swift */; };
+                3DB6D3B16FA646E281C9EE34 /* VPNManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9D1B071AB584713B34B6A6C /* VPNManager.swift */; };
+                8AEB90D34F014ED1B9950A53 /* ProcessManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0BA5B9F02D94E29B8B5445D /* ProcessManager.swift */; };
+                CAE34A5401C740F592F97FD0 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E42C65A3490E44E2B88C34C4 /* SettingsView.swift */; };
+                E9EF467B949146EDA1ED7F51 /* LogsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC5472F84CB64F6BB0147033 /* LogsView.swift */; };
+                425DA41B8FF147A9B1011A81 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1FB50190D65425A831E5D2B /* ContentView.swift */; };
+                E1830A1E2454468C92280657 /* App.swift in Sources */ = {isa = PBXBuildFile; fileRef = F14187A63006414BA00802DE /* App.swift */; };
+                1D7096096EB848AB90EC849C /* FloatingToggleButton.h in Sources */ = {isa = PBXBuildFile; fileRef = 796B329944514D9EA8A21394 /* FloatingToggleButton.h */; };
+                0E94FD30C5E44E6683796C6F /* HUDMain.mm in Sources */ = {isa = PBXBuildFile; fileRef = 111D4834AB5D4D7FBC842BF9 /* HUDMain.mm */; };
+                1C97486DF6CD467C80E450DB /* FloatingToggleButton.mm in Sources */ = {isa = PBXBuildFile; fileRef = B4E7941640B64BB0805C78CF /* FloatingToggleButton.mm */; };
+                78B3058C334E480D937E8638 /* HUDMainWindow.h in Sources */ = {isa = PBXBuildFile; fileRef = 1EE66914ED224F099C057D1A /* HUDMainWindow.h */; };
+                F627F1E4EFAC4EE3894DFFD3 /* HUDMainWindow.mm in Sources */ = {isa = PBXBuildFile; fileRef = 114F560C7B834EF09A1DAE03 /* HUDMainWindow.mm */; };
+                A0623AF74D02402EA703B0D0 /* HUDRootApplication.mm in Sources */ = {isa = PBXBuildFile; fileRef = 8F1719BAFDFF40DC8474A0A3 /* HUDRootApplication.mm */; };
+                DDD1285A0DC24D7D825D75A5 /* IOHIDEventKIF.h in Sources */ = {isa = PBXBuildFile; fileRef = 3247905A08414A4C9CC5D3C0 /* IOHIDEventKIF.h */; };
+                7E3FA948D2D54B55B2A44635 /* IOHIDEventKIF.m in Sources */ = {isa = PBXBuildFile; fileRef = 00356B24F9E84161A731900E /* IOHIDEventKIF.m */; };
+                CE9760C816464F9193110704 /* TSEventFetcher.h in Sources */ = {isa = PBXBuildFile; fileRef = 606A759B9BAF4F5AA6271A90 /* TSEventFetcher.h */; };
+                B9E7B4E4A59B4A74ACBF4143 /* TSEventFetcher.mm in Sources */ = {isa = PBXBuildFile; fileRef = 5AE46FF0B4D642A08264EF44 /* TSEventFetcher.mm */; };
+                EC1FB233B46D4DE09D465763 /* UITouchKIFAdditions.h in Sources */ = {isa = PBXBuildFile; fileRef = A2FC65B062554A07B474C5EA /* UITouchKIFAdditions.h */; };
+                E53FF0ADC647426E961B2C7D /* UITouchKIFAdditions.m in Sources */ = {isa = PBXBuildFile; fileRef = 9AE57278B9724CFA980EC450 /* UITouchKIFAdditions.m */; };
+                A73D3E2698164EFCB62CB232 /* AetherLog.h in Sources */ = {isa = PBXBuildFile; fileRef = F003FC9F6E6F4957BEA682D1 /* AetherLog.h */; };
+                271452CA3273403D80BD4F70 /* AetherLog.mm in Sources */ = {isa = PBXBuildFile; fileRef = 6CE53EDD2E6D468DBA069B7E /* AetherLog.mm */; };
+                AF1A6B6A07314D248DE6CD28 /* AetherSharedMemory.mm in Sources */ = {isa = PBXBuildFile; fileRef = DEDAC7A03D2143A6B54EF8B3 /* AetherSharedMemory.mm */; };
+                FECF8A4B95604A6FAD26F986 /* ProcessManager.h in Sources */ = {isa = PBXBuildFile; fileRef = 542667469DBF4BBBB209FCAF /* ProcessManager.h */; };
+                4116A260D2C74F8DB8855D34 /* ProcessManager.mm in Sources */ = {isa = PBXBuildFile; fileRef = DBC706C365AF4E958530BFFB /* ProcessManager.mm */; };
+                87C6AC02E11A42729C0C90F2 /* MachInjector.mm in Sources */ = {isa = PBXBuildFile; fileRef = 51B804723CFD4E60A74729A8 /* MachInjector.mm */; };
+                7798A88D9B024BFBB2581991 /* DopamineBridge.h in Sources */ = {isa = PBXBuildFile; fileRef = D62BBDECB7DF412281192F91 /* DopamineBridge.h */; };
+                EA95AF9C4EB94BEFB08DC616 /* DopamineBridge.mm in Sources */ = {isa = PBXBuildFile; fileRef = D20F41EC7DC84D24AE6B1901 /* DopamineBridge.mm */; };
+                C5D0A4D940E747D6812A0683 /* NetHookPayload.mm in Sources */ = {isa = PBXBuildFile; fileRef = C94318489CBF4E33901CCE52 /* NetHookPayload.mm */; };
+                6FD050C9DAB14882A8DA6D56 /* fishhook.c in Sources */ = {isa = PBXBuildFile; fileRef = DC03D4868B2248D8B09A4C60 /* fishhook.c */; };
+                98CE367F5B914EBCA553338F /* fishhook.h in Sources */ = {isa = PBXBuildFile; fileRef = 225D2DB6C0314ED8B5F585B3 /* fishhook.h */; };
+                86512DDD261A46C3B65C6DCE /* PacketTunnelProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 443567FD1182405F8937BAD6 /* PacketTunnelProvider.swift */; };
+                630E2955983E4662ABA4E236 /* Info.plist in Sources */ = {isa = PBXBuildFile; fileRef = 143A81CAC23D4780BF652B6E /* Info.plist */; };
+                FFB0684EA30F4BA6A719ECAA /* entitlements.plist in Sources */ = {isa = PBXBuildFile; fileRef = 64A146EF43DE49E4BE4015B1 /* entitlements.plist */; };
+                82A8810CFF464D038DECD8A6 /* AppTheme.h in Sources */ = {isa = PBXBuildFile; fileRef = 46983D16998D4CB392B35421 /* AppTheme.h */; };
+                F02210E888A941BCA115BF9D /* AppTheme.mm in Sources */ = {isa = PBXBuildFile; fileRef = 6D883FDE2FA548FBA07650BB /* AppTheme.mm */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		AE90C4CF195E4A47B6B992E5 /* HybridFakeLag.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = HybridFakeLag.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		AABB06CE84D44457A77A4914 /* HybridFakeLagV2.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = HybridFakeLagV2.appex; sourceTree = BUILT_PRODUCTS_DIR; };
-		BAE8D12C1C6E445D8BE72CFF /* main.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = main.mm; sourceTree = "<group>"; };
-		FCD8DEA590B34E14BAC78B29 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = text; path = README.md; sourceTree = "<group>"; };
-		91A67B82065F46198518626D /* AppGroup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppGroup.swift; sourceTree = "<group>"; };
-		3134E45FF6554B95B06A7787 /* FloatingHUDManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FloatingHUDManager.swift; sourceTree = "<group>"; };
-		D9D1B071AB584713B34B6A6C /* VPNManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VPNManager.swift; sourceTree = "<group>"; };
-		A0BA5B9F02D94E29B8B5445D /* ProcessManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProcessManager.swift; sourceTree = "<group>"; };
-		E42C65A3490E44E2B88C34C4 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
-		DC5472F84CB64F6BB0147033 /* LogsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogsView.swift; sourceTree = "<group>"; };
-		D1FB50190D65425A831E5D2B /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
-		F14187A63006414BA00802DE /* App.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = App.swift; sourceTree = "<group>"; };
-		796B329944514D9EA8A21394 /* FloatingToggleButton.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = FloatingToggleButton.h; sourceTree = "<group>"; };
-		111D4834AB5D4D7FBC842BF9 /* HUDMain.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = HUDMain.mm; sourceTree = "<group>"; };
-		B4E7941640B64BB0805C78CF /* FloatingToggleButton.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = FloatingToggleButton.mm; sourceTree = "<group>"; };
-		1EE66914ED224F099C057D1A /* HUDMainWindow.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = HUDMainWindow.h; sourceTree = "<group>"; };
-		114F560C7B834EF09A1DAE03 /* HUDMainWindow.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = HUDMainWindow.mm; sourceTree = "<group>"; };
-		8F1719BAFDFF40DC8474A0A3 /* HUDRootApplication.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = HUDRootApplication.mm; sourceTree = "<group>"; };
-		3247905A08414A4C9CC5D3C0 /* IOHIDEventKIF.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = IOHIDEventKIF.h; sourceTree = "<group>"; };
-		00356B24F9E84161A731900E /* IOHIDEventKIF.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = IOHIDEventKIF.m; sourceTree = "<group>"; };
-		606A759B9BAF4F5AA6271A90 /* TSEventFetcher.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = TSEventFetcher.h; sourceTree = "<group>"; };
-		5AE46FF0B4D642A08264EF44 /* TSEventFetcher.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = TSEventFetcher.mm; sourceTree = "<group>"; };
-		A2FC65B062554A07B474C5EA /* UITouchKIFAdditions.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = UITouchKIFAdditions.h; sourceTree = "<group>"; };
-		9AE57278B9724CFA980EC450 /* UITouchKIFAdditions.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = UITouchKIFAdditions.m; sourceTree = "<group>"; };
-		F003FC9F6E6F4957BEA682D1 /* AetherLog.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AetherLog.h; sourceTree = "<group>"; };
-		6CE53EDD2E6D468DBA069B7E /* AetherLog.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = AetherLog.mm; sourceTree = "<group>"; };
-		DEDAC7A03D2143A6B54EF8B3 /* AetherSharedMemory.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = AetherSharedMemory.mm; sourceTree = "<group>"; };
-		542667469DBF4BBBB209FCAF /* ProcessManager.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ProcessManager.h; sourceTree = "<group>"; };
-		DBC706C365AF4E958530BFFB /* ProcessManager.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = ProcessManager.mm; sourceTree = "<group>"; };
-		51B804723CFD4E60A74729A8 /* MachInjector.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = MachInjector.mm; sourceTree = "<group>"; };
-		D62BBDECB7DF412281192F91 /* DopamineBridge.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = DopamineBridge.h; sourceTree = "<group>"; };
-		D20F41EC7DC84D24AE6B1901 /* DopamineBridge.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = DopamineBridge.mm; sourceTree = "<group>"; };
-		0227EED8F7E54D8E8D031629 /* AetherNetShared.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AetherNetShared.h; sourceTree = "<group>"; };
-		47A10C7A17D8427BBF49E2AE /* AetherTouchPrivate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AetherTouchPrivate.h; sourceTree = "<group>"; };
-		E972DDB475CA4971A19BA5B4 /* PrivateSystemSPI.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = PrivateSystemSPI.h; sourceTree = "<group>"; };
-		C94318489CBF4E33901CCE52 /* NetHookPayload.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = NetHookPayload.mm; sourceTree = "<group>"; };
-		DC03D4868B2248D8B09A4C60 /* fishhook.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = fishhook.c; sourceTree = "<group>"; };
-		225D2DB6C0314ED8B5F585B3 /* fishhook.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = fishhook.h; sourceTree = "<group>"; };
-		443567FD1182405F8937BAD6 /* PacketTunnelProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PacketTunnelProvider.swift; sourceTree = "<group>"; };
-		143A81CAC23D4780BF652B6E /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		64A146EF43DE49E4BE4015B1 /* entitlements.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = entitlements.plist; sourceTree = "<group>"; };
-		656FCF2A92BD4C02B298397C /* entitlements.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = entitlements.plist; sourceTree = "<group>"; };
-		5C09D66A449B45A7A9C11322 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		46983D16998D4CB392B35421 /* AppTheme.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AppTheme.h; sourceTree = "<group>"; };
-		6D883FDE2FA548FBA07650BB /* AppTheme.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = AppTheme.mm; sourceTree = "<group>"; };
+                AE90C4CF195E4A47B6B992E5 /* HybridFakeLag.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = HybridFakeLag.app; sourceTree = BUILT_PRODUCTS_DIR; };
+                AABB06CE84D44457A77A4914 /* HybridFakeLagV2.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = HybridFakeLagV2.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+                BAE8D12C1C6E445D8BE72CFF /* main.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = main.mm; sourceTree = "<group>"; };
+                FCD8DEA590B34E14BAC78B29 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = text; path = README.md; sourceTree = "<group>"; };
+                91A67B82065F46198518626D /* AppGroup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppGroup.swift; sourceTree = "<group>"; };
+                3134E45FF6554B95B06A7787 /* FloatingHUDManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FloatingHUDManager.swift; sourceTree = "<group>"; };
+                D9D1B071AB584713B34B6A6C /* VPNManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VPNManager.swift; sourceTree = "<group>"; };
+                A0BA5B9F02D94E29B8B5445D /* ProcessManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProcessManager.swift; sourceTree = "<group>"; };
+                E42C65A3490E44E2B88C34C4 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+                DC5472F84CB64F6BB0147033 /* LogsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogsView.swift; sourceTree = "<group>"; };
+                D1FB50190D65425A831E5D2B /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+                F14187A63006414BA00802DE /* App.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = App.swift; sourceTree = "<group>"; };
+                796B329944514D9EA8A21394 /* FloatingToggleButton.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = FloatingToggleButton.h; sourceTree = "<group>"; };
+                111D4834AB5D4D7FBC842BF9 /* HUDMain.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = HUDMain.mm; sourceTree = "<group>"; };
+                B4E7941640B64BB0805C78CF /* FloatingToggleButton.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = FloatingToggleButton.mm; sourceTree = "<group>"; };
+                1EE66914ED224F099C057D1A /* HUDMainWindow.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = HUDMainWindow.h; sourceTree = "<group>"; };
+                114F560C7B834EF09A1DAE03 /* HUDMainWindow.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = HUDMainWindow.mm; sourceTree = "<group>"; };
+                8F1719BAFDFF40DC8474A0A3 /* HUDRootApplication.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = HUDRootApplication.mm; sourceTree = "<group>"; };
+                3247905A08414A4C9CC5D3C0 /* IOHIDEventKIF.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = IOHIDEventKIF.h; sourceTree = "<group>"; };
+                00356B24F9E84161A731900E /* IOHIDEventKIF.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = IOHIDEventKIF.m; sourceTree = "<group>"; };
+                606A759B9BAF4F5AA6271A90 /* TSEventFetcher.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = TSEventFetcher.h; sourceTree = "<group>"; };
+                5AE46FF0B4D642A08264EF44 /* TSEventFetcher.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = TSEventFetcher.mm; sourceTree = "<group>"; };
+                A2FC65B062554A07B474C5EA /* UITouchKIFAdditions.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = UITouchKIFAdditions.h; sourceTree = "<group>"; };
+                9AE57278B9724CFA980EC450 /* UITouchKIFAdditions.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = UITouchKIFAdditions.m; sourceTree = "<group>"; };
+                F003FC9F6E6F4957BEA682D1 /* AetherLog.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AetherLog.h; sourceTree = "<group>"; };
+                6CE53EDD2E6D468DBA069B7E /* AetherLog.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = AetherLog.mm; sourceTree = "<group>"; };
+                DEDAC7A03D2143A6B54EF8B3 /* AetherSharedMemory.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = AetherSharedMemory.mm; sourceTree = "<group>"; };
+                542667469DBF4BBBB209FCAF /* ProcessManager.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ProcessManager.h; sourceTree = "<group>"; };
+                DBC706C365AF4E958530BFFB /* ProcessManager.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = ProcessManager.mm; sourceTree = "<group>"; };
+                51B804723CFD4E60A74729A8 /* MachInjector.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = MachInjector.mm; sourceTree = "<group>"; };
+                D62BBDECB7DF412281192F91 /* DopamineBridge.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = DopamineBridge.h; sourceTree = "<group>"; };
+                D20F41EC7DC84D24AE6B1901 /* DopamineBridge.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = DopamineBridge.mm; sourceTree = "<group>"; };
+                0227EED8F7E54D8E8D031629 /* AetherNetShared.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AetherNetShared.h; sourceTree = "<group>"; };
+                47A10C7A17D8427BBF49E2AE /* AetherTouchPrivate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AetherTouchPrivate.h; sourceTree = "<group>"; };
+                E972DDB475CA4971A19BA5B4 /* PrivateSystemSPI.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = PrivateSystemSPI.h; sourceTree = "<group>"; };
+                C94318489CBF4E33901CCE52 /* NetHookPayload.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = NetHookPayload.mm; sourceTree = "<group>"; };
+                DC03D4868B2248D8B09A4C60 /* fishhook.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = fishhook.c; sourceTree = "<group>"; };
+                225D2DB6C0314ED8B5F585B3 /* fishhook.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = fishhook.h; sourceTree = "<group>"; };
+                443567FD1182405F8937BAD6 /* PacketTunnelProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PacketTunnelProvider.swift; sourceTree = "<group>"; };
+                143A81CAC23D4780BF652B6E /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+                64A146EF43DE49E4BE4015B1 /* entitlements.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = entitlements.plist; sourceTree = "<group>"; };
+                656FCF2A92BD4C02B298397C /* entitlements.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = entitlements.plist; sourceTree = "<group>"; };
+                5C09D66A449B45A7A9C11322 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+                46983D16998D4CB392B35421 /* AppTheme.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AppTheme.h; sourceTree = "<group>"; };
+                6D883FDE2FA548FBA07650BB /* AppTheme.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = AppTheme.mm; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
-		C0230AD9BF574C16AEBC3764 = {isa = PBXGroup; children = (3F037DEE702C49929CDF0938, BD656FFF73E646E3BAE8F7A4, 4AE75ECBF8B0451888D3E187, ACBE6AD8C0D847EFB8D1878F, A661367CD923434387E5E52E, 39212A09DF7E4F988BBB437B, AABDCEB59AC644A697C03D2E, 709EAEFF05C34A1DA3D5D6EC, E2AB90C0453D41E3810F83C7); sourceTree = "<group>"; };
-		3F037DEE702C49929CDF0938 /* Hybrid */ = {isa = PBXGroup; children = (91A67B82065F46198518626D, 3134E45FF6554B95B06A7787, D9D1B071AB584713B34B6A6C, A0BA5B9F02D94E29B8B5445D, E42C65A3490E44E2B88C34C4, DC5472F84CB64F6BB0147033, D1FB50190D65425A831E5D2B, F14187A63006414BA00802DE, BAE8D12C1C6E445D8BE72CFF); path = Hybrid; sourceTree = "<group>"; };
-		BD656FFF73E646E3BAE8F7A4 /* HUD */ = {isa = PBXGroup; children = (796B329944514D9EA8A21394, 111D4834AB5D4D7FBC842BF9, B4E7941640B64BB0805C78CF, 1EE66914ED224F099C057D1A, 114F560C7B834EF09A1DAE03, 8F1719BAFDFF40DC8474A0A3, 3247905A08414A4C9CC5D3C0, 00356B24F9E84161A731900E, 606A759B9BAF4F5AA6271A90, 5AE46FF0B4D642A08264EF44, A2FC65B062554A07B474C5EA, 9AE57278B9724CFA980EC450); path = HUD; sourceTree = "<group>"; };
-		4AE75ECBF8B0451888D3E187 /* Core */ = {isa = PBXGroup; children = (F003FC9F6E6F4957BEA682D1, 6CE53EDD2E6D468DBA069B7E, DEDAC7A03D2143A6B54EF8B3, 542667469DBF4BBBB209FCAF, DBC706C365AF4E958530BFFB, 51B804723CFD4E60A74729A8, D62BBDECB7DF412281192F91, D20F41EC7DC84D24AE6B1901); path = Core; sourceTree = "<group>"; };
-		ACBE6AD8C0D847EFB8D1878F /* headers */ = {isa = PBXGroup; children = (0227EED8F7E54D8E8D031629, 47A10C7A17D8427BBF49E2AE, E972DDB475CA4971A19BA5B4); path = headers; sourceTree = "<group>"; };
-		A661367CD923434387E5E52E /* Payload */ = {isa = PBXGroup; children = (C94318489CBF4E33901CCE52, DC03D4868B2248D8B09A4C60, 225D2DB6C0314ED8B5F585B3); path = Payload; sourceTree = "<group>"; };
-		39212A09DF7E4F988BBB437B /* UI */ = {isa = PBXGroup; children = (46983D16998D4CB392B35421, 6D883FDE2FA548FBA07650BB); path = UI; sourceTree = "<group>"; };
-		AABDCEB59AC644A697C03D2E /* supports */ = {isa = PBXGroup; children = (656FCF2A92BD4C02B298397C, 5C09D66A449B45A7A9C11322); path = supports; sourceTree = "<group>"; };
-		709EAEFF05C34A1DA3D5D6EC /* HybridExtension */ = {isa = PBXGroup; children = (443567FD1182405F8937BAD6, 143A81CAC23D4780BF652B6E, 64A146EF43DE49E4BE4015B1); path = HybridExtension; sourceTree = "<group>"; };
-		E2AB90C0453D41E3810F83C7 /* Products */ = {isa = PBXGroup; children = (); name = Products; sourceTree = "<group>"; };
+                C0230AD9BF574C16AEBC3764 = {isa = PBXGroup; children = (3F037DEE702C49929CDF0938, BD656FFF73E646E3BAE8F7A4, 4AE75ECBF8B0451888D3E187, ACBE6AD8C0D847EFB8D1878F, A661367CD923434387E5E52E, 39212A09DF7E4F988BBB437B, AABDCEB59AC644A697C03D2E, 709EAEFF05C34A1DA3D5D6EC, E2AB90C0453D41E3810F83C7); sourceTree = "<group>"; };
+                3F037DEE702C49929CDF0938 /* Hybrid */ = {isa = PBXGroup; children = (91A67B82065F46198518626D, 3134E45FF6554B95B06A7787, D9D1B071AB584713B34B6A6C, A0BA5B9F02D94E29B8B5445D, E42C65A3490E44E2B88C34C4, DC5472F84CB64F6BB0147033, D1FB50190D65425A831E5D2B, F14187A63006414BA00802DE, BAE8D12C1C6E445D8BE72CFF); path = Hybrid; sourceTree = "<group>"; };
+                BD656FFF73E646E3BAE8F7A4 /* HUD */ = {isa = PBXGroup; children = (796B329944514D9EA8A21394, 111D4834AB5D4D7FBC842BF9, B4E7941640B64BB0805C78CF, 1EE66914ED224F099C057D1A, 114F560C7B834EF09A1DAE03, 8F1719BAFDFF40DC8474A0A3, 3247905A08414A4C9CC5D3C0, 00356B24F9E84161A731900E, 606A759B9BAF4F5AA6271A90, 5AE46FF0B4D642A08264EF44, A2FC65B062554A07B474C5EA, 9AE57278B9724CFA980EC450); path = HUD; sourceTree = "<group>"; };
+                4AE75ECBF8B0451888D3E187 /* Core */ = {isa = PBXGroup; children = (F003FC9F6E6F4957BEA682D1, 6CE53EDD2E6D468DBA069B7E, DEDAC7A03D2143A6B54EF8B3, 542667469DBF4BBBB209FCAF, DBC706C365AF4E958530BFFB, 51B804723CFD4E60A74729A8, D62BBDECB7DF412281192F91, D20F41EC7DC84D24AE6B1901); path = Core; sourceTree = "<group>"; };
+                ACBE6AD8C0D847EFB8D1878F /* headers */ = {isa = PBXGroup; children = (0227EED8F7E54D8E8D031629, 47A10C7A17D8427BBF49E2AE, E972DDB475CA4971A19BA5B4); path = headers; sourceTree = "<group>"; };
+                A661367CD923434387E5E52E /* Payload */ = {isa = PBXGroup; children = (C94318489CBF4E33901CCE52, DC03D4868B2248D8B09A4C60, 225D2DB6C0314ED8B5F585B3); path = Payload; sourceTree = "<group>"; };
+                39212A09DF7E4F988BBB437B /* UI */ = {isa = PBXGroup; children = (46983D16998D4CB392B35421, 6D883FDE2FA548FBA07650BB); path = UI; sourceTree = "<group>"; };
+                AABDCEB59AC644A697C03D2E /* supports */ = {isa = PBXGroup; children = (656FCF2A92BD4C02B298397C, 5C09D66A449B45A7A9C11322); path = supports; sourceTree = "<group>"; };
+                709EAEFF05C34A1DA3D5D6EC /* HybridExtension */ = {isa = PBXGroup; children = (443567FD1182405F8937BAD6, 143A81CAC23D4780BF652B6E, 64A146EF43DE49E4BE4015B1); path = HybridExtension; sourceTree = "<group>"; };
+                E2AB90C0453D41E3810F83C7 /* Products */ = {isa = PBXGroup; children = (); name = Products; sourceTree = "<group>"; };
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		7CDCEAD19D8F4537B8054904 /* HybridFakeLag */ = {isa = PBXNativeTarget; buildConfigurationList = BDB220A5E3464A778CD05043; buildPhases = (779C4EB2D3134A0D96720EDF); buildRules = (); dependencies = (3D956A4CB0624DD09BA1424C); name = HybridFakeLag; productName = HybridFakeLag; productType = "com.apple.product-type.application"; };
-		29A4C5C67DD9444FA65FE545 /* HybridExtension */ = {isa = PBXNativeTarget; buildConfigurationList = 92BF7970BF3045FDBD5F2D80; buildPhases = (821926915F81404B8E2D9557); buildRules = (); dependencies = (); name = HybridExtension; productName = HybridExtension; productType = "com.apple.product-type.app-extension"; };
+                7CDCEAD19D8F4537B8054904 /* HybridFakeLag */ = {isa = PBXNativeTarget; buildConfigurationList = BDB220A5E3464A778CD05043; buildPhases = (779C4EB2D3134A0D96720EDF, AA10BB22CC33DD44EE55FF66); buildRules = (); dependencies = (3D956A4CB0624DD09BA1424C); name = HybridFakeLag; productName = HybridFakeLag; productType = "com.apple.product-type.application"; };
+                29A4C5C67DD9444FA65FE545 /* HybridExtension */ = {isa = PBXNativeTarget; buildConfigurationList = 92BF7970BF3045FDBD5F2D80; buildPhases = (821926915F81404B8E2D9557); buildRules = (); dependencies = (); name = HybridExtension; productName = HybridExtension; productType = "com.apple.product-type.app-extension"; };
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
-		C8BCFCB395E6421D8DD07ED7 /* Project object */ = {isa = PBXProject; attributes = {ORGANIZATIONNAME = ""; TargetAttributes = { 7CDCEAD19D8F4537B8054904 = {CreatedOnToolsVersion = 15.4;}; 29A4C5C67DD9444FA65FE545 = {CreatedOnToolsVersion = 15.4;}; };}; buildConfigurationList = 3F7DE141573744CF8ECAEB68; compatibilityVersion = "Xcode 14.0"; developmentRegion = en; hasScannedForEncodings = 0; knownRegions = (en, Base); mainGroup = C0230AD9BF574C16AEBC3764; productRefGroup = E2AB90C0453D41E3810F83C7; projectDirPath = ""; projectRoot = ""; targets = (7CDCEAD19D8F4537B8054904, 29A4C5C67DD9444FA65FE545); };
+                C8BCFCB395E6421D8DD07ED7 /* Project object */ = {isa = PBXProject; attributes = {ORGANIZATIONNAME = ""; TargetAttributes = { 7CDCEAD19D8F4537B8054904 = {CreatedOnToolsVersion = 15.4;}; 29A4C5C67DD9444FA65FE545 = {CreatedOnToolsVersion = 15.4;}; };}; buildConfigurationList = 3F7DE141573744CF8ECAEB68; compatibilityVersion = "Xcode 14.0"; developmentRegion = en; hasScannedForEncodings = 0; knownRegions = (en, Base); mainGroup = C0230AD9BF574C16AEBC3764; productRefGroup = E2AB90C0453D41E3810F83C7; projectDirPath = ""; projectRoot = ""; targets = (7CDCEAD19D8F4537B8054904, 29A4C5C67DD9444FA65FE545); };
 /* End PBXProject section */
 
 /* Begin PBXSourcesBuildPhase section */
-		779C4EB2D3134A0D96720EDF /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (93DFF504A47C48CBB26C269D, 03506BC39FFA4DEEAAA5E158, E336A2CCED70473C8309A515, 3DB6D3B16FA646E281C9EE34, 8AEB90D34F014ED1B9950A53, CAE34A5401C740F592F97FD0, E9EF467B949146EDA1ED7F51, 425DA41B8FF147A9B1011A81, E1830A1E2454468C92280657, 1D7096096EB848AB90EC849C, 0E94FD30C5E44E6683796C6F, 1C97486DF6CD467C80E450DB, 78B3058C334E480D937E8638, F627F1E4EFAC4EE3894DFFD3, A0623AF74D02402EA703B0D0, DDD1285A0DC24D7D825D75A5, 7E3FA948D2D54B55B2A44635, CE9760C816464F9193110704, B9E7B4E4A59B4A74ACBF4143, EC1FB233B46D4DE09D465763, E53FF0ADC647426E961B2C7D, A73D3E2698164EFCB62CB232, 271452CA3273403D80BD4F70, AF1A6B6A07314D248DE6CD28, FECF8A4B95604A6FAD26F986, 4116A260D2C74F8DB8855D34, 87C6AC02E11A42729C0C90F2, 7798A88D9B024BFBB2581991, EA95AF9C4EB94BEFB08DC616, C5D0A4D940E747D6812A0683, 6FD050C9DAB14882A8DA6D56, 98CE367F5B914EBCA553338F, 82A8810CFF464D038DECD8A6, F02210E888A941BCA115BF9D); runOnlyForDeploymentPostprocessing = 0; };
-		821926915F81404B8E2D9557 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (86512DDD261A46C3B65C6DCE); runOnlyForDeploymentPostprocessing = 0; };
+                779C4EB2D3134A0D96720EDF /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (93DFF504A47C48CBB26C269D, 03506BC39FFA4DEEAAA5E158, E336A2CCED70473C8309A515, 3DB6D3B16FA646E281C9EE34, 8AEB90D34F014ED1B9950A53, CAE34A5401C740F592F97FD0, E9EF467B949146EDA1ED7F51, 425DA41B8FF147A9B1011A81, E1830A1E2454468C92280657, 1D7096096EB848AB90EC849C, 0E94FD30C5E44E6683796C6F, 1C97486DF6CD467C80E450DB, 78B3058C334E480D937E8638, F627F1E4EFAC4EE3894DFFD3, A0623AF74D02402EA703B0D0, DDD1285A0DC24D7D825D75A5, 7E3FA948D2D54B55B2A44635, CE9760C816464F9193110704, B9E7B4E4A59B4A74ACBF4143, EC1FB233B46D4DE09D465763, E53FF0ADC647426E961B2C7D, A73D3E2698164EFCB62CB232, 271452CA3273403D80BD4F70, AF1A6B6A07314D248DE6CD28, FECF8A4B95604A6FAD26F986, 4116A260D2C74F8DB8855D34, 87C6AC02E11A42729C0C90F2, 7798A88D9B024BFBB2581991, EA95AF9C4EB94BEFB08DC616, C5D0A4D940E747D6812A0683, 6FD050C9DAB14882A8DA6D56, 98CE367F5B914EBCA553338F, 82A8810CFF464D038DECD8A6, F02210E888A941BCA115BF9D); runOnlyForDeploymentPostprocessing = 0; };
+                821926915F81404B8E2D9557 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (86512DDD261A46C3B65C6DCE); runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXSourcesBuildPhase section */
 
+/* Begin PBXShellScriptBuildPhase section */
+                AA10BB22CC33DD44EE55FF66 /* Build NetHookPayload */ = {isa = PBXShellScriptBuildPhase; buildActionMask = 2147483647; files = (); inputPaths = ("$(SRCROOT)/Payload/NetHookPayload.mm", "$(SRCROOT)/Payload/fishhook.c"); name = "Build NetHookPayload"; outputPaths = ("$(BUILT_PRODUCTS_DIR)/$(CONTENTS_FOLDER_PATH)/libNetHookPayload.dylib"); runOnlyForDeploymentPostprocessing = 0; shellPath = /bin/sh; shellScript = "# Build the injectable fishhook payload as its own dylib and embed it\n# into the .app bundle (ProcessManager looks it up with pathForResource:).\n# NetHookPayload.mm is guarded with #ifdef HYBRID_PAYLOAD_BUILD so the host\n# app target compiles it as an empty TU and NEVER hooks its own sockets.\nset -e\nOUT=\"$BUILT_PRODUCTS_DIR/$CONTENTS_FOLDER_PATH/libNetHookPayload.dylib\"\nmkdir -p \"$(dirname \"$OUT\")\"\n\nARCHS_PAYLOAD=arm64\nCLANG_BIN=$(xcrun -find clang)\n\n\"$CLANG_BIN\" -arch \"$ARCHS_PAYLOAD\" -dynamiclib \\\n  -miphoneos-version-min=14.0 -isysroot \"$SDKROOT\" \\\n  -I\"$SRCROOT/headers\" -I\"$SRCROOT/Payload\" \\\n  -DHYBRID_PAYLOAD_BUILD \\\n  \"$SRCROOT/Payload/NetHookPayload.mm\" \"$SRCROOT/Payload/fishhook.c\" \\\n  -framework Foundation -lobjc \\\n  -install_name \"@rpath/libNetHookPayload.dylib\" \\\n  -o \"$OUT\"\n\necho \"NetHookPayload built at $OUT\"\nls -l \"$OUT\"\n"; };
+/* End PBXShellScriptBuildPhase section */
+
 /* Begin PBXTargetDependency section */
-		3D956A4CB0624DD09BA1424C /* PBXTargetDependency */ = {isa = PBXTargetDependency; target = 29A4C5C67DD9444FA65FE545; targetProxy = 4C0197ECF1F04AB08AD2A58C; };
+                3D956A4CB0624DD09BA1424C /* PBXTargetDependency */ = {isa = PBXTargetDependency; target = 29A4C5C67DD9444FA65FE545; targetProxy = 4C0197ECF1F04AB08AD2A58C; };
 /* End PBXTargetDependency section */
 
 /* Begin PBXContainerItemProxy section */
-		4C0197ECF1F04AB08AD2A58C /* PBXContainerItemProxy */ = {isa = PBXContainerItemProxy; containerPortal = C8BCFCB395E6421D8DD07ED7; proxyType = 1; remoteGlobalIDString = 29A4C5C67DD9444FA65FE545; remoteInfo = HybridExtension; };
+                4C0197ECF1F04AB08AD2A58C /* PBXContainerItemProxy */ = {isa = PBXContainerItemProxy; containerPortal = C8BCFCB395E6421D8DD07ED7; proxyType = 1; remoteGlobalIDString = 29A4C5C67DD9444FA65FE545; remoteInfo = HybridExtension; };
 /* End PBXContainerItemProxy section */
 
 /* Begin XCBuildConfiguration section */
-		4920C6CDD6BC4B0BA47F2484 /* Debug */ = {isa = XCBuildConfiguration; buildSettings = {ALWAYS_SEARCH_USER_PATHS = NO; CLANG_CXX_LANGUAGE_STANDARD = "gnu++20"; CLANG_ENABLE_MODULES = YES; CLANG_ENABLE_OBJC_ARC = YES; COPY_PHASE_STRIP = NO; DEBUG_INFORMATION_FORMAT = dwarf; ENABLE_STRICT_OBJC_MSGSEND = YES; ENABLE_TESTABILITY = YES; ENABLE_USER_SCRIPT_SANDBOXING = NO; GCC_OPTIMIZATION_LEVEL = 0; IPHONEOS_DEPLOYMENT_TARGET = 14.0; SDKROOT = iphoneos; SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)"; SWIFT_OPTIMIZATION_LEVEL = "-Onone";}; name = Debug; };
-		2BFDB5997E194AED9A1B80F5 /* Release */ = {isa = XCBuildConfiguration; buildSettings = {ALWAYS_SEARCH_USER_PATHS = NO; CLANG_CXX_LANGUAGE_STANDARD = "gnu++20"; CLANG_ENABLE_MODULES = YES; CLANG_ENABLE_OBJC_ARC = YES; COPY_PHASE_STRIP = NO; DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym"; ENABLE_NS_ASSERTIONS = NO; ENABLE_STRICT_OBJC_MSGSEND = YES; ENABLE_USER_SCRIPT_SANDBOXING = NO; IPHONEOS_DEPLOYMENT_TARGET = 14.0; SDKROOT = iphoneos; SWIFT_COMPILATION_MODE = wholemodule; VALIDATE_PRODUCT = YES;}; name = Release; };
-		D9A45890620F488AB2978F95 /* Debug */ = {isa = XCBuildConfiguration; buildSettings = {CODE_SIGN_ENTITLEMENTS = supports/entitlements.plist; CODE_SIGN_STYLE = Manual; INFOPLIST_FILE = supports/Info.plist; IPHONEOS_DEPLOYMENT_TARGET = 14.0; PRODUCT_BUNDLE_IDENTIFIER = com.hybrid.fakelag; PRODUCT_NAME = "$(TARGET_NAME)"; SWIFT_EMIT_LOC_STRINGS = YES; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = "1,2"; CLANG_ENABLE_MODULES = YES; HEADER_SEARCH_PATHS = "$(SRCROOT)/headers $(SRCROOT)/Core $(SRCROOT)/HUD"; OTHER_LDFLAGS = "-ObjC";}; name = Debug; };
-		17379DC4C27040BF8CBA7FCD /* Release */ = {isa = XCBuildConfiguration; buildSettings = {CODE_SIGN_ENTITLEMENTS = supports/entitlements.plist; CODE_SIGN_STYLE = Manual; INFOPLIST_FILE = supports/Info.plist; IPHONEOS_DEPLOYMENT_TARGET = 14.0; PRODUCT_BUNDLE_IDENTIFIER = com.hybrid.fakelag; PRODUCT_NAME = "$(TARGET_NAME)"; SWIFT_EMIT_LOC_STRINGS = YES; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = "1,2"; CLANG_ENABLE_MODULES = YES; HEADER_SEARCH_PATHS = "$(SRCROOT)/headers $(SRCROOT)/Core $(SRCROOT)/HUD"; OTHER_LDFLAGS = "-ObjC";}; name = Release; };
-		5246482CB451454A8448C3CC /* Debug */ = {isa = XCBuildConfiguration; buildSettings = {CODE_SIGN_ENTITLEMENTS = HybridExtension/entitlements.plist; CODE_SIGN_STYLE = Manual; INFOPLIST_FILE = HybridExtension/Info.plist; IPHONEOS_DEPLOYMENT_TARGET = 14.0; PRODUCT_BUNDLE_IDENTIFIER = com.hybrid.fakelag.extension; PRODUCT_NAME = "$(TARGET_NAME)"; SKIP_INSTALL = YES; SWIFT_EMIT_LOC_STRINGS = YES; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = "1,2";}; name = Debug; };
-		A2C67269A2E240898C61639A /* Release */ = {isa = XCBuildConfiguration; buildSettings = {CODE_SIGN_ENTITLEMENTS = HybridExtension/entitlements.plist; CODE_SIGN_STYLE = Manual; INFOPLIST_FILE = HybridExtension/Info.plist; IPHONEOS_DEPLOYMENT_TARGET = 14.0; PRODUCT_BUNDLE_IDENTIFIER = com.hybrid.fakelag.extension; PRODUCT_NAME = "$(TARGET_NAME)"; SKIP_INSTALL = YES; SWIFT_EMIT_LOC_STRINGS = YES; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = "1,2";}; name = Release; };
+                4920C6CDD6BC4B0BA47F2484 /* Debug */ = {isa = XCBuildConfiguration; buildSettings = {ALWAYS_SEARCH_USER_PATHS = NO; CLANG_CXX_LANGUAGE_STANDARD = "gnu++20"; CLANG_ENABLE_MODULES = YES; CLANG_ENABLE_OBJC_ARC = YES; COPY_PHASE_STRIP = NO; DEBUG_INFORMATION_FORMAT = dwarf; ENABLE_STRICT_OBJC_MSGSEND = YES; ENABLE_TESTABILITY = YES; ENABLE_USER_SCRIPT_SANDBOXING = NO; GCC_OPTIMIZATION_LEVEL = 0; IPHONEOS_DEPLOYMENT_TARGET = 14.0; SDKROOT = iphoneos; SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)"; SWIFT_OPTIMIZATION_LEVEL = "-Onone";}; name = Debug; };
+                2BFDB5997E194AED9A1B80F5 /* Release */ = {isa = XCBuildConfiguration; buildSettings = {ALWAYS_SEARCH_USER_PATHS = NO; CLANG_CXX_LANGUAGE_STANDARD = "gnu++20"; CLANG_ENABLE_MODULES = YES; CLANG_ENABLE_OBJC_ARC = YES; COPY_PHASE_STRIP = NO; DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym"; ENABLE_NS_ASSERTIONS = NO; ENABLE_STRICT_OBJC_MSGSEND = YES; ENABLE_USER_SCRIPT_SANDBOXING = NO; IPHONEOS_DEPLOYMENT_TARGET = 14.0; SDKROOT = iphoneos; SWIFT_COMPILATION_MODE = wholemodule; VALIDATE_PRODUCT = YES;}; name = Release; };
+                D9A45890620F488AB2978F95 /* Debug */ = {isa = XCBuildConfiguration; buildSettings = {CODE_SIGN_ENTITLEMENTS = supports/entitlements.plist; CODE_SIGN_STYLE = Manual; INFOPLIST_FILE = supports/Info.plist; IPHONEOS_DEPLOYMENT_TARGET = 14.0; PRODUCT_BUNDLE_IDENTIFIER = com.hybrid.fakelag; PRODUCT_NAME = "$(TARGET_NAME)"; SWIFT_EMIT_LOC_STRINGS = YES; SWIFT_OBJC_BRIDGING_HEADER = Hybrid/BridgingHeader.h; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = "1,2"; CLANG_ENABLE_MODULES = YES; HEADER_SEARCH_PATHS = "$(SRCROOT)/headers $(SRCROOT)/Core $(SRCROOT)/HUD"; OTHER_LDFLAGS = "-ObjC";}; name = Debug; };
+                17379DC4C27040BF8CBA7FCD /* Release */ = {isa = XCBuildConfiguration; buildSettings = {CODE_SIGN_ENTITLEMENTS = supports/entitlements.plist; CODE_SIGN_STYLE = Manual; INFOPLIST_FILE = supports/Info.plist; IPHONEOS_DEPLOYMENT_TARGET = 14.0; PRODUCT_BUNDLE_IDENTIFIER = com.hybrid.fakelag; PRODUCT_NAME = "$(TARGET_NAME)"; SWIFT_EMIT_LOC_STRINGS = YES; SWIFT_OBJC_BRIDGING_HEADER = Hybrid/BridgingHeader.h; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = "1,2"; CLANG_ENABLE_MODULES = YES; HEADER_SEARCH_PATHS = "$(SRCROOT)/headers $(SRCROOT)/Core $(SRCROOT)/HUD"; OTHER_LDFLAGS = "-ObjC";}; name = Release; };
+                5246482CB451454A8448C3CC /* Debug */ = {isa = XCBuildConfiguration; buildSettings = {CODE_SIGN_ENTITLEMENTS = HybridExtension/entitlements.plist; CODE_SIGN_STYLE = Manual; INFOPLIST_FILE = HybridExtension/Info.plist; IPHONEOS_DEPLOYMENT_TARGET = 14.0; PRODUCT_BUNDLE_IDENTIFIER = com.hybrid.fakelag.extension; PRODUCT_NAME = "$(TARGET_NAME)"; SKIP_INSTALL = YES; SWIFT_EMIT_LOC_STRINGS = YES; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = "1,2";}; name = Debug; };
+                A2C67269A2E240898C61639A /* Release */ = {isa = XCBuildConfiguration; buildSettings = {CODE_SIGN_ENTITLEMENTS = HybridExtension/entitlements.plist; CODE_SIGN_STYLE = Manual; INFOPLIST_FILE = HybridExtension/Info.plist; IPHONEOS_DEPLOYMENT_TARGET = 14.0; PRODUCT_BUNDLE_IDENTIFIER = com.hybrid.fakelag.extension; PRODUCT_NAME = "$(TARGET_NAME)"; SKIP_INSTALL = YES; SWIFT_EMIT_LOC_STRINGS = YES; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = "1,2";}; name = Release; };
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		BDB220A5E3464A778CD05043 /* Build configuration list for PBXNativeTarget "HybridFakeLag" */ = {isa = XCConfigurationList; buildConfigurations = (D9A45890620F488AB2978F95, 17379DC4C27040BF8CBA7FCD); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
-		92BF7970BF3045FDBD5F2D80 /* Build configuration list for PBXNativeTarget "HybridExtension" */ = {isa = XCConfigurationList; buildConfigurations = (5246482CB451454A8448C3CC, A2C67269A2E240898C61639A); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
-		3F7DE141573744CF8ECAEB68 /* Build configuration list for PBXProject */ = {isa = XCConfigurationList; buildConfigurations = (4920C6CDD6BC4B0BA47F2484, 2BFDB5997E194AED9A1B80F5); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+                BDB220A5E3464A778CD05043 /* Build configuration list for PBXNativeTarget "HybridFakeLag" */ = {isa = XCConfigurationList; buildConfigurations = (D9A45890620F488AB2978F95, 17379DC4C27040BF8CBA7FCD); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+                92BF7970BF3045FDBD5F2D80 /* Build configuration list for PBXNativeTarget "HybridExtension" */ = {isa = XCConfigurationList; buildConfigurations = (5246482CB451454A8448C3CC, A2C67269A2E240898C61639A); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+                3F7DE141573744CF8ECAEB68 /* Build configuration list for PBXProject */ = {isa = XCConfigurationList; buildConfigurations = (4920C6CDD6BC4B0BA47F2484, 2BFDB5997E194AED9A1B80F5); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
 /* End XCConfigurationList section */
-	};
-	rootObject = C8BCFCB395E6421D8DD07ED7 /* Project object */;
+        };
+        rootObject = C8BCFCB395E6421D8DD07ED7 /* Project object */;
 }

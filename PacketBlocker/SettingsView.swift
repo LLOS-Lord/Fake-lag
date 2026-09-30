@@ -114,7 +114,12 @@ struct SettingsView: View {
         c.floatingLockPosition = cfg.floatingLockPosition
         c.floatingHaptic = cfg.floatingHaptic
         AppGroupStore.save(c)
-        AppGroupStore.logAction("FLOATING_CONFIG", details: "size=\(c.floatingSize) opacity=\(c.floatingOpacity)")
+        // Push the settings into shared memory — the HUD daemon reads ONLY shm,
+        // so without this the floating button never reflects user changes.
+        HybridHUDSyncFloatingConfig(c.floatingSize, c.floatingOpacity,
+                                    c.floatingEdgeSnap, c.floatingLockPosition,
+                                    c.floatingHaptic, 0, 0)
+        AppGroupStore.logAction("FLOATING_CONFIG", details: "size=\(c.floatingSize) opacity=\(c.floatingOpacity) snap=\(c.floatingEdgeSnap) lock=\(c.floatingLockPosition)")
     }
     
     func exportLogs() {

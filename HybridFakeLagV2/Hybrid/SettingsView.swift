@@ -21,9 +21,8 @@ struct SettingsView: View {
                 
                 Picker("Mode", selection: $vpn.mode) {
                     Text("Hold (Freeze/Ghost)").tag("hold")
-                    Text("Drop (100%)").tag("drop")
+                    Text("Drop (Loss)").tag("drop")
                     Text("Delay + Jitter").tag("delay")
-                    Text("Tamper (test)").tag("tamper")
                 }.onChange(of: vpn.mode) { _ in vpn.saveConfig() }
                 
                 VStack(alignment: .leading) {
@@ -71,6 +70,13 @@ struct SettingsView: View {
                 Toggle("Lock Position", isOn: Binding(get: { cfg.floatingLockPosition }, set: { cfg.floatingLockPosition = $0; saveFloating() }))
                 Toggle("Haptics", isOn: Binding(get: { cfg.floatingHaptic }, set: { cfg.floatingHaptic = $0; saveFloating() }))
             }
+
+            Section(header: Text("Hold Safety")) {
+                VStack(alignment: .leading) {
+                    Text("Auto Flush Hold: \(cfg.autoFlushSeconds == 0 ? "Tắt (giữ tới khi nhả tay)" : "\(cfg.autoFlushSeconds)s")")
+                    Slider(value: Binding(get: { Double(cfg.autoFlushSeconds) }, set: { cfg.autoFlushSeconds = Int($0); saveAutoFlush() }), in: 0...30, step: 1)
+                }
+            }
             
             Section(header: Text("Logs & Debug")) {
                 Button("Clear Logs") { AppGroupStore.clearLogs() }
@@ -87,15 +93,15 @@ struct SettingsView: View {
         var c = AppGroupStore.load()
         switch p {
         case .normal:
-            c.mode = "hold"; c.captureRatio = 0; c.latencyMs = 0; c.jitterMs = 0; c.preset = "normal"
+            c.mode = "hold"; c.captureRatio = 0; c.downloadRatio = 0; c.uploadRatio = 0; c.latencyMs = 0; c.jitterMs = 0; c.autoFlushSeconds = 12; c.preset = "normal"
         case .ghost:
-            c.mode = "hold"; c.captureRatio = 98; c.direction = "both"; c.protoFilter = "both"; c.preset = "ghost"
+            c.mode = "hold"; c.captureRatio = 98; c.downloadRatio = 100; c.uploadRatio = 98; c.direction = "both"; c.protoFilter = "both"; c.autoFlushSeconds = 0; c.preset = "ghost"
         case .lagSpike:
-            c.mode = "delay"; c.latencyMs = 450; c.jitterMs = 120; c.captureRatio = 85; c.preset = "lagspike"
+            c.mode = "delay"; c.latencyMs = 450; c.jitterMs = 120; c.captureRatio = 85; c.downloadRatio = 100; c.uploadRatio = 100; c.preset = "lagspike"
         case .degraded3G:
-            c.mode = "delay"; c.latencyMs = 280; c.bandwidthKbps = 128; c.captureRatio = 100; c.preset = "3g"
+            c.mode = "delay"; c.latencyMs = 280; c.jitterMs = 60; c.bandwidthKbps = 128; c.captureRatio = 100; c.downloadRatio = 100; c.uploadRatio = 100; c.preset = "3g"
         case .tcpRst:
-            c.mode = "drop"; c.captureRatio = 100; c.protoFilter = "tcp"; c.preset = "tcp_rst"
+            c.mode = "drop"; c.captureRatio = 100; c.downloadRatio = 100; c.uploadRatio = 100; c.protoFilter = "tcp"; c.preset = "tcp_rst"
         }
         AppGroupStore.save(c)
         vpn.mode = c.mode
@@ -103,7 +109,7 @@ struct SettingsView: View {
         vpn.jitterMs = c.jitterMs
         vpn.bandwidthKbps = c.bandwidthKbps
         vpn.captureRatio = c.captureRatio
-        AppGroupStore.logAction("PRESET_APPLY", details: c.preset)
+        AppGroupStore.logAction("PRESET_APPLY", details: "preset=\(c.preset) mode=\(c.mode) ratio=\(c.captureRatio)% dl=\(c.downloadRatio)% ul=\(c.uploadRatio)% latency=\(c.latencyMs)ms jitter=\(c.jitterMs)ms autoFlush=\(c.autoFlushSeconds)s")
     }
     
     func saveFloating() {
@@ -114,9 +120,21 @@ struct SettingsView: View {
         c.floatingLockPosition = cfg.floatingLockPosition
         c.floatingHaptic = cfg.floatingHaptic
         AppGroupStore.save(c)
-        AppGroupStore.logAction("FLOATING_CONFIG", details: "size=\(c.floatingSize) opacity=\(c.floatingOpacity)")
+        // Push straight into the HUD daemon's shared memory — the daemon does
+        // not read the JSON config, it only sees the shm fields.
+        HybridHUDSyncFloatingConfig(c.floatingSize, c.floatingOpacity,
+                                    c.floatingEdgeSnap, c.floatingLockPosition,
+                                    c.floatingHaptic, c.floatingPosX, c.floatingPosY)
+        AppGroupStore.logAction("FLOATING_CONFIG", details: "size=\(c.floatingSize) opacity=\(c.floatingOpacity) snap=\(c.floatingEdgeSnap) lock=\(c.floatingLockPosition) haptic=\(c.floatingHaptic) → shm synced")
     }
     
+    func saveAutoFlush() {
+        var c = AppGroupStore.load()
+        c.autoFlushSeconds = cfg.autoFlushSeconds
+        AppGroupStore.save(c)
+        AppGroupStore.logAction("AUTO_FLUSH_CONFIG", details: "autoFlushSeconds=\(c.autoFlushSeconds)")
+    }
+
     func exportLogs() {
         let logs = AppGroupStore.readLogs()
         let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
