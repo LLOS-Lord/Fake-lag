@@ -77,10 +77,14 @@ class FloatingHUDManager: ObservableObject {
         let arg1 = args.first ?? ""
         let arg2 = args.count > 1 ? args[1] : ""
         // Call C function HybridSpawnRoot
-        let result = execPath.withCString { cPath in
+        let result: Int32 = execPath.withCString { cPath in
             arg1.withCString { cArg1 in
-                arg2.withCString { cArg2 in
-                    HybridSpawnRoot(cPath, cArg1, cArg2.isEmpty ? nil : cArg2)
+                if arg2.isEmpty {
+                    return Int32(HybridSpawnRoot(cPath, cArg1, nil))
+                } else {
+                    return arg2.withCString { cArg2 in
+                        Int32(HybridSpawnRoot(cPath, cArg1, cArg2))
+                    }
                 }
             }
         }
