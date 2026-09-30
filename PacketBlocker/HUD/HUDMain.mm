@@ -27,8 +27,8 @@
 #include <mach-o/dyld.h>
 #include <time.h>
 #include <notify.h>
-#include "../headers/AetherNetShared.h"
-#include "../headers/PrivateSystemSPI.h"
+#import "AetherNetShared.h"
+#import "PrivateSystemSPI.h"
 #import "HUDRootApplication.mm"
 #import "TSEventFetcher.h"
 #import "UITouchKIFAdditions.h"
@@ -58,7 +58,7 @@
 - (NSInteger)pathIdentity;
 @end
 
-#import "../Core/AetherLog.h"
+#import "AetherLog.h"
 
 #pragma mark - Hook payload installer (roothide TweakInject)
 

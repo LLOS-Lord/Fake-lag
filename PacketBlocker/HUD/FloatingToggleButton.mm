@@ -10,12 +10,12 @@
 //
 
 #import "FloatingToggleButton.h"
-#import "../Core/AetherLog.h"
+#import "AetherLog.h"
 #import <QuartzCore/QuartzCore.h>
 #include <math.h>
 #include <notify.h>
-#include "../headers/AetherNetShared.h"
-#import "../Core/ProcessManager.h"
+#import "AetherNetShared.h"
+
 
 @implementation AetherFloatingToggleButton {
     UIVisualEffectView *_blurView;
@@ -191,7 +191,8 @@
 
     bool nextState = !aether_atomic_load(&state->interceptionActive);
     AetherLog(@"floating button TAP -> interception %s", nextState ? "ON" : "OFF");
-    [[AetherProcessManager sharedManager] setInterceptionActive:nextState];
+    aether_atomic_store(&state->interceptionActive, nextState);
+    notify_post("com.aethernet.interceptor.config_changed");
 
     if (aether_atomic_load(&state->floatingHapticEnabled)) {
         UIImpactFeedbackGenerator *feedback = [[UIImpactFeedbackGenerator alloc] initWithStyle:

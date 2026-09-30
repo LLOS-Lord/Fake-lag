@@ -5,7 +5,7 @@
 //
 
 #import "HUDMainWindow.h"
-#import "../headers/PrivateSystemSPI.h"
+#import "PrivateSystemSPI.h"
 
 @implementation AetherHUDMainWindow
 

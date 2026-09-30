@@ -4,7 +4,7 @@
 
 #import "TSEventFetcher.h"
 #import "UITouchKIFAdditions.h"
-#import "../headers/AetherTouchPrivate.h"
+#import "AetherTouchPrivate.h"
 
 static NSArray *_safeTouchAry = nil;
 static NSMutableArray *_touchAry = nil;

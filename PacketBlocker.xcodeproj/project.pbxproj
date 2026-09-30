@@ -25,7 +25,6 @@
 		4329764E973A40F791E993F5 /* HUDMain.mm in Sources */ = {isa = PBXBuildFile; fileRef = DE506BE6AFD44D96A44F1EF8 /* HUDMain.mm */; };
 		B02901EEEA7F42FA9047CA45 /* HUDMainWindow.h in Sources */ = {isa = PBXBuildFile; fileRef = 83F5E452FBB046F48D5A1786 /* HUDMainWindow.h */; };
 		A52CAF96A9A5421088418C9A /* HUDMainWindow.mm in Sources */ = {isa = PBXBuildFile; fileRef = 42143ED6FFF3400DB20223BA /* HUDMainWindow.mm */; };
-		E8320B77AC6E4461A70E519A /* HUDRootApplication.mm in Sources */ = {isa = PBXBuildFile; fileRef = 4B1CFF39870941C2B6AA82F5 /* HUDRootApplication.mm */; };
 		C683B3F7F41042DF8323BBDC /* IOHIDEventKIF.h in Sources */ = {isa = PBXBuildFile; fileRef = 9AD03AA2160940238667EBF5 /* IOHIDEventKIF.h */; };
 		BC40480443324DC9A29655FA /* IOHIDEventKIF.m in Sources */ = {isa = PBXBuildFile; fileRef = 2F5934FF015A44F0B6087FEE /* IOHIDEventKIF.m */; };
 		582F9046E6CD4604BBD80192 /* TSEventFetcher.h in Sources */ = {isa = PBXBuildFile; fileRef = 189693B50A3F4E3AA3A9A934 /* TSEventFetcher.h */; };

@@ -7,7 +7,7 @@
 #define IOHIDEventKIF_h
 
 #import <UIKit/UIKit.h>
-#include "../headers/PrivateSystemSPI.h" // IOHIDEventRef typedef
+#import "PrivateSystemSPI.h" // IOHIDEventRef typedef
 
 #ifdef __cplusplus
 extern "C" {

@@ -6,7 +6,7 @@
 
 #import "UITouchKIFAdditions.h"
 #import "IOHIDEventKIF.h"
-#import "../headers/AetherTouchPrivate.h"
+#import "AetherTouchPrivate.h"
 #import <objc/runtime.h>
 
 @implementation UITouch (KIFAdditions)

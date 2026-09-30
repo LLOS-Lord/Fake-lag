@@ -6,8 +6,8 @@
 #import <UIKit/UIKit.h>
 #import <objc/runtime.h>
 #include <notify.h>
-#include "../headers/AetherNetShared.h"
-#include "../headers/PrivateSystemSPI.h"
+#import "AetherNetShared.h"
+#import "PrivateSystemSPI.h"
 #import "HUDMainWindow.h"
 #import "FloatingToggleButton.h"
 

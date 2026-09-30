@@ -9,7 +9,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <string.h>
-#include "../headers/AetherNetShared.h"
+#import "AetherNetShared.h"
 
 static AetherSharedState *gSharedState = NULL;
 
