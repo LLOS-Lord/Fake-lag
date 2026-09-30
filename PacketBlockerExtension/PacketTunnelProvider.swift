@@ -351,7 +351,7 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         }
         // Mirror into Caches so LogsView works even without the App Group.
         let fallback = "/var/mobile/Library/Caches/hybrid_actions.log"
-        if let h = try? FileHandle(forWritingTo: fallback) {
+        if let h = try? FileHandle(forWritingTo: URL(fileURLWithPath: fallback)) {
             h.seekToEndOfFile(); h.write(line.data(using: .utf8)!); try? h.close()
         } else {
             try? line.write(toFile: fallback, atomically: true, encoding: .utf8)
@@ -883,7 +883,7 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
     private func writePacketsBatch(_ pkts: [[UInt8]]) {
         guard !pkts.isEmpty, isRunning else { return }
         let data = pkts.map { Data($0) }
-        let protos = pkts.map { NSNumber(value: AF_INET) }
+        let protos = pkts.map { _ in NSNumber(value: AF_INET) }
         writeQueue.async { [weak self] in
             guard let self = self, self.isRunning else { return }
             self.packetFlow.writePackets(data, withProtocols: protos)
