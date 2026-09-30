@@ -331,7 +331,6 @@ int HybridProcEnumerate(HybridProcInfo *out, int max) {
 
 int HybridProcSocketDump(int pid, HybridSocketEntryC *out, int max) {
     if (!out || max <= 0 || pid <= 0) return 0;
-
     int bufSize = (int)proc_pidinfo((pid_t)pid, PROC_PIDLISTFDS, 0, NULL, 0);
     if (bufSize <= 0) return 0;
 
@@ -380,4 +379,72 @@ int HybridProcSocketDump(int pid, HybridSocketEntryC *out, int max) {
 
     free(fds);
     return written;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ROOT socket dump — makes per-PID targeting REAL on device.
+//
+// proc_pidfdinfo on ANOTHER process requires uid 0. The app runs as mobile
+// (uid 501) so the in-app dump always came back EMPTY ("socket dump EMPTY,
+// sockets=0" in device logs) and per-PID targeting silently degraded to
+// match-all. The persona root spawn IS proven to work on device (the -hud
+// daemon runs), so we reuse the SAME binary re-exec trick:
+//   app --posix_spawn(root, self, "-sockdump", "<pid> <outfile>")--> helper
+//   helper: HybridProcSocketDump(pid) → JSON file (chmod 0666) → exit
+//   app: polls for the file, parses it, feeds cfg.targetSockets.
+// No UIKit is involved in this mode, so it cannot die like the HUD daemon.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ROOT side: dump one pid's live TCP/UDP remote sockets into a JSON file.
+// Returns the number of entries written (0 is a VALID result — an empty "[]"
+// file is still produced so the app can tell "dump ran, zero sockets" apart
+// from "dump never ran").
+int HybridWriteSocketDumpFile(int pid, const char *outfile) {
+    if (pid <= 0 || !outfile || !outfile[0]) return -1;
+
+    HybridSocketEntryC buf[128];
+    int n = HybridProcSocketDump((pid_t)pid, buf, 128);
+
+    FILE *f = fopen(outfile, "w");
+    if (!f) return -2;
+    fprintf(f, "[");
+    for (int i = 0; i < n; i++) {
+        fprintf(f, "%s{\"proto\":\"%s\",\"localPort\":%u,\"remotePort\":%u,\"remoteIP\":\"%s\"}",
+                (i > 0) ? "," : "",
+                buf[i].proto,
+                (unsigned)buf[i].localPort,
+                (unsigned)buf[i].remotePort,
+                buf[i].remoteIP);
+    }
+    fprintf(f, "]");
+    fclose(f);
+    chmod(outfile, 0666); // app (uid 501) must be able to read it back
+    return n;
+}
+
+// APP side: spawn the root helper and wait for the result file.
+// Returns YES when the helper produced the file (parse it next),
+// NO when spawn failed or the helper did not answer within the timeout —
+// caller falls back to the (possibly empty) in-process dump.
+BOOL HybridSockDumpViaRoot(int pid, const char *outfile) {
+    if (pid <= 0 || !outfile || !outfile[0]) return NO;
+
+    unlink(outfile); // stale result from a previous dump must not satisfy us
+
+    char execPath[4096] = {0};
+    uint32_t len = sizeof(execPath);
+    if (_NSGetExecutablePath(execPath, &len) != 0) return NO;
+
+    char arg2[2048];
+    snprintf(arg2, sizeof(arg2), "%d %s", pid, outfile);
+    int rc = HybridSpawnRoot(execPath, "-sockdump", arg2);
+    if (rc != 0) return NO;
+
+    // A cold spawn + proc dump typically completes in 50-300ms.
+    for (int i = 0; i < 40; i++) { // 40 × 50ms = 2.0s budget
+        usleep(50 * 1000);
+        struct stat st;
+        if (stat(outfile, &st) == 0 && st.st_size >= 2) return YES;
+    }
+    return NO;
 }

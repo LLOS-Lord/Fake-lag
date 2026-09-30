@@ -9,6 +9,8 @@
 #import "../headers/PrivateSystemSPI.h"
 #include <sys/sysctl.h>
 #include <sys/stat.h>
+#include <unistd.h>
+#include <stdio.h>
 #include <limits.h>
 #include <errno.h>
 #include <time.h>
@@ -670,3 +672,114 @@ void HybridHUDSetInterceptionActive(bool active) {
     // so the VPN relay engine follows the same switch instantly.
     [[AetherProcessManager sharedManager] setInterceptionActive:active ? YES : NO];
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ROOT socket dump (per-PID targeting) — synced with PacketBlocker/Core/
+// PersonaHelper.m. proc_pidfdinfo on another process needs uid 0; the app is
+// uid 501, so the dump runs in a root re-exec of this binary ("-sockdump").
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Dumps the live TCP/UDP remote sockets of one PID via proc_pidfdinfo.
+int HybridProcSocketDump(int pid, HybridSocketEntryC *out, int max) {
+    if (!out || max <= 0 || pid <= 0) return 0;
+
+    int bufSize = (int)proc_pidinfo((pid_t)pid, PROC_PIDLISTFDS, 0, NULL, 0);
+    if (bufSize <= 0) return 0;
+
+    struct proc_fdinfo *fds = (struct proc_fdinfo *)malloc(bufSize);
+    if (!fds) return 0;
+    int actual = (int)proc_pidinfo((pid_t)pid, PROC_PIDLISTFDS, 0, fds, bufSize);
+    int fdCount = actual / (int)sizeof(struct proc_fdinfo);
+
+    int written = 0;
+    for (int i = 0; i < fdCount && written < max; i++) {
+        if (fds[i].proc_fdtype != PROX_FDTYPE_SOCKET) continue;
+
+        struct aether_socket_fdinfo sinfo;
+        int rc = (int)proc_pidfdinfo((pid_t)pid, fds[i].proc_fd, PROC_PIDFDSOCKETINFO, &sinfo, sizeof(sinfo));
+        if (rc != (int)sizeof(sinfo)) continue;
+
+        int family = sinfo.psi.soi_family;
+        if (family != AF_INET && family != AF_INET6) continue;
+
+        int sockType = sinfo.psi.soi_type;
+        if (sockType != SOCK_STREAM && sockType != SOCK_DGRAM) continue;
+
+        struct in_sockinfo *ini = (sockType == SOCK_STREAM)
+            ? &sinfo.psi.soi_proto.pri_tcp.tcpsi_ini
+            : &sinfo.psi.soi_proto.pri_in;
+
+        HybridSocketEntryC *e = &out[written];
+        memset(e, 0, sizeof(*e));
+        e->localPort  = ntohs((uint16_t)ini->insi_lport);
+        e->remotePort = ntohs((uint16_t)ini->insi_fport);
+        snprintf(e->proto, sizeof(e->proto), "%s", (sockType == SOCK_STREAM) ? "tcp" : "udp");
+
+        char ip[64] = {0};
+        if (family == AF_INET) {
+            inet_ntop(AF_INET, &ini->insi_faddr.ina_46, ip, sizeof(ip));
+        } else {
+            inet_ntop(AF_INET6, &ini->insi_faddr.ina_6, ip, sizeof(ip));
+        }
+        snprintf(e->remoteIP, sizeof(e->remoteIP), "%s", ip);
+
+        if (e->remotePort == 0 || strncmp(e->remoteIP, "127.0.0.1", 9) == 0 || e->remoteIP[0] == '\0') continue;
+
+        written++;
+    }
+
+    free(fds);
+    return written;
+}
+
+// ROOT side: dump one pid's sockets into a JSON file (chmod 0666).
+// A valid EMPTY dump still writes "[]" so the app can distinguish outcomes.
+int HybridWriteSocketDumpFile(int pid, const char *outfile) {
+    if (pid <= 0 || !outfile || !outfile[0]) return -1;
+
+    HybridSocketEntryC buf[128];
+    int n = HybridProcSocketDump((pid_t)pid, buf, 128);
+
+    FILE *f = fopen(outfile, "w");
+    if (!f) return -2;
+    fprintf(f, "[");
+    for (int i = 0; i < n; i++) {
+        fprintf(f, "%s{\"proto\":\"%s\",\"localPort\":%u,\"remotePort\":%u,\"remoteIP\":\"%s\"}",
+                (i > 0) ? "," : "",
+                buf[i].proto,
+                (unsigned)buf[i].localPort,
+                (unsigned)buf[i].remotePort,
+                buf[i].remoteIP);
+    }
+    fprintf(f, "]");
+    fclose(f);
+    chmod(outfile, 0666);
+    return n;
+}
+
+// APP side: spawn the root helper, wait (≤2s) for the result file.
+BOOL HybridSockDumpViaRoot(int pid, const char *outfile) {
+    if (pid <= 0 || !outfile || !outfile[0]) return NO;
+
+    unlink(outfile);
+
+    uint32_t len = 0;
+    _NSGetExecutablePath(NULL, &len);
+    if (len == 0) return NO;
+    char *execPath = (char *)calloc(1, len + 1);
+    if (_NSGetExecutablePath(execPath, &len) != 0) { free(execPath); return NO; }
+
+    char arg2[2048];
+    snprintf(arg2, sizeof(arg2), "%d %s", pid, outfile);
+    int rc = HybridSpawnRoot(execPath, "-sockdump", arg2);
+    free(execPath);
+    if (rc != 0) return NO;
+
+    for (int i = 0; i < 40; i++) { // 40 × 50ms = 2.0s budget
+        usleep(50 * 1000);
+        struct stat st;
+        if (stat(outfile, &st) == 0 && st.st_size >= 2) return YES;
+    }
+    return NO;
+}
+

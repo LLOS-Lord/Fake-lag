@@ -66,6 +66,19 @@ int HybridProcEnumerate(HybridProcInfo * _Nullable out, int max);
 // Returns count written (<= max).
 int HybridProcSocketDump(int pid, HybridSocketEntryC * _Nullable out, int max);
 
+// ── ROOT socket dump (per-PID targeting on device) ──────────────────────────
+// proc_pidfdinfo on another process needs uid 0; the app is uid 501. The app
+// re-execs ITSELF as root ("self -sockdump <pid> <outfile>"); the helper
+// writes a JSON array (chmod 0666) and exits. No UIKit → cannot die like HUD.
+
+// ROOT side (called from main.mm "-sockdump"). Writes the JSON result file.
+// Returns entry count, or <0 on failure. A valid EMPTY dump still writes "[]".
+int HybridWriteSocketDumpFile(int pid, const char *outfile);
+
+// APP side: spawn the root helper, wait (≤2s) for the result file.
+// YES = file produced (parse it), NO = fall back to the in-process dump.
+BOOL HybridSockDumpViaRoot(int pid, const char *outfile);
+
 // 0 when the pid is gone, 1 when alive, 2 when alive-but-root (EPERM).
 int HybridProcIsAlive(int pid);
 

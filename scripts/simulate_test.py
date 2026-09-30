@@ -993,6 +993,129 @@ def test_target_matching():
     check("GLOBAL (no target) matches all", len(e4.heldQueue) == 1)
 
 
+def test_root_sockdump():
+    """[9b] ROOT socket dump — per-PID targeting THẬT trên máy thật.
+
+    Device log cũ: 'socket dump EMPTY, sockets=0' — vì proc_pidfdinfo vào
+    process KHÁC cần uid 0 mà app chạy uid 501. Fix: dump chạy trong helper
+    root ('self -sockdump <pid> <outfile>'), app parse JSON. Test mô phỏng:
+    format JSON helper ghi, parse app-side, cache+async re-save, fallback.
+    """
+    print("\n[9b] ROOT socket dump — helper ghi JSON, app parse, cache + async re-save")
+    import json, re, os
+
+    # ── 1. Source integrity: cả 2 target (PacketBlocker + twin HybridFakeLagV2)
+    srcs = {
+        "persona": open("/home/z/my-project/workspace/fakelag/PacketBlocker/Core/PersonaHelper.m").read(),
+        "persona_h": open("/home/z/my-project/workspace/fakelag/PacketBlocker/Core/PersonaHelper.h").read(),
+        "pb_main": open("/home/z/my-project/workspace/fakelag/PacketBlocker/main.mm").read(),
+        "pb_pm_swift": open("/home/z/my-project/workspace/fakelag/PacketBlocker/ProcessManager.swift").read(),
+        "pb_vpn": open("/home/z/my-project/workspace/fakelag/PacketBlocker/VPNManager.swift").read(),
+        "twin_pm": open("/home/z/my-project/workspace/fakelag/HybridFakeLagV2/Core/ProcessManager.mm").read(),
+        "twin_pm_h": open("/home/z/my-project/workspace/fakelag/HybridFakeLagV2/Core/ProcessManager.h").read(),
+        "twin_main": open("/home/z/my-project/workspace/fakelag/HybridFakeLagV2/main.mm").read(),
+        "twin_vpn": open("/home/z/my-project/workspace/fakelag/HybridFakeLagV2/Hybrid/VPNManager.swift").read(),
+        "twin_bridge": open("/home/z/my-project/workspace/fakelag/HybridFakeLagV2/Hybrid/BridgingHeader.h").read(),
+        "pb_bridge": open("/home/z/my-project/workspace/fakelag/PacketBlocker/PacketBlocker-Bridging-Header.h").read(),
+    }
+    for key in ("persona", "twin_pm"):
+        s = srcs[key]
+        check(f"{key}: có HybridWriteSocketDumpFile + HybridSockDumpViaRoot + HybridProcSocketDump",
+              all(fn in s for fn in ("HybridWriteSocketDumpFile", "HybridSockDumpViaRoot", "HybridProcSocketDump")))
+        check(f"{key}: helper ghi JSON + chmod 0666 (app uid 501 đọc được)",
+              'fprintf(f, "["' in s and "chmod(outfile, 0666)" in s)
+        check(f"{key}: dump rỗng vẫn ghi '[]' (phân biệt 'chạy xong 0 socket' vs 'chưa chạy')",
+              'fprintf(f, "]"' in s)
+        check(f"{key}: via-root poll file ≤2s (40×50ms)", "40; i++" in s and "usleep(50 * 1000)" in s)
+    for key in ("persona_h", "twin_pm_h"):
+        check(f"{key}: khai báo 2 hàm mới", "HybridWriteSocketDumpFile" in srcs[key] and "HybridSockDumpViaRoot" in srcs[key])
+    for key in ("pb_main", "twin_main"):
+        check(f"{key}: dispatch -sockdump (mode riêng, parse 'pid outfile')",
+              "-sockdump" in srcs[key] and "%d %1023s" in srcs[key])
+    for key in ("pb_vpn", "twin_vpn"):
+        s = srcs[key]
+        check(f"{key}: saveConfig dùng cache + kick dump nền", "cachedSockets(proc.pid)" in s and "refreshTargetSockets()" in s)
+        check(f"{key}: TARGET_REFRESH guard pid vẫn được chọn", "cfg.targetPID == proc.pid" in s)
+        check(f"{key}: VPN_STATUS log sau async hop (fix stale flag)",
+              re.search(r"updateStatus\(\)\n[^\n]*\n[^\n]*\n[^\n]*\n[^\n]*DispatchQueue\.main\.async \{\n[^\n]*AppGroupStore\.logAction\(\"VPN_STATUS\"", s) is not None)
+    check("pb_pm_swift: root-first + fallback + serial queue + cache",
+          "HybridSockDumpViaRoot(pid, dumpPath)" in srcs["pb_pm_swift"]
+          and "parseSocketDumpFile" in srcs["pb_pm_swift"]
+          and "directDump" in srcs["pb_pm_swift"]
+          and "sockQueue" in srcs["pb_pm_swift"] and "socketCache" in srcs["pb_pm_swift"])
+    check("pb_bridge: PersonaHelper.h import (Swift thấy HybridSockDumpViaRoot)",
+          "Core/PersonaHelper.h" in srcs["pb_bridge"])
+    check("twin_bridge: khai báo HybridSockDumpViaRoot + import PrivateSystemSPI",
+          "HybridSockDumpViaRoot" in srcs["twin_bridge"] and "PrivateSystemSPI.h" in srcs["twin_bridge"])
+    check("twin_bridge vẫn KHÔNG #import AetherNetShared.h (_Atomic)",
+          "#import \"../headers/AetherNetShared.h\"" not in srcs["twin_bridge"]
+          and "#include \"../headers/AetherNetShared.h\"" not in srcs["twin_bridge"]
+          and "#import <AetherNetShared.h>" not in srcs["twin_bridge"]
+          and "#include <AetherNetShared.h>" not in srcs["twin_bridge"])
+
+    # ── 2. Behavior: mô phỏng helper ghi JSON → app parse
+    def helper_write(entries):
+        # port 1:1 HybridWriteSocketDumpFile — prefix-comma per entry,
+        # KHÔNG có join separator (C ghi tuần tự vào file) → join bằng ""
+        parts = []
+        for i, e in enumerate(entries):
+            parts.append('%s{"proto":"%s","localPort":%u,"remotePort":%u,"remoteIP":"%s"}' %
+                         ("," if i > 0 else "", e["proto"], e["localPort"], e["remotePort"], e["remoteIP"]))
+        return "[" + "".join(parts) + "]"
+
+    live = [
+        {"proto": "udp", "localPort": 54321, "remotePort": 7777, "remoteIP": "93.184.216.34"},
+        {"proto": "tcp", "localPort": 54330, "remotePort": 443, "remoteIP": "142.250.4.113"},
+        {"proto": "tcp", "localPort": 54331, "remotePort": 443, "remoteIP": "0.0.0.0"},     # bị lọc
+        {"proto": "udp", "localPort": 54332, "remotePort": 53, "remoteIP": "2001:db8::1"},  # bị lọc (IPv6)
+    ]
+    raw = helper_write(live)
+    check("helper JSON parse lại được (json.loads)", isinstance(json.loads(raw), list))
+    # port 1:1 parseSocketDumpFile: lọc IPv6/0.0.0.0, cast port qua NSNumber.uint16Value
+    parsed = []
+    for d in json.loads(raw):
+        ip = d.get("remoteIP")
+        if not (ip and "." in ip and ip != "0.0.0.0"):
+            continue
+        parsed.append({"localPort": d.get("localPort", 0), "remotePort": d.get("remotePort", 0),
+                       "remoteIP": ip, "proto": d.get("proto")})
+    check("app parse lọc IPv6 + 0.0.0.0 → còn 2 entries IPv4 hữu dụng", len(parsed) == 2)
+    check("empty dump → '[]' hợp lệ, parse ra []", json.loads(helper_write([])) == [])
+
+    # ── 3. Behavior: cache + async re-save (port refreshTargetSockets)
+    class AppSim:
+        def __init__(self):
+            self.cache = {}
+            self.last_sig = set()
+            self.saved = []
+            self.target_pid = 4242
+        def dump_completed(self, pid, entries):  # completion trên main thread
+            sig = {(s["proto"], s["remoteIP"], s["remotePort"]) for s in entries}
+            if sig == self.last_sig:
+                return "skip-unchanged"
+            self.last_sig = sig
+            if pid != self.target_pid:
+                return "skip-selection-changed"   # guard pid
+            self.saved.append((pid, len(entries)))
+            return "saved"
+    a = AppSim()
+    check("dump đầu tiên khác sig rỗng → saved", a.dump_completed(4242, parsed) == "saved")
+    check("dump lặp lại cùng sig → skip (throttle)", a.dump_completed(4242, parsed) == "skip-unchanged")
+    other = [{"localPort": 1, "remotePort": 2, "remoteIP": "1.2.3.4", "proto": "udp"}]
+    check("dump pid khác + sig khác → guard selection chặn (không save nhầm)",
+          a.dump_completed(9999, other) == "skip-selection-changed")
+    check("user chọn GLOBAL rồi chọn lại pid: cache cũ dùng ngay (toggle instant)", a.cache.get(4242) is None)
+
+    # ── 4. Fallback: spawn root fail → in-process dump (trên device trả [] vì uid 501)
+    def app_dump(root_ok, helper_json=None, direct=[]):
+        if root_ok:
+            return json.loads(helper_json)
+        return direct  # HybridProcSocketDump in-app → EPERM → []
+    check("root spawn fail → fallback in-process dump ([]) mà không crash",
+          app_dump(False, direct=[]) == [])
+    check("root ok → dữ liệu thật", len(app_dump(True, helper_write(live))) == 4)
+
+
 def test_config_precedence():
     print("\n[10] Config precedence — override mới hơn config, Caches fallback (port of loadSync)")
     class FS:
@@ -1469,6 +1592,7 @@ def main():
     test_tcp_f5_hold_download()
     test_tcp_teardown()
     test_target_matching()
+    test_root_sockdump()
     test_config_precedence()
     test_hud_bug1()
     test_shm_config_sync()

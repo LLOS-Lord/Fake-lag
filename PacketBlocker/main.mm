@@ -4,6 +4,7 @@
 
 #import <Foundation/Foundation.h>
 #import <UIKit/UIKit.h>
+#import "Core/PersonaHelper.h"
 #import <dlfcn.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -39,6 +40,23 @@ int main(int argc, char *argv[]) {
 
         if (argc > 1) {
             NSString *arg1 = [NSString stringWithUTF8String:argv[1]];
+
+            // -sockdump "<pid> <outfile>" — ROOT helper mode (per-PID targeting).
+            // proc_pidfdinfo on another process needs uid 0, so the app re-execs
+            // itself via the persona root spawn. No UIKit involved → fast + safe.
+            if ([arg1 isEqualToString:@"-sockdump"] && argc > 2) {
+                int dumpPid = 0;
+                char outPath[1024] = {0};
+                if (sscanf(argv[2], "%d %1023s", &dumpPid, outPath) == 2 && dumpPid > 0 && outPath[0]) {
+                    int n = HybridWriteSocketDumpFile(dumpPid, outPath);
+                    LogCrash([NSString stringWithFormat:@"-sockdump pid=%d → %d entries → %s (uid=%d)",
+                              dumpPid, n, outPath, getuid()]);
+                    return (n >= 0) ? 0 : 1;
+                }
+                LogCrash(@"-sockdump malformed args");
+                return 2;
+            }
+
             if ([arg1 isEqualToString:@"-hud"] || [arg1 isEqualToString:@"-exit"] || [arg1 isEqualToString:@"-check"]) {
                 gAetherIsDaemon = YES;
                 LogCrash([NSString stringWithFormat:@"Dispatching to HUDMain with arg %@", arg1]);

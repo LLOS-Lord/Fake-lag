@@ -15,6 +15,7 @@
 #import <Foundation/Foundation.h>
 #import <stdbool.h>
 #import <notify.h>
+#import "PrivateSystemSPI.h"
 
 // NOTE: deliberately NO NS_ASSUME_NONNULL here — the char* parameters must
 // import into Swift as optional pointers so callers can pass `nil`
@@ -52,5 +53,15 @@ void HybridHUDSyncFloatingConfig(float size, float opacity, bool edgeSnap,
 // the selected PID and writes the extension override JSON so the VPN relay
 // engine follows instantly.
 void HybridHUDSetInterceptionActive(bool active);
+
+// ── ROOT socket dump (per-PID targeting) ────────────────────────────────────
+// proc_pidfdinfo on ANOTHER process requires uid 0 — the app is uid 501, so
+// the dump runs in a root re-exec of this binary. Spawns
+// "self -sockdump <pid> <outfile>" (persona root spawn, same proven
+// mechanism as the HUD daemon) and waits ≤2s for the JSON result file:
+//   [{"proto":"tcp","localPort":1,"remotePort":2,"remoteIP":"1.2.3.4"}]
+// YES = file produced (parse it), NO = fall back to the in-process dump
+// (directDump — possible because PrivateSystemSPI.h is imported above).
+bool HybridSockDumpViaRoot(int pid, const char *outfile);
 
 #endif /* HybridBridgingHeader_h */

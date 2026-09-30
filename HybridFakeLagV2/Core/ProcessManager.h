@@ -41,6 +41,23 @@ NS_ASSUME_NONNULL_BEGIN
 /// Detaches hooks and flushes held packet queues
 - (void)detachFromCurrentProcess;
 
+// ── ROOT socket dump (per-PID targeting) — C bridge, synced with PacketBlocker ──
+// proc_pidfdinfo on another process needs uid 0; the app re-execs ITSELF as
+// root ("-sockdump <pid> <outfile>") and parses the JSON result file.
+
+// ROOT side (called from main.mm "-sockdump"). Writes the JSON result file
+// (chmod 0666). Returns entry count, or <0 on failure. A valid EMPTY dump
+// still writes "[]".
+int HybridWriteSocketDumpFile(int pid, const char *outfile);
+
+// APP side: spawn the root helper, wait (≤2s) for the result file.
+// YES = file produced (parse it), NO = fall back to the in-process dump.
+BOOL HybridSockDumpViaRoot(int pid, const char *outfile);
+
+// In-process dump via proc_pidfdinfo (needs uid 0 to succeed; fallback path).
+int HybridProcSocketDump(int pid, HybridSocketEntryC * _Nullable out, int max);
+
+
 /// Spawns or terminates the global root Floating HUD Button daemon
 - (void)setGlobalFloatingHUDEnabled:(BOOL)enabled;
 - (BOOL)isGlobalFloatingHUDRunning;

@@ -48,7 +48,12 @@ class VPNManager: ObservableObject {
             guard let self = self else { return }
             let conn = (note.object as? NEVPNConnection)?.status
             self.updateStatus()
-            AppGroupStore.logAction("VPN_STATUS", details: "status=\(conn.map { String(describing: $0) } ?? "changed") connected=\(self.isVPNConnected)")
+            // Log AFTER updateStatus()'s async hop applied the new flag —
+            // logging synchronously used to print the STALE value, producing
+            // contradictory lines like "status=1 connected=true" on device.
+            DispatchQueue.main.async {
+                AppGroupStore.logAction("VPN_STATUS", details: "status=\(conn.map { String(describing: $0) } ?? "changed") connected=\(self.isVPNConnected)")
+            }
         }
     }
 
@@ -100,13 +105,13 @@ class VPNManager: ObservableObject {
             cfg.targetBundleID = proc.bundleID
             cfg.targetPID = proc.pid
             cfg.targetProcessName = proc.displayName
-            // REAL live socket dump of the target PID (proc_pidfdinfo) so the
-            // tunnel matches the app's actual remote endpoints — replaces the
-            // hardcoded 8.8.8.8/1.1.1.1 mock that made per-PID mode wrong.
-            let dump = procScanner.dumpSocketsForPID(proc.pid)
-            cfg.targetSockets = dump
-            if dump.isEmpty {
-                AppGroupStore.logAction("CONFIG_TARGET", details: "pid=\(proc.pid) \(proc.displayName) — socket dump EMPTY, extension will fall back to match-all for this target", level: "WARN")
+            // Write the LAST-KNOWN root socket dump immediately so toggling
+            // FakeLag stays instant; the fresh ROOT dump (proc_pidfdinfo needs
+            // uid 0 → runs in the -sockdump helper, NOT in this app process)
+            // lands asynchronously right after and re-saves when it differs.
+            cfg.targetSockets = procScanner.cachedSockets(proc.pid)
+            if cfg.targetSockets.isEmpty {
+                AppGroupStore.logAction("CONFIG_TARGET", details: "pid=\(proc.pid) \(proc.displayName) — no cached socket dump yet; extension falls back to match-all until the root dump lands", level: "WARN")
             }
         } else {
             cfg.targetBundleID = ""
@@ -116,6 +121,9 @@ class VPNManager: ObservableObject {
         }
         AppGroupStore.save(cfg)
         AppGroupStore.logAction("CONFIG_SAVE", details: "enabled=\(cfg.enabled) mode=\(cfg.mode) dir=\(cfg.direction) proto=\(cfg.protoFilter) ratio=\(cfg.captureRatio)% latency=\(cfg.latencyMs)ms jitter=\(cfg.jitterMs)ms bw=\(cfg.bandwidthKbps)kbps target=\(cfg.targetBundleID.isEmpty ? "GLOBAL" : "\(cfg.targetBundleID) pid=\(cfg.targetPID) sockets=\(cfg.targetSockets.count)")")
+
+        // Kick the live root dump in the background (result re-saves config).
+        if selectedProcess != nil { refreshTargetSockets() }
     }
 
     func connectVPN() {
@@ -245,21 +253,29 @@ class VPNManager: ObservableObject {
         }
     }
 
-    /// Re-dumps the selected PID's live TCP/UDP sockets (proc_pidfdinfo) and
-    /// updates the extension config only when the set actually changed.
+    /// Re-dumps the selected PID's live TCP/UDP sockets (ROOT helper, since
+    /// proc_pidfdinfo on another process needs uid 0) and updates the extension
+    /// config only when the set actually changed. Runs on the scanner's serial
+    /// background queue — never blocks the UI thread.
     private var lastSocketSig: Set<String> = []
+    private var sockRefreshQueued = false
     private func refreshTargetSockets() {
         guard let proc = selectedProcess else { return }
-        let dump = procScanner.dumpSocketsForPID(proc.pid)
-        let sig = Set(dump.map { "\($0.proto)|\($0.remoteIP)|\($0.remotePort)" })
-        guard sig != lastSocketSig else { return }
-        lastSocketSig = sig
-        var cfg = AppGroupStore.load()
-        guard cfg.targetPID == proc.pid else { return }
-        cfg.targetSockets = dump
-        cfg.timestamp = Date().timeIntervalSince1970
-        AppGroupStore.save(cfg)
-        AppGroupStore.logAction("TARGET_REFRESH", details: "pid=\(proc.pid) \(proc.displayName) sockets=\(dump.count)\(dump.isEmpty ? " (fallback match-all for this pid)" : "")")
+        guard !sockRefreshQueued else { return }
+        sockRefreshQueued = true
+        procScanner.dumpSocketsForPID(proc.pid) { [weak self] dump in
+            guard let self = self else { return }
+            self.sockRefreshQueued = false
+            let sig = Set(dump.map { "\($0.proto)|\($0.remoteIP)|\($0.remotePort)" })
+            guard sig != self.lastSocketSig else { return }
+            self.lastSocketSig = sig
+            var cfg = AppGroupStore.load()
+            guard cfg.targetPID == proc.pid else { return } // selection changed meanwhile
+            cfg.targetSockets = dump
+            cfg.timestamp = Date().timeIntervalSince1970
+            AppGroupStore.save(cfg)
+            AppGroupStore.logAction("TARGET_REFRESH", details: "pid=\(proc.pid) \(proc.displayName) sockets=\(dump.count)\(dump.isEmpty ? " (fallback match-all for this pid)" : "")")
+        }
     }
 
     func selectProcess(_ proc: ProcessInfoModel?) {

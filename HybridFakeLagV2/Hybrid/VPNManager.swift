@@ -56,7 +56,12 @@ class VPNManager: ObservableObject {
             guard let self = self else { return }
             let conn = (note.object as? NEVPNConnection)?.status
             self.updateStatus()
-            AppGroupStore.logAction("VPN_STATUS", details: "status=\(conn.map { String(describing: $0) } ?? "changed") connected=\(self.isVPNConnected)")
+            // Log AFTER updateStatus()'s async hop applied the new flag —
+            // logging synchronously used to print the STALE value, producing
+            // contradictory lines like "status=1 connected=true" on device.
+            DispatchQueue.main.async {
+                AppGroupStore.logAction("VPN_STATUS", details: "status=\(conn.map { String(describing: $0) } ?? "changed") connected=\(self.isVPNConnected)")
+            }
         }
     }
 
@@ -109,12 +114,12 @@ class VPNManager: ObservableObject {
             cfg.targetBundleID = proc.bundleID
             cfg.targetPID = proc.pid
             cfg.targetProcessName = proc.displayName
-            // REAL live socket dump of the target PID (proc_pidfdinfo) so the
-            // tunnel matches the app's actual remote endpoints.
-            let dump = procScanner.dumpSocketsForPID(proc.pid)
-            cfg.targetSockets = dump
-            if dump.isEmpty {
-                AppGroupStore.logAction("CONFIG_TARGET", details: "pid=\(proc.pid) \(proc.displayName) — socket dump EMPTY, extension will fall back to match-all for this target", level: "WARN")
+            // Write the LAST-KNOWN root socket dump immediately (cache) so
+            // toggling stays instant; the fresh ROOT dump (proc_pidfdinfo needs
+            // uid 0 → runs in the -sockdump helper) lands asynchronously.
+            cfg.targetSockets = procScanner.cachedSockets(proc.pid)
+            if cfg.targetSockets.isEmpty {
+                AppGroupStore.logAction("CONFIG_TARGET", details: "pid=\(proc.pid) \(proc.displayName) — no cached socket dump yet; extension falls back to match-all until the root dump lands", level: "WARN")
             }
         } else {
             cfg.targetBundleID = ""
@@ -124,6 +129,32 @@ class VPNManager: ObservableObject {
         }
         AppGroupStore.save(cfg)
         AppGroupStore.logAction("CONFIG_SAVE", details: "enabled=\(cfg.enabled) mode=\(cfg.mode) dir=\(cfg.direction) proto=\(cfg.protoFilter) ratio=\(cfg.captureRatio)% latency=\(cfg.latencyMs)ms jitter=\(cfg.jitterMs)ms bw=\(cfg.bandwidthKbps)kbps target=\(cfg.targetBundleID.isEmpty ? "GLOBAL" : "\(cfg.targetBundleID) pid=\(cfg.targetPID) sockets=\(cfg.targetSockets.count)")")
+
+        // Kick the live root dump in the background (result re-saves config).
+        if selectedProcess != nil { refreshTargetSockets() }
+    }
+
+    /// Re-dumps the selected PID's live TCP/UDP sockets via the ROOT helper and
+    /// updates the extension config only when the set actually changed.
+    private var lastSocketSig: Set<String> = []
+    private var sockRefreshQueued = false
+    func refreshTargetSockets() {
+        guard let proc = selectedProcess else { return }
+        guard !sockRefreshQueued else { return }
+        sockRefreshQueued = true
+        procScanner.dumpSocketsForPID(proc.pid) { [weak self] dump in
+            guard let self = self else { return }
+            self.sockRefreshQueued = false
+            let sig = Set(dump.map { "\($0.proto)|\($0.remoteIP)|\($0.remotePort)" })
+            guard sig != self.lastSocketSig else { return }
+            self.lastSocketSig = sig
+            var cfg = AppGroupStore.load()
+            guard cfg.targetPID == proc.pid else { return } // selection changed meanwhile
+            cfg.targetSockets = dump
+            cfg.timestamp = Date().timeIntervalSince1970
+            AppGroupStore.save(cfg)
+            AppGroupStore.logAction("TARGET_REFRESH", details: "pid=\(proc.pid) \(proc.displayName) sockets=\(dump.count)\(dump.isEmpty ? " (fallback match-all for this pid)" : "")")
+        }
     }
 
     func connectVPN() {
@@ -264,9 +295,70 @@ class VPNManager: ObservableObject {
     }
 }
 
-// Swift version of ProcessManager for socket dump (proc_pidfdinfo)
+// Swift version of ProcessManager for socket dump — ROOT helper first
+// (proc_pidfdinfo on ANOTHER process requires uid 0; the in-process dump
+// always came back empty on device → per-PID mode silently degraded to
+// match-all). Same shape as PacketBlocker/ProcessManager.swift.
 class ProcessManagerSwift {
-    func dumpSocketsForPID(_ pid: Int32) -> [SocketEntry] {
+    private let sockQueue = DispatchQueue(label: "com.hybrid.fakelag.sockdump")
+    private var socketCache: [Int32: [SocketEntry]] = [:]
+
+    /// Last-known dump for a pid (used to write config instantly on toggle).
+    func cachedSockets(_ pid: Int32) -> [SocketEntry] { socketCache[pid] ?? [] }
+
+    /// Async dump (root helper first). Completion always fires on the main queue.
+    func dumpSocketsForPID(_ pid: Int32, completion: (([SocketEntry]) -> Void)? = nil) {
+        sockQueue.async { [weak self] in
+            guard let self = self else { return }
+            let entries = self.dumpSocketsForPIDBlocking(pid)
+            self.socketCache[pid] = entries
+            if let completion = completion {
+                DispatchQueue.main.async { completion(entries) }
+            }
+        }
+    }
+
+    /// Blocking dump — call ONLY from sockQueue.
+    func dumpSocketsForPIDBlocking(_ pid: Int32) -> [SocketEntry] {
+        var viaRoot = false
+        var out: [SocketEntry] = []
+        #if !targetEnvironment(simulator)
+        let dumpPath = "/var/mobile/Library/Caches/com.aethernet.sockdump.json"
+        if HybridSockDumpViaRoot(pid, dumpPath) {
+            viaRoot = true
+            out = Self.parseSocketDumpFile(dumpPath)
+        } else {
+            out = Self.directDump(pid)
+        }
+        #endif
+        AppGroupStore.logAction("SOCKET_DUMP", details: "pid=\(pid) → \(out.count) live remote sockets (source=\(viaRoot ? "root-helper" : "in-process"))")
+        if out.count > 0 {
+            let sample = out.prefix(6).map { "\($0.remoteIP):\($0.remotePort)/\($0.proto)" }.joined(separator: ", ")
+            AppGroupStore.logAction("SOCKET_SAMPLE", details: sample)
+        }
+        return out
+    }
+
+    /// Parses the root helper's JSON result:
+    /// [{"proto":"tcp","localPort":123,"remotePort":443,"remoteIP":"1.2.3.4"}]
+    private static func parseSocketDumpFile(_ path: String) -> [SocketEntry] {
+        guard let data = FileManager.default.contents(atPath: path),
+              let arr = (try? JSONSerialization.jsonObject(with: data)) as? [[String: Any]] else { return [] }
+        var out: [SocketEntry] = []
+        for d in arr {
+            guard let ip = d["remoteIP"] as? String, ip.contains("."), ip != "0.0.0.0",
+                  let proto = d["proto"] as? String else { continue }
+            let lp = (d["localPort"] as? NSNumber)?.uint16Value ?? 0
+            let rp = (d["remotePort"] as? NSNumber)?.uint16Value ?? 0
+            out.append(SocketEntry(localPort: lp, remotePort: rp, remoteIP: ip, proto: proto))
+        }
+        return out
+    }
+
+    /// Legacy in-process dump (needs uid 0 to succeed; kept as fallback).
+    /// Uses the aether_* SPI structs from PrivateSystemSPI.h (XNU's own
+    /// sys/proc_info.h is not available in the iOS SDK).
+    func directDump(_ pid: Int32) -> [SocketEntry] {
         var entries: [SocketEntry] = []
         let bufSize = proc_pidinfo(pid, PROC_PIDLISTFDS, 0, nil, 0)
         if bufSize <= 0 { return [] }
@@ -276,15 +368,15 @@ class ProcessManagerSwift {
         let actualCount = actual / MemoryLayout<proc_fdinfo>.size
         for j in 0..<actualCount {
             if fds[j].proc_fdtype != PROX_FDTYPE_SOCKET { continue }
-            var sockInfo = socket_fdinfo()
-            let rc = proc_pidfdinfo(pid, fds[j].proc_fd, PROC_PIDFDSOCKETINFO, &sockInfo, Int32(MemoryLayout<socket_fdinfo>.size))
-            if rc != MemoryLayout<socket_fdinfo>.size { continue }
-            let family = sockInfo.psi.soi_family
+            var sinfo = aether_socket_fdinfo()
+            let rc = proc_pidfdinfo(pid, fds[j].proc_fd, PROC_PIDFDSOCKETINFO, &sinfo, Int32(MemoryLayout<aether_socket_fdinfo>.size))
+            if rc != Int32(MemoryLayout<aether_socket_fdinfo>.size) { continue }
+            let family = sinfo.psi.soi_family
             if family != AF_INET { continue }
-            let sockType = sockInfo.psi.soi_type
+            let sockType = sinfo.psi.soi_type
             let protoStr = sockType == SOCK_STREAM ? "tcp" : (sockType == SOCK_DGRAM ? "udp" : "")
             if protoStr.isEmpty { continue }
-            let ini = sockInfo.psi.soi_proto.pri_in
+            let ini = (sockType == SOCK_STREAM) ? sinfo.psi.soi_proto.pri_tcp.tcpsi_ini : sinfo.psi.soi_proto.pri_in
             let localPort = UInt16(bigEndian: ini.insi_lport)
             let remotePort = UInt16(bigEndian: ini.insi_fport)
             var remoteIP = ""
