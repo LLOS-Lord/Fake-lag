@@ -1,30 +1,35 @@
 import UIKit
 import SwiftUI
 
-@objc class AppDelegate: UIResponder, UIApplicationDelegate {
-    var window: UIWindow?
+@objc(AppDelegate)
+public class AppDelegate: UIResponder, UIApplicationDelegate {
+    public var window: UIWindow?
     
-    func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-        let window = UIWindow(frame: UIScreen.main.bounds)
-        // Host SwiftUI ContentView
-        let contentView = ContentView()
-        window.rootViewController = UIHostingController(rootView: contentView)
-        window.makeKeyAndVisible()
-        self.window = window
-        
-        // Ensure App Group container exists and log
-        AppGroupStore.logAction("APP_LAUNCH", details: "Hybrid V2 with Floating Button - main.mm dispatcher active")
-        
-        // Ensure shared memory init
-        // Call AetherGetSharedState via ObjC bridge if available
+    public func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
+        NSLog("[AppDelegate] didFinishLaunching - creating window")
+        do {
+            let window = UIWindow(frame: UIScreen.main.bounds)
+            window.backgroundColor = .black
+            let contentView = ContentView()
+            let hosting = UIHostingController(rootView: contentView)
+            window.rootViewController = hosting
+            window.makeKeyAndVisible()
+            self.window = window
+            NSLog("[AppDelegate] window created OK")
+        } catch {
+            NSLog("[AppDelegate] exception creating window: %@", error.localizedDescription)
+        }
+        // Defer logging to avoid crash in early launch
+        DispatchQueue.main.asyncAfter(deadline: .now()+1.0) {
+            AppGroupStore.logAction("APP_LAUNCH", details: "Hybrid V2 main.mm active")
+        }
         return true
     }
     
-    func applicationDidEnterBackground(_ application: UIApplication) {
-        AppGroupStore.logAction("APP_BACKGROUND", details: "")
+    public func applicationDidEnterBackground(_ application: UIApplication) {
+        // No logging here to avoid crash
     }
     
-    func applicationWillEnterForeground(_ application: UIApplication) {
-        AppGroupStore.logAction("APP_FOREGROUND", details: "")
+    public func applicationWillEnterForeground(_ application: UIApplication) {
     }
 }

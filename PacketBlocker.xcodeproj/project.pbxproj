@@ -36,7 +36,8 @@
 		8632C163574C400D8F9FF035 /* AetherNetShared.h in Sources */ = {isa = PBXBuildFile; fileRef = AB5ADF6C781844E1B39714C7 /* AetherNetShared.h */; };
 		349D146107924F7399A4A260 /* PrivateSystemSPI.h in Sources */ = {isa = PBXBuildFile; fileRef = 564F0ECB357747E38AE578DB /* PrivateSystemSPI.h */; };
 		31BA9262DA36452C9FD81125 /* AetherTouchPrivate.h in Sources */ = {isa = PBXBuildFile; fileRef = 5516B3C486474502ACCE4CF6 /* AetherTouchPrivate.h */; };
-		330120508ED742CAB762E77B /* PacketTunnelProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF17FAFE9D074D23B966E445 /* PacketTunnelProvider.swift */; };
+		330120508ED742CAB762E77B /* PacketTunnelProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF17FAFE9D074D23B966E445 /* PacketTunnelProvider.swift */; }; = {isa = PBXBuildFile; fileRef = 78605CAB3F194C49BF3B4F43 /* LaunchScreen.storyboard */; };
+		056B3D7EF7594B21842F6234 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 78605CAB3F194C49BF3B4F43 /* LaunchScreen.storyboard */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -80,6 +81,7 @@
 		D7328E9EBD094B288E1691B4 /* PacketBlocker.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PacketBlocker.entitlements; sourceTree = "<group>"; };
 		BD825DEAEBDC4909A674016A /* PacketBlockerExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PacketBlockerExtension.entitlements; sourceTree = "<group>"; };
 		ABF641664A3642848D477527 /* PacketBlocker-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = PacketBlocker-Bridging-Header.h; sourceTree = "<group>"; };
+		78605CAB3F194C49BF3B4F43 /* LaunchScreen.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = LaunchScreen.storyboard; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -88,14 +90,14 @@
 		68D8FE0C875B4529BA9E15D1 /* HUD */ = {isa = PBXGroup; children = (A40FB91D32F644718D829F27, DBDC30A0849545A888B14A12, DE506BE6AFD44D96A44F1EF8, 83F5E452FBB046F48D5A1786, 42143ED6FFF3400DB20223BA, 4B1CFF39870941C2B6AA82F5, 9AD03AA2160940238667EBF5, 2F5934FF015A44F0B6087FEE, 189693B50A3F4E3AA3A9A934, E91178B45D684E8B9B4B8FF8, 5251130784F24453A044633D, 85B5B4D0F21845A3B54CA58C); path = HUD; sourceTree = "<group>"; };
 		4E87789F948A4E13A2A26BE0 /* headers */ = {isa = PBXGroup; children = (AB5ADF6C781844E1B39714C7, 564F0ECB357747E38AE578DB, 5516B3C486474502ACCE4CF6); path = headers; sourceTree = "<group>"; };
 		0B10A41FE2FE4F66A98DE68D /* UI */ = {isa = PBXGroup; children = (27C7BB40FB9F4E668B28DBC8, 43B207B285BE4589B624DFF7); path = UI; sourceTree = "<group>"; };
-		8BBB7996F8814D8F91F1D3B4 /* PacketBlocker */ = {isa = PBXGroup; children = (7F97476FA7F14F9C8B64C3BC, FAA7128B1FA34CBFA22B01C0, DAC1E04EB7AD4F909FB3A55A, EB4B7A7663BF440DA495FE93, 157D49D473AC48028FADE68E, 8C7B03846E544F1EB5D08548, D81049B1E0AF4A37A3821A26, F344135C505749838B6D402E, B38F1348779144428771CDD1, ACC991D445B74F10BB7BC80D, E44241C3B10A4BDABD4BAD59, 68D8FE0C875B4529BA9E15D1, 4E87789F948A4E13A2A26BE0, 0B10A41FE2FE4F66A98DE68D, 48C888EC8DD3408C95883E61, D7328E9EBD094B288E1691B4, ABF641664A3642848D477527, 7F97476FA7F14F9C8B64C3BC); path = PacketBlocker; sourceTree = "<group>"; };
+		8BBB7996F8814D8F91F1D3B4 /* PacketBlocker */ = {isa = PBXGroup; children = (7F97476FA7F14F9C8B64C3BC, FAA7128B1FA34CBFA22B01C0, DAC1E04EB7AD4F909FB3A55A, EB4B7A7663BF440DA495FE93, 157D49D473AC48028FADE68E, 8C7B03846E544F1EB5D08548, D81049B1E0AF4A37A3821A26, F344135C505749838B6D402E, B38F1348779144428771CDD1, ACC991D445B74F10BB7BC80D, E44241C3B10A4BDABD4BAD59, 68D8FE0C875B4529BA9E15D1, 4E87789F948A4E13A2A26BE0, 0B10A41FE2FE4F66A98DE68D, 48C888EC8DD3408C95883E61, D7328E9EBD094B288E1691B4, ABF641664A3642848D477527, 7F97476FA7F14F9C8B64C3BC, 78605CAB3F194C49BF3B4F43); path = PacketBlocker; sourceTree = "<group>"; };
 		33C9D427214E49909F46E0DC /* PacketBlockerExtension */ = {isa = PBXGroup; children = (AF17FAFE9D074D23B966E445, 11CB9DA9637243788B57981E, BD825DEAEBDC4909A674016A); path = PacketBlockerExtension; sourceTree = "<group>"; };
 		382EED9280314235A5CE5A18 /* Products */ = {isa = PBXGroup; children = (547DB05B41FC4CF2A04F6FFE, 662D7197383C4958B55C7A6E); name = Products; sourceTree = "<group>"; };
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		F7ED704D5A0141DE971B1F5E /* PacketBlocker */ = {isa = PBXNativeTarget; buildConfigurationList = 3DCC3C57CC384881839DE51C; buildPhases = (E2111B71D4054A52AEE4C0CB); buildRules = (); dependencies = (05F50148FF684430A8699B2B); name = PacketBlocker; productName = PacketBlocker; productReference = 547DB05B41FC4CF2A04F6FFE /* PacketBlocker.app */; productType = "com.apple.product-type.application"; };
-		D5AE180F405C4F5790631EE8 /* PacketBlockerExtension */ = {isa = PBXNativeTarget; buildConfigurationList = F08E264191784C5BAFEF9F88; buildPhases = (694120A036D744EBBD40A186); buildRules = (); dependencies = (); name = PacketBlockerExtension; productName = PacketBlockerExtension; productReference = 662D7197383C4958B55C7A6E /* PacketBlockerExtension.appex */; productType = "com.apple.product-type.app-extension"; };
+		F7ED704D5A0141DE971B1F5E /* PacketBlocker */ = {isa = PBXNativeTarget; buildConfigurationList = 3DCC3C57CC384881839DE51C; buildPhases = (E2111B71D4054A52AEE4C0CB, C58BF60FCCC2454F9D1F1A5D); buildRules = (); dependencies = (05F50148FF684430A8699B2B); name = PacketBlocker; productName = PacketBlocker; productReference = 547DB05B41FC4CF2A04F6FFE /* PacketBlocker.app */; productType = "com.apple.product-type.application"; };
+		D5AE180F405C4F5790631EE8 /* PacketBlockerExtension */ = {isa = PBXNativeTarget; buildConfigurationList = F08E264191784C5BAFEF9F88; buildPhases = (694120A036D744EBBD40A186, A9465BD96E304B998CA156EC); buildRules = (); dependencies = (); name = PacketBlockerExtension; productName = PacketBlockerExtension; productReference = 662D7197383C4958B55C7A6E /* PacketBlockerExtension.appex */; productType = "com.apple.product-type.app-extension"; };
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -103,9 +105,14 @@
 /* End PBXProject section */
 
 /* Begin PBXSourcesBuildPhase section */
-		E2111B71D4054A52AEE4C0CB /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (4C861EE800B6433895FFE1F3, 69F2456BA1194FD0B0700933, FFE92351CE724590BA383176, 356BAB38A8D647EDB13BB0CD, 1393D296ED2B4A808334E545, 17925EB56F5F472BA5F153BC, 7C4CAA5450EB4329BFCDFB72, 2E9DA71E18C742A59971E7C6, 719A068BAA4643CC959D6FBE, 4ABFA6DE68814DC98BE8D904, B7A3026BC77446FB8D271638, EB3EC228503843B9AA22A644, E242D1AB25D746DAB9AF87D0, 9C6F81CE3C134077BDB4D60E, 4329764E973A40F791E993F5, A52CAF96A9A5421088418C9A, E8320B77AC6E4461A70E519A, BC40480443324DC9A29655FA, 02FBF6AF650B4CA98738CC4E, 6A7349A3499245FFA61D5D65, 63DA6CE4946C4A2EB54E86E3); runOnlyForDeploymentPostprocessing = 0; };
+		E2111B71D4054A52AEE4C0CB /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (4C861EE800B6433895FFE1F3, 69F2456BA1194FD0B0700933, FFE92351CE724590BA383176, 356BAB38A8D647EDB13BB0CD, 1393D296ED2B4A808334E545, 17925EB56F5F472BA5F153BC, 7C4CAA5450EB4329BFCDFB72, 2E9DA71E18C742A59971E7C6, 719A068BAA4643CC959D6FBE, 4ABFA6DE68814DC98BE8D904, B7A3026BC77446FB8D271638, EB3EC228503843B9AA22A644, E242D1AB25D746DAB9AF87D0, 9C6F81CE3C134077BDB4D60E, 4329764E973A40F791E993F5, A52CAF96A9A5421088418C9A, E8320B77AC6E4461A70E519A, BC40480443324DC9A29655FA, 02FBF6AF650B4CA98738CC4E, 6A7349A3499245FFA61D5D65, 63DA6CE4946C4A2EB54E86E3, 28A65A93EF8C4747893608B1); runOnlyForDeploymentPostprocessing = 0; };
 		694120A036D744EBBD40A186 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (330120508ED742CAB762E77B); runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXResourcesBuildPhase section */
+		C58BF60FCCC2454F9D1F1A5D /* Resources */ = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (056B3D7EF7594B21842F6234); runOnlyForDeploymentPostprocessing = 0; };
+		A9465BD96E304B998CA156EC /* Resources */ = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+/* End PBXResourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
 		05F50148FF684430A8699B2B /* PBXTargetDependency */ = {isa = PBXTargetDependency; target = D5AE180F405C4F5790631EE8; targetProxy = E0A33F81B2344DD5A39ABAAA; };
