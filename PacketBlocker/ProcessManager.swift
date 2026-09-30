@@ -180,8 +180,18 @@ class ProcessManager: ObservableObject {
         var out: [SocketEntry] = []
         for i in 0..<count {
             let e = entries[i]
-            let ip = String(cString: e.remoteIP)
-            let proto = String(cString: e.proto)
+            // HybridSocketEntryC.remoteIP/proto are C fixed arrays → Swift
+            // tuples — read via raw memory (String(cString:) does NOT compile).
+            var ipField = e.remoteIP
+            var protoField = e.proto
+            let ip = withUnsafeBytes(of: &ipField) { raw -> String in
+                guard let p = raw.bindMemory(to: CChar.self).baseAddress else { return "" }
+                return String(cString: p)
+            }
+            let proto = withUnsafeBytes(of: &protoField) { raw -> String in
+                guard let p = raw.bindMemory(to: CChar.self).baseAddress else { return "" }
+                return String(cString: p)
+            }
             guard ip.contains("."), ip != "0.0.0.0" else { continue } // IPv4 only (tunnel is IPv4)
             out.append(SocketEntry(localPort: e.localPort,
                                    remotePort: e.remotePort,
