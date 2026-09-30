@@ -1,9 +1,6 @@
 import Foundation
 import UIKit
 
-// Manages global floating button daemon (simplified for build success)
-// Real implementation uses posix_spawn with persona 99 UID 0
-
 class FloatingHUDManager: ObservableObject {
     static let shared = FloatingHUDManager()
     
@@ -43,33 +40,36 @@ class FloatingHUDManager: ObservableObject {
         } else {
             AppGroupStore.logAction("HUD_REMOVE", details: "removing daemon")
             spawn(execPath: execPath, args: ["-exit"])
-            isRunning = false
+            DispatchQueue.main.async { self.isRunning = false }
         }
     }
     
     private func spawn(execPath: String, args: [String]) {
-        // FIXED: Use proper posix_spawn API for Swift
         var pid: pid_t = 0
         var attr: posix_spawnattr_t?
         posix_spawnattr_init(&attr)
-        posix_spawnattr_setflags(&attr, Int16(POSIX_SPAWN_SETPGROUP))
-        
-        // Try to set persona for root (private API, may fail on non-TrollStore)
-        // We use dlsym to avoid direct reference
-        // For build success, just spawn normally
+        // Set pgid
+        if let attr = attr {
+            var mutableAttr = attr
+            posix_spawnattr_setflags(&mutableAttr, Int16(POSIX_SPAWN_SETPGROUP))
+            // For TrollStore root persona, we would use private API posix_spawnattr_set_persona_np
+            // Skip for build
+        }
         
         var fileActions: posix_spawn_file_actions_t?
         posix_spawn_file_actions_init(&fileActions)
         
         let cArgs = [execPath] + args
-        let cArgsPtr = cArgs.map { $0.withCString { strdup($0) } } + [nil]
+        // Create C string array
+        let cArgsCStrings = cArgs.map { strdup($0) }
+        var cArgsPtr: [UnsafeMutablePointer<CChar>?] = cArgsCStrings.map { $0 } + [nil]
         
-        let result = cArgsPtr.withUnsafeBufferPointer { buf in
-            posix_spawn(&pid, execPath, fileActions, attr, UnsafeMutablePointer(mutating: buf.baseAddress), environ)
+        let result = cArgsPtr.withUnsafeMutableBufferPointer { buffer in
+            // buffer.baseAddress is UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>
+            posix_spawn(&pid, execPath, &fileActions, &attr, buffer.baseAddress, environ)
         }
         
-        // Cleanup
-        for ptr in cArgsPtr { if let p = ptr { free(p) } }
+        for ptr in cArgsCStrings { free(ptr) }
         posix_spawnattr_destroy(&attr)
         posix_spawn_file_actions_destroy(&fileActions)
         
