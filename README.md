@@ -441,3 +441,65 @@ báo `rc=0`.
 
 `python3 scripts/simulate_test.py` → **359 PASS / 0 FAIL** (thêm nhóm `[4.2a..4.2d]`
 chặn đúng 3 lỗi trên: queue ownership của `config`, socket non-blocking, persona 0).
+
+
+---
+
+# FIX 4.3 — VÒNG 2: VPN LÊN RỒI CHẾT, CRASH KHI CHỌN PID
+
+## 1. VPN tự chết khi gói tin nhiều — `POSIXErrorCode(50): Network is down`
+
+Log cho thấy mọi TCP flow đều đi tới `TCP_EST` rồi **ngay lập tức** fail:
+
+```
+[TCP_EST] 10.8.0.2:61751 → 8.8.8.8:853 established (proxy)
+[TCP_FAIL] ... POSIXErrorCode(rawValue: 50): Network is down
+```
+
+`50` là `ENETDOWN`. Nguyên nhân nằm ở:
+
+```swift
+base.prohibitedInterfaceTypes = [.other]   // trước đây
+```
+
+Ý định là ép socket relay đi ra interface vật lý. Nhưng trên iOS interface
+utun không phải lúc nào cũng được phân loại `.other`, và cấm **một cả lớp** thay
+vì một interface cụ thể khiến `NWConnection` không còn chỗ nào để bind → mọi kết
+nối ngay lập tức `ENETDOWN`. Càng nhiều gói tin thì càng nhiều flow mở ra cùng
+lúc và càng dễ thấy. Đã bỏ, chỉ giữ `includePeerToPeer = false`.
+
+## 2. `EXC_BREAKPOINT` trong `clientTCPSegment` — vẫn còn
+
+Crash mới (`PacketBlockerExtension-2026-10-01-205636.ips`) **cùng frame, cùng
+offset** (+71976, trước là +71924). Nghĩa là fix vòng trước chỉ dời được biểu
+hiện, không dời được nguyên nhân.
+
+Còn một lối vào engine state mà bỏ sót: **`handleAppMessage` chạy trên main
+thread của extension** (`NEPacketTunnelProvider` gọi ở đó), nhưng thân hàm lại
+gọi `loadConfig()` / `statsString()` — tức đọc `config`, `tcpFlows`, `udpFlows`
+trong khi `engineQueue` đang dùng chúng. Bất cứ khi app bấm bật/tắt giả lập hay
+đọc số liệu là đụng engine state từ queue thứ hai.
+
+Đã sửa: toàn bộ `handleAppMessage` hop sang `engineQueue` và trả lời từ đó,
+kèm `loadConfigNow()` (bản đồng bộ cho engineQueue, không async lồng nhau).
+
+## 3. Chọn PID / đổi mode làm app crash
+
+`CONFIG_TARGET ... no cached socket dump yet` xuất hiện mãi, và
+`TARGET_REFRESH` **không bao giờ** được ghi. Nguyên nhân là `sockRefreshQueued`:
+
+```swift
+procScanner.dumpSocketsForPID(proc.pid) { ... self.sockRefreshQueued = false ... }
+```
+
+Cờ này **chỉ được hạ trong callback**. Nếu app chết hoặc đổi PID giữa lúc dump đang
+chạy, callback về tới `self` đã hỏng hoặc thuộc PID cũ → cờ vẫn `true` → mọi
+lần refresh sau đó bị bỏ qua im lặng, `targetSockets` mãi rỗng. Đổi process cũng
+không hạ cờ. Nay `selectProcess` hạ cờ + xoá chữ ký socket khi PID đổi, và callback
+tự bỏ nếu PID đã không còn được chọn.
+
+## Test
+
+`python3 scripts/simulate_test.py` → **380 PASS / 0 FAIL**
+(`[4.3a..4.3c]`: `handleAppMessage` phải ở `engineQueue`, không
+`prohibitedInterfaceTypes`, `sockRefreshQueued` phải được giải phóng).

@@ -2119,6 +2119,58 @@ def test_brace_balance():
           ph.index("persona spawn: persona=") > ph.index("if (set_apptype_np) papptype_rc"))
 
 
+
+# ═══════════════ [4.3] HAI LỖI RUNTIME VÒNG 2 (đã có .ips thật) ═══════════════
+
+def test_appmessage_on_engine():
+    print("\n[4.3a] handleAppMessage phải chạy trên engineQueue")
+    for name, path in (("ext", ROOT + "/PacketBlockerExtension/PacketTunnelProvider.swift"),
+                       ("twin_ext", ROOT + "/HybridFakeLagV2/HybridExtension/PacketTunnelProvider.swift")):
+        s = open(path).read()
+        ham = s[s.index("override func handleAppMessage"):
+                s.index("override func handleAppMessage") + 2200]
+        check(f"{name}: handleAppMessage hop sang engineQueue",
+              "engineQueue.async" in ham)
+        check(f"{name}: switch xử lý nằm BÊN TRONG engineQueue.async",
+              ham.index("engineQueue.async") < ham.index('case "enable", "disable"')
+              < ham.index("completionHandler?(Data(reply.utf8))"))
+        check(f"{name}: có loadConfigNow() đồng bộ cho engineQueue",
+              "private func loadConfigNow()" in s
+              and "guard cfg.timestamp > lastConfigTS else { return }" in s
+              and s.count("loadConfigNow()") == 2)
+        check(f"{name}: completionHandler luôn được gọi (kể cả self=nil)",
+              'completionHandler?(Data("ok".utf8))' in ham)
+
+def test_relay_params():
+    print("\n[4.3b] Relay socket không bị 'Network is down'")
+    for name, path in (("ext", ROOT + "/PacketBlockerExtension/PacketTunnelProvider.swift"),
+                       ("twin_ext", ROOT + "/HybridFakeLagV2/HybridExtension/PacketTunnelProvider.swift")):
+        s = open(path).read()
+        code = "\n".join(l for l in s.splitlines() if not l.lstrip().startswith("//"))
+        check(f"{name}: KHÔNG dùng prohibitedInterfaceTypes=.other (mất binding)",
+              "prohibitedInterfaceTypes" not in code)
+        mr = code[code.index("static func makeRelayParams"):]
+        mr = mr[:mr.index("\n    }")]
+        check(f"{name}: makeRelayParams không còn ép interface",
+              "prohibited" not in mr and "includePeerToPeer = false" in mr)
+
+def test_sockdump_flag():
+    print("\n[4.3c] sockRefreshQueued không kẹt vĩnh viễn khi đổi PID")
+    for name, path in (("app", ROOT + "/PacketBlocker/VPNManager.swift"),
+                       ("twin_app", ROOT + "/HybridFakeLagV2/Hybrid/VPNManager.swift")):
+        s = open(path).read()
+        tag = "private func refreshTargetSockets" if "private func refreshTargetSockets" in s \
+              else "func refreshTargetSockets"
+        rt = s[s.index(tag):]
+        rt = rt[:rt.index("\n    }")]
+        check(f"{name}: callback so sánh pid hiện tại",
+              "self.selectedProcess?.pid != proc.pid" in rt)
+        sp = s[s.index("func selectProcess"):]
+        check(f"{name}: selectProcess reset cờ + chữ ký socket khi đổi pid",
+              "sockRefreshQueued = false" in sp and "lastSocketSig = []" in sp
+              and "let changed = selectedProcess?.pid != proc?.pid" in sp)
+
+
 def main():
     t0 = time.time()
     print("=" * 78)
@@ -2158,6 +2210,9 @@ def main():
     test_ipc_nonblocking()
     test_persona_root()
     test_brace_balance()
+    test_appmessage_on_engine()
+    test_relay_params()
+    test_sockdump_flag()
     dt = time.time() - t0
     print("\n" + "=" * 78)
     print(f"KẾT QUẢ: {len(PASS)} PASS / {len(FAIL)} FAIL  ({dt:.2f}s)")

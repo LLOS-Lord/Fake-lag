@@ -224,28 +224,39 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
     override func handleAppMessage(_ messageData: Data, completionHandler: ((Data?) -> Void)?) {
         let msg = String(data: messageData, encoding: .utf8) ?? ""
         NSLog("[Hybrid] appMessage %@", msg)
-        var reply = "ok"
-        switch msg {
-        case "enable", "disable":
-            // FIXED: the old code mutated a local copy and threw it away.
-            // Persist an override so loadSync() picks the new state instantly.
-            let wantEnable = (msg == "enable")
-            writeOverride(enabled: wantEnable)
-            if !wantEnable {
-                engineQueue.async { [weak self] in
-                    self?.flushHeld(bypassGates: true)
-                    self?.flushDelayedNow()
-                }
+
+        // NEPacketTunnelProvider calls this on the extension's main thread, while
+        // the packet path runs on engineQueue. Answering from here — even just
+        // loadConfig()/statsString() — reads config, tcpFlows and udpFlows
+        // concurrently with the engine, which is how clientTCPSegment kept
+        // trapping. Hand EVERYTHING to engineQueue and reply from there.
+        engineQueue.async { [weak self] in
+            guard let self = self else {
+                completionHandler?(Data("ok".utf8))
+                return
             }
-            log(wantEnable ? "MSG_ENABLE" : "MSG_DISABLE", "override written enabled=\(wantEnable)")
-            reply = wantEnable ? "ok enabled" : "ok disabled"
-        case "getstats":
-            reply = statsString()
-        default:
-            loadConfig()
-            reply = "ok"
+            var reply = "ok"
+            switch msg {
+            case "enable", "disable":
+                // FIXED: the old code mutated a local copy and threw it away.
+                // Persist an override so loadSync() picks the new state instantly.
+                let wantEnable = (msg == "enable")
+                self.writeOverride(enabled: wantEnable)
+                if !wantEnable {
+                    self.flushHeld(bypassGates: true)
+                    self.flushDelayedNow()
+                }
+                self.log(wantEnable ? "MSG_ENABLE" : "MSG_DISABLE",
+                         "override written enabled=\(wantEnable)")
+                reply = wantEnable ? "ok enabled" : "ok disabled"
+            case "getstats":
+                reply = self.statsString()
+            default:
+                self.loadConfigNow()
+                reply = "ok"
+            }
+            completionHandler?(Data(reply.utf8))
         }
-        completionHandler?(Data(reply.utf8))
     }
 
     // ═══════════════════════════ config & logging ════════════════════════════
@@ -293,6 +304,14 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         }
     }
 
+    /// Apply a fresh config on the CURRENT queue. Only valid on engineQueue —
+    /// the async sibling exists precisely so other queues cannot do this.
+    private func loadConfigNow() {
+        let cfg = loadSync()
+        guard cfg.timestamp > lastConfigTS else { return }
+        applyConfig(cfg)
+    }
+
     private func loadSync() -> HybridConfig {
         var cfg = HybridConfig()
         var loaded = false
@@ -334,6 +353,7 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         return cfg
     }
 
+    /// engineQueue only — assigns `config` and `lastConfigTS`.
     private func writeOverride(enabled: Bool) {
         let ts = Date().timeIntervalSince1970
         let dict: [String: Any] = ["enabled": enabled, "timestamp": ts]
@@ -496,12 +516,22 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         sendUDP(key: key, conn: conn, payload: payload)
     }
 
-    /// NWParameters that can NEVER loop back into our own tunnel.
-    /// (utun interfaces report as `.other` — prohibiting it forces every
-    /// provider socket onto the physical Wi-Fi/cellular interface, so the
-    /// relay traffic bypasses the tunnel exactly like any normal VPN app.)
+    /// Relay sockets must leave through the physical interface, never through
+    /// the tunnel we just brought up.
+    ///
+    /// The old code did `prohibitedInterfaceTypes = [.other]`, which is wrong in
+    /// BOTH directions: on iOS the utun interface backing a PacketTunnel is not
+    /// classified `.other` in every configuration, and prohibiting a whole class
+    /// rather than the specific interface leaves NWConnection with nowhere to
+    /// bind. That is exactly what the device reported —
+    /// `POSIXErrorCode(rawValue: 50): Network is down` on the FIRST connection,
+    /// immediately after TCP_EST, under any packet load.
+    ///
+    /// ponytail: the airtight way to pin the egress interface is to resolve the
+    /// route's interface (NWPathMonitor → NWInterface.name) and set
+    /// `requiredInterface`. Do that when the relay ever needs to survive a
+    /// second VPN (double-VPN users), which is the only case this leaves open.
     private static func makeRelayParams(_ base: NWParameters) -> NWParameters {
-        base.prohibitedInterfaceTypes = [.other]
         base.includePeerToPeer = false
         return base
     }

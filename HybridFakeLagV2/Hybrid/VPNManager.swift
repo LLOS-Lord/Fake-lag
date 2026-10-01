@@ -145,6 +145,11 @@ class VPNManager: ObservableObject {
         procScanner.dumpSocketsForPID(proc.pid) { [weak self] dump in
             guard let self = self else { return }
             self.sockRefreshQueued = false
+            // Dump belongs to the pid that was selected when it started. If the
+            // selection already moved on, drop it — otherwise sockRefreshQueued
+            // stays set for a dead pid and the new pid never gets a dump
+            // (symptom: CONFIG_TARGET warns forever, TARGET_REFRESH never logs).
+            if self.selectedProcess?.pid != proc.pid { return }
             let sig = Set(dump.map { "\($0.proto)|\($0.remoteIP)|\($0.remotePort)" })
             guard sig != self.lastSocketSig else { return }
             self.lastSocketSig = sig
@@ -289,7 +294,14 @@ class VPNManager: ObservableObject {
     }
 
     func selectProcess(_ proc: ProcessInfoModel?) {
+        let changed = selectedProcess?.pid != proc?.pid
         selectedProcess = proc
+        if changed {
+            // A refresh queued for the OLD pid would keep the flag set and block
+            // the new pid's dump for the rest of the session.
+            sockRefreshQueued = false
+            lastSocketSig = []
+        }
         saveConfig()
         AppGroupStore.logAction("SELECT_PID", details: proc == nil ? "GLOBAL" : "\(proc!.displayName) pid=\(proc!.pid) bundle=\(proc!.bundleID)")
     }

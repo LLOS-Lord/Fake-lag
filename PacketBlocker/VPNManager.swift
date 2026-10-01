@@ -266,6 +266,12 @@ class VPNManager: ObservableObject {
         procScanner.dumpSocketsForPID(proc.pid) { [weak self] dump in
             guard let self = self else { return }
             self.sockRefreshQueued = false
+            // The dump is a cache of a process that no longer exists: selecting a
+            // new PID, or an app that simply exited, must drop the flag or every
+            // later refresh for the new selection is silently skipped and
+            // `targetSockets` stays empty (which is why CONFIG_TARGET warned
+            // forever and never saw TARGET_REFRESH).
+            if self.selectedProcess?.pid != proc.pid { return }
             let sig = Set(dump.map { "\($0.proto)|\($0.remoteIP)|\($0.remotePort)" })
             guard sig != self.lastSocketSig else { return }
             self.lastSocketSig = sig
@@ -279,7 +285,14 @@ class VPNManager: ObservableObject {
     }
 
     func selectProcess(_ proc: ProcessInfoModel?) {
+        let changed = selectedProcess?.pid != proc?.pid
         selectedProcess = proc
+        if changed {
+            // A refresh queued for the OLD pid would otherwise keep the flag set
+            // and block the new pid's dump for the rest of the session.
+            sockRefreshQueued = false
+            lastSocketSig = []
+        }
         saveConfig()
         AppGroupStore.logAction("SELECT_PID", details: proc == nil ? "GLOBAL" : "\(proc!.displayName) pid=\(proc!.pid) bundle=\(proc!.bundleID)")
     }
