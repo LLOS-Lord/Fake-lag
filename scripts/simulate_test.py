@@ -1781,6 +1781,12 @@ def test_injector_verdict():
           "FindPayloadSocketPath(pid)" in s and "HybridInjectLibValidation" in s)
     check("không dùng goto xuyên qua biến khởi tạo (lỗi C++)",
           "goto done" not in s and "while (0);" in s)
+    # mach.h KHÔNG khai báo họ mach_vm_* — phải include mach/mach_vm.h.
+    check("include <mach/mach_vm.h> (mach.h không có mach_vm_allocate/write)",
+          "#include <mach/mach_vm.h>" in s)
+    # thread_state_t là `integer_t *`; cast thêm dấu * là build fail.
+    check("cast thread_state_t đúng (không dấu * thừa)",
+          "(thread_state_t)&st" in s and "(thread_state_t *)&st" not in s)
     check("báo chi tiết ra file cho app", 'fprintf(f, "%d' in s)
     check("stage dylib vào /var/mobile/Library/Caches + chmod 0755",
           "libNetHookPayload.dylib" in s and "chmod(staged.fileSystemRepresentation, 0755)" in s)

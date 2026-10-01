@@ -8,6 +8,7 @@
 #import "AetherNetShared.h"
 
 #include <mach/mach.h>
+#include <mach/mach_vm.h>   // mach_vm_allocate/write/protect live here, not in mach.h
 #include <mach-o/dyld.h>
 #include <dlfcn.h>
 #include <unistd.h>
@@ -111,7 +112,9 @@ static int AetherDoRemoteInject(int pid, const char *dylibPath,
         st.__pc   = (uint64_t)dlopenAddr;
         st.__lr   = (uint64_t)remoteStack;      // park stub
 
-        if (thread_create_running(task, ARM_THREAD_STATE64, (thread_state_t *)&st,
+        // thread_state_t is `integer_t *` — the cast must land ON the struct
+        // pointer, not on its address.
+        if (thread_create_running(task, ARM_THREAD_STATE64, (thread_state_t)&st,
                                   ARM_THREAD_STATE64_COUNT, &thread) != KERN_SUCCESS) {
             snprintf(detail, detailLen,
                      "thread_create_running refused (target is not CS_DEBUGGED — PPL/PAC)");
