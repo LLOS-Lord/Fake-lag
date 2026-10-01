@@ -5,6 +5,7 @@
 #import <Foundation/Foundation.h>
 #import <UIKit/UIKit.h>
 #import "Core/PersonaHelper.h"
+#import "Core/PayloadBridge.h"
 #import <dlfcn.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -80,6 +81,24 @@ int main(int argc, char *argv[]) {
                     return (n >= 0) ? 0 : 1;
                 }
                 LogCrash(@"-sockdump malformed args");
+                return 2;
+            }
+
+            // -inject "<pid> <dylibPath> <outFile>" — ROOT helper mode. It does
+            // task_for_pid + remote dlopen and writes a verdict file; no UIKit,
+            // so it exits immediately like -sockdump.
+            if ([arg1 isEqualToString:@"-inject"] && argc > 2) {
+                int targetPid = 0;
+                char dylibPath[1024] = {0};
+                char outFile[1024] = {0};
+                if (sscanf(argv[2], "%d %1023s %1023s", &targetPid, dylibPath, outFile) == 3 &&
+                    targetPid > 0) {
+                    int rc = HybridRunInjectHelper(targetPid, dylibPath, outFile);
+                    LogCrash([NSString stringWithFormat:@"-inject pid=%d rc=%d (uid=%d)",
+                              targetPid, rc, getuid()]);
+                    return (rc == HybridInjectOK) ? 0 : 1;
+                }
+                LogCrash(@"-inject malformed args");
                 return 2;
             }
 

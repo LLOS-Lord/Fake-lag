@@ -56,6 +56,12 @@ jobs:
               <key>com.apple.springboard.accessibility-window-hosting</key><true/>
               <key>com.apple.backboard.client</key><true/>
               <key>com.apple.QuartzCore.displayable-context</key><true/>
+              <key>com.apple.QuartzCore.secure-mode</key><true/>
+              <key>com.apple.private.hid.manager.client</key><true/>
+              <key>com.apple.private.hid.client.service-protected</key><true/>
+              <key>com.apple.springboard.CFUserNotification</key><true/>
+              <key>com.apple.springboard.appbackgroundstyle</key><true/>
+              <key>com.apple.private.allow-background-haptics</key><true/>
               <key>com.apple.private.hid.client.event-dispatch</key><true/>
               <key>com.apple.private.hid.client.event-filter</key><true/>
               <key>com.apple.private.hid.client.event-monitor</key><true/>

@@ -867,6 +867,7 @@ int HUDMain(int argc, char *argv[])
                         atomically:YES
                           encoding:NSUTF8StringEncoding
                              error:nil];
+            chmod(AETHER_HUD_PID_PATH, 0666);   // the app runs as uid 501
             HUDStepLog(@"step3 pid file written");
 
             AetherLog(@"[pid %d] HUD daemon starting", getpid());
@@ -878,9 +879,11 @@ int HUDMain(int argc, char *argv[])
             });
             HUDStepLog(@"step4 hook payload installer dispatched (background)");
 
+            // hudVisible is set by the app delegate only after
+            // registerWindowWithContextID:, i.e. once the button is on screen.
             AetherSharedState *state = AetherGetSharedState();
             if (state) {
-                aether_atomic_store(&state->hudVisible, true);
+                aether_atomic_store(&state->hudVisible, false);
             }
 
             AetherLoadPrivateFrameworks();

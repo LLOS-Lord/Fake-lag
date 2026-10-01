@@ -38,12 +38,16 @@
 		BA51DEAE664348CB92C300D0 /* AetherTouchPrivate.h in Sources */ = {isa = PBXBuildFile; fileRef = 191C972ADB454E8CA5E5ED17 /* AetherTouchPrivate.h */; };
 		25C769E73BF64C8C83CF420B /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 87BD64230E6741A3A1EBC1C0 /* LaunchScreen.storyboard */; };
 		EBECDA44AD6D4A95BCD4BC2C /* PacketTunnelProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 295EA38D13DC45BCBF894641 /* PacketTunnelProvider.swift */; };
+		AE00000000000000000000B1 /* PayloadBridge.mm in Sources */ = {isa = PBXBuildFile; fileRef = AE00000000000000000000B2 /* PayloadBridge.mm */; };
+		AE00000000000000000000B3 /* PayloadManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE00000000000000000000B4 /* PayloadManager.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		718DD068D633464F89AE79F2 /* PacketBlocker.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PacketBlocker.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		0B303A481C64413184D435D5 /* PacketBlockerExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = PacketBlockerExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		0A138310D20F48A8AA08DA9D /* main.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = main.mm; sourceTree = "<group>"; };
+		AE00000000000000000000B2 /* PayloadBridge.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = PayloadBridge.mm; sourceTree = "<group>"; };
+		AE00000000000000000000B4 /* PayloadManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PayloadManager.swift; sourceTree = "<group>"; };
 		D2D37FC323C44B45A64BAE83 /* App.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = App.swift; sourceTree = "<group>"; };
 		181827B8066644C2B25AC5FF /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		5DB0987636A3415E87122B4F /* AppGroup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppGroup.swift; sourceTree = "<group>"; };
@@ -95,7 +99,7 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		E522569EBE074707A09DB706 /* PacketBlocker */ = {isa = PBXNativeTarget; buildConfigurationList = 79D3807EB39A4191A9596CB8; buildPhases = (89A900256F474E53B521F28F, 143160D9EA1E4F5EB0688832); buildRules = (); dependencies = (B8806A0C95F944CCA25AB094); name = PacketBlocker; productName = PacketBlocker; productReference = 718DD068D633464F89AE79F2 /* PacketBlocker.app */; productType = "com.apple.product-type.application"; };
+		E522569EBE074707A09DB706 /* PacketBlocker */ = {isa = PBXNativeTarget; buildConfigurationList = 79D3807EB39A4191A9596CB8; buildPhases = (89A900256F474E53B521F28F, 143160D9EA1E4F5EB0688832, AE00000000000000000000A1); buildRules = (); dependencies = (B8806A0C95F944CCA25AB094); name = PacketBlocker; productName = PacketBlocker; productReference = 718DD068D633464F89AE79F2 /* PacketBlocker.app */; productType = "com.apple.product-type.application"; };
 		EA2107C14ED740B28647CBFE /* PacketBlockerExtension */ = {isa = PBXNativeTarget; buildConfigurationList = BA7FA76B7EA84CA9AA53C4B3; buildPhases = (0AE06D52098F433B8C010242, 10FC82078D68487996F5C00E); buildRules = (); dependencies = (); name = PacketBlockerExtension; productName = PacketBlockerExtension; productReference = 0B303A481C64413184D435D5 /* PacketBlockerExtension.appex */; productType = "com.apple.product-type.app-extension"; };
 /* End PBXNativeTarget section */
 
@@ -104,7 +108,7 @@
 /* End PBXProject section */
 
 /* Begin PBXSourcesBuildPhase section */
-		89A900256F474E53B521F28F /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (FD859D410C07420AA6E4C1FA, 94697CA6B6134CD399482AB3, DB239BDE538649F38FE8D6FD, 3175BA36D98F43CDA8CEB757, 7AB8EDA11C374BF59AC1CF2A, 193947F3D95F4B0EB0E3FE65, 8643501DBD0F48E181E89F0A, C0AC7380115A41368D8A4045, 7E1D673BE95D45DAB5B81587, 580E3AECEAF3478286DEF186, 2160033750AA453A95ED0082, B02970D3925046508B88A604, C12FAC33DBD34FDDBD64703E, BF0F96C0563245E194BCFCE8, E8C6EF80B1EA441085AAD290, 9771C89D9106460FAC198DC1, 86FDC796D28F4480A73C3FB3, A6CFA32A9AFD46A58D24286E, E6E7A4910C884BBCA744B3AA, 79BFB4843F5E42AEA87D2286); runOnlyForDeploymentPostprocessing = 0; };
+		89A900256F474E53B521F28F /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (FD859D410C07420AA6E4C1FA, 94697CA6B6134CD399482AB3, DB239BDE538649F38FE8D6FD, 3175BA36D98F43CDA8CEB757, 7AB8EDA11C374BF59AC1CF2A, 193947F3D95F4B0EB0E3FE65, 8643501DBD0F48E181E89F0A, C0AC7380115A41368D8A4045, 7E1D673BE95D45DAB5B81587, 580E3AECEAF3478286DEF186, 2160033750AA453A95ED0082, B02970D3925046508B88A604, C12FAC33DBD34FDDBD64703E, BF0F96C0563245E194BCFCE8, E8C6EF80B1EA441085AAD290, 9771C89D9106460FAC198DC1, 86FDC796D28F4480A73C3FB3, A6CFA32A9AFD46A58D24286E, E6E7A4910C884BBCA744B3AA, 79BFB4843F5E42AEA87D2286, AE00000000000000000000B1, AE00000000000000000000B3); runOnlyForDeploymentPostprocessing = 0; };
 		0AE06D52098F433B8C010242 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (EBECDA44AD6D4A95BCD4BC2C); runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXSourcesBuildPhase section */
 
@@ -112,6 +116,23 @@
 		143160D9EA1E4F5EB0688832 /* Resources */ = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (25C769E73BF64C8C83CF420B); runOnlyForDeploymentPostprocessing = 0; };
 		10FC82078D68487996F5C00E /* Resources */ = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		AE00000000000000000000A1 /* Build Payload Dylib */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			name = "Build Payload Dylib";
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "# Without this phase the shipped .app contains NO payload at all, so both\n# injection paths (ellekit TweakInject + remote dlopen) silently capture nothing.\nset -e\nSRC=\"$SRCROOT/HybridFakeLagV2/Payload\"\nAPP=\"$BUILT_PRODUCTS_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH\"\nSDK=\"$(xcrun --sdk iphoneos --show-sdk-path)\"\nmkdir -p \"$APP\"\nxcrun -sdk iphoneos clang \\\n  -dynamiclib -arch arm64 -miphoneos-version-min=14.0 -isysroot \"$SDK\" \\\n  -DHYBRID_PAYLOAD_BUILD=1 -fobjc-arc -O2 -Wall -Wno-unused-function \\\n  -install_name /usr/lib/libNetHookPayload.dylib \\\n  -framework Foundation \\\n  \"$SRC/fishhook.c\" \"$SRC/NetHookPayload.mm\" \\\n  -o \"$APP/libNetHookPayload.dylib\"\necho \"payload built: $APP/libNetHookPayload.dylib\"\n";
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXTargetDependency section */
 		B8806A0C95F944CCA25AB094 /* PBXTargetDependency */ = {isa = PBXTargetDependency; target = EA2107C14ED740B28647CBFE; targetProxy = BF680D52C480447CA83DBB8D; };

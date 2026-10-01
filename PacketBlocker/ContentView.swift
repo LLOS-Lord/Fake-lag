@@ -3,6 +3,7 @@ struct ContentView: View {
     @StateObject private var vpn = VPNManager.shared
     @StateObject private var hud = FloatingHUDManager.shared
     @StateObject private var procMgr = ProcessManager()
+    @StateObject private var payload = PayloadManager.shared
     @State private var showSheet = false
     @State private var search = ""
     @State private var statsTimer: Timer?
@@ -21,6 +22,19 @@ struct ContentView: View {
                     Button(action:{ procMgr.scan(); showSheet=true }){
                         HStack{Image(systemName:"scope"); Text(vpn.selectedProcess == nil ? "Chọn PID (GLOBAL)" : "PID: \(vpn.selectedProcess!.displayName)"); Spacer(); Image(systemName:"chevron.right")}
                     }.padding(.horizontal)
+                    Button(action:{ payload.attach(to: vpn.selectedProcess, config: vpn) }){
+                        HStack{Image(systemName:"cross.case.fill"); Text(payload.isAttached ? "Re-attach payload" : "Inject payload vào PID")}
+                        .frame(maxWidth:.infinity).padding().background(payload.isAttached ? Color.green.opacity(0.35) : Color.blue.opacity(0.35)).cornerRadius(12)
+                    }.padding(.horizontal).disabled(vpn.selectedProcess == nil)
+                    if !payload.status.isEmpty {
+                        VStack(alignment:.leading, spacing:2){
+                            Text(payload.status).font(.caption).foregroundColor(payload.status.hasPrefix("LỖI") ? .red : .secondary)
+                            Text(payload.summary).font(.system(.caption2, design: .monospaced)).foregroundColor(.secondary)
+                            if !payload.detail.isEmpty {
+                                Text(payload.detail).font(.system(size:9, design: .monospaced)).foregroundColor(.secondary).lineLimit(3)
+                            }
+                        }.frame(maxWidth:.infinity, alignment:.leading).padding(.horizontal)
+                    }
                     Picker("Mode", selection: $vpn.mode){ Text("Hold").tag("hold"); Text("Drop").tag("drop"); Text("Delay").tag("delay") }.pickerStyle(SegmentedPickerStyle()).onChange(of: vpn.mode){_ in vpn.saveConfig()}.padding(.horizontal)
                     Button(action:{ vpn.isVPNConnected ? vpn.disconnectVPN() : vpn.connectVPN()}){
                         HStack{Image(systemName: vpn.isVPNConnected ? "power" : "bolt.shield"); Text(vpn.isVPNConnected ? "Tắt VPN" : "Bật VPN Fix Kill")}
@@ -59,6 +73,14 @@ struct ContentView: View {
                     statsTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: true) { _ in
                         if vpn.isVPNConnected { vpn.refreshStats() }
                     }
+                    if payload.isAttached { payload.push(config: vpn) }
+                }
+                .onChange(of: vpn.isBlocking)   { _ in payload.push(config: vpn) }
+                .onChange(of: vpn.mode)         { _ in payload.push(config: vpn) }
+                .onChange(of: vpn.direction)    { _ in payload.push(config: vpn) }
+                .onChange(of: vpn.protoFilter)  { _ in payload.push(config: vpn) }
+                .onChange(of: vpn.selectedProcess?.pid) { _ in
+                    if payload.isAttached { payload.detach() }
                 }
                 .onDisappear { statsTimer?.invalidate(); statsTimer = nil }
             }.tabItem{Label("Home", systemImage:"house")}

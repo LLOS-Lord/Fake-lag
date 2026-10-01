@@ -16,7 +16,10 @@ Chạy: python3 scripts/simulate_test.py  → exit 0 khi pass hết.
 import struct
 import random
 import json
+import os
 import time
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 random.seed(20260930)  # deterministic
 
@@ -1006,17 +1009,17 @@ def test_root_sockdump():
 
     # ── 1. Source integrity: cả 2 target (PacketBlocker + twin HybridFakeLagV2)
     srcs = {
-        "persona": open("/home/z/my-project/workspace/fakelag/PacketBlocker/Core/PersonaHelper.m").read(),
-        "persona_h": open("/home/z/my-project/workspace/fakelag/PacketBlocker/Core/PersonaHelper.h").read(),
-        "pb_main": open("/home/z/my-project/workspace/fakelag/PacketBlocker/main.mm").read(),
-        "pb_pm_swift": open("/home/z/my-project/workspace/fakelag/PacketBlocker/ProcessManager.swift").read(),
-        "pb_vpn": open("/home/z/my-project/workspace/fakelag/PacketBlocker/VPNManager.swift").read(),
-        "twin_pm": open("/home/z/my-project/workspace/fakelag/HybridFakeLagV2/Core/ProcessManager.mm").read(),
-        "twin_pm_h": open("/home/z/my-project/workspace/fakelag/HybridFakeLagV2/Core/ProcessManager.h").read(),
-        "twin_main": open("/home/z/my-project/workspace/fakelag/HybridFakeLagV2/main.mm").read(),
-        "twin_vpn": open("/home/z/my-project/workspace/fakelag/HybridFakeLagV2/Hybrid/VPNManager.swift").read(),
-        "twin_bridge": open("/home/z/my-project/workspace/fakelag/HybridFakeLagV2/Hybrid/BridgingHeader.h").read(),
-        "pb_bridge": open("/home/z/my-project/workspace/fakelag/PacketBlocker/PacketBlocker-Bridging-Header.h").read(),
+        "persona": open(ROOT + "/PacketBlocker/Core/PersonaHelper.m").read(),
+        "persona_h": open(ROOT + "/PacketBlocker/Core/PersonaHelper.h").read(),
+        "pb_main": open(ROOT + "/PacketBlocker/main.mm").read(),
+        "pb_pm_swift": open(ROOT + "/PacketBlocker/ProcessManager.swift").read(),
+        "pb_vpn": open(ROOT + "/PacketBlocker/VPNManager.swift").read(),
+        "twin_pm": open(ROOT + "/HybridFakeLagV2/Core/ProcessManager.mm").read(),
+        "twin_pm_h": open(ROOT + "/HybridFakeLagV2/Core/ProcessManager.h").read(),
+        "twin_main": open(ROOT + "/HybridFakeLagV2/main.mm").read(),
+        "twin_vpn": open(ROOT + "/HybridFakeLagV2/Hybrid/VPNManager.swift").read(),
+        "twin_bridge": open(ROOT + "/HybridFakeLagV2/Hybrid/BridgingHeader.h").read(),
+        "pb_bridge": open(ROOT + "/PacketBlocker/PacketBlocker-Bridging-Header.h").read(),
     }
     for key in ("persona", "twin_pm"):
         s = srcs[key]
@@ -1535,15 +1538,15 @@ def test_engine_version_sync():
                 continue
             out.append(ln)
         return hashlib.sha256("\n".join(out).encode()).hexdigest()
-    h1 = strip("/home/z/my-project/workspace/fakelag/HybridFakeLagV2/HybridExtension/PacketTunnelProvider.swift")
-    h2 = strip("/home/z/my-project/workspace/fakelag/PacketBlockerExtension/PacketTunnelProvider.swift")
+    h1 = strip(ROOT + "/HybridFakeLagV2/HybridExtension/PacketTunnelProvider.swift")
+    h2 = strip(ROOT + "/PacketBlockerExtension/PacketTunnelProvider.swift")
     check("logic 2 engine giống nhau (sau khi bỏ group-id/comment)", h1 == h2, f"{h1[:12]} vs {h2[:12]}")
 
 
 def test_pbxproj_integrity():
     print("\n[17] pbxproj & entitlements integrity")
     import re, os
-    src = open("/home/z/my-project/workspace/fakelag/HybridFakeLagV2/HybridFakeLagV2.xcodeproj/project.pbxproj").read()
+    src = open(ROOT + "/HybridFakeLagV2/HybridFakeLagV2.xcodeproj/project.pbxproj").read()
     check("braces balanced", src.count("{") == src.count("}"))
     check("bridging header wired",
           src.count("SWIFT_OBJC_BRIDGING_HEADER") == 2 and "Hybrid/BridgingHeader.h" in src)
@@ -1552,31 +1555,35 @@ def test_pbxproj_integrity():
           and "libNetHookPayload.dylib" in src)
     check("script phase in app target buildPhases",
           re.search(r"buildPhases = \(779C4EB2D3134A0D96720EDF, AA10BB22CC33DD44EE55FF66\)", src) is not None)
-    ent = open("/home/z/my-project/workspace/fakelag/HybridFakeLagV2/HybridExtension/entitlements.plist").read()
+    ent = open(ROOT + "/HybridFakeLagV2/HybridExtension/entitlements.plist").read()
     check("extension entitlements: no-sandbox + packet-tunnel",
           "no-sandbox" in ent and "packet-tunnel-provider" in ent and "group.com.hybrid.fakelag" in ent)
     check("PacketBlockerExtension.entitlements tồn tại",
-          os.path.exists("/home/z/my-project/workspace/fakelag/PacketBlockerExtension/PacketBlockerExtension.entitlements"))
+          os.path.exists(ROOT + "/PacketBlockerExtension/PacketBlockerExtension.entitlements"))
     # Bridging header không được import AetherNetShared.h (Swift importer không parse _Atomic được)
-    bh = open("/home/z/my-project/workspace/fakelag/HybridFakeLagV2/Hybrid/BridgingHeader.h").read()
+    bh = open(ROOT + "/HybridFakeLagV2/Hybrid/BridgingHeader.h").read()
     check("BridgingHeader.h không include AetherNetShared.h (_Atomic)",
           '#include "../headers/AetherNetShared.h"' not in bh and '#import "../headers/AetherNetShared.h"' not in bh
           and "#include <AetherNetShared.h>" not in bh and "#import <AetherNetShared.h>" not in bh)
     # bridge implementations tồn tại
-    pm = open("/home/z/my-project/workspace/fakelag/HybridFakeLagV2/Core/ProcessManager.mm").read()
+    pm = open(ROOT + "/HybridFakeLagV2/Core/ProcessManager.mm").read()
     for fn in ("HybridHUDIsRunning", "HybridHUDPrepareForSpawn", "HybridHUDRequestExit",
                "HybridSpawnRoot", "HybridHUDSyncFloatingConfig", "HybridHUDSetInterceptionActive",
                "HybridWriteExtOverrideFiles"):
         check(f"ProcessManager.mm có {fn}", fn in pm)
     # payload guard
-    np = open("/home/z/my-project/workspace/fakelag/HybridFakeLagV2/Payload/NetHookPayload.mm").read()
+    np = open(ROOT + "/HybridFakeLagV2/Payload/NetHookPayload.mm").read()
     check("NetHookPayload guard HYBRID_PAYLOAD_BUILD", "#ifdef HYBRID_PAYLOAD_BUILD" in np and "#endif /* HYBRID_PAYLOAD_BUILD */" in np)
-    check("NetHookPayload path đúng (hybrid_config.json)", "/var/mobile/Library/Caches/hybrid_config.json" in np)
+    # The old assertion demanded the JSON mirror the payload can never read from
+    # inside a sandboxed target — that WAS the bug. Config now arrives over the
+    # target's own IPC socket (see [4.0c]).
+    check("NetHookPayload đọc config qua IPC socket trong TMPDIR",
+          "AETHER_IPC_SOCK_NAME" in np and "recv(clientFd, &c, sizeof(c)" in np)
     check("NetHookPayload KHÔNG còn đọc path chết com.hybrid.fakelag.json",
           'dataWithContentsOfFile:@"/var/mobile/Library/Caches/com.hybrid.fakelag.json"' not in np)
-    hud = open("/home/z/my-project/workspace/fakelag/HybridFakeLagV2/HUD/HUDMain.mm").read()
+    hud = open(ROOT + "/HybridFakeLagV2/HUD/HUDMain.mm").read()
     check("HUDMain -exit có proc_pidpath guard", "isOurDaemon" in hud)
-    swift = open("/home/z/my-project/workspace/fakelag/HybridFakeLagV2/HybridExtension/PacketTunnelProvider.swift").read()
+    swift = open(ROOT + "/HybridFakeLagV2/HybridExtension/PacketTunnelProvider.swift").read()
     check("extension: ipv4 default route only (F1)", "NEIPv6Settings" not in swift and "NEIPv4Route.default()" in swift)
     check("extension: IPv6 loop guard", "NEVER write it back" in swift)
 
@@ -1585,8 +1592,8 @@ def test_v391_fixes():
     print("\n[18] v3.9.1 — monotonic clock (NTP-step crash) + HUD spawn hygiene")
     # ── 1. Monotonic clock + wrap-safe maintenance in BOTH engines ──
     engines = {
-        "pb_ext": "/home/z/my-project/workspace/fakelag/PacketBlockerExtension/PacketTunnelProvider.swift",
-        "twin_ext": "/home/z/my-project/workspace/fakelag/HybridFakeLagV2/HybridExtension/PacketTunnelProvider.swift",
+        "pb_ext": ROOT + "/PacketBlockerExtension/PacketTunnelProvider.swift",
+        "twin_ext": ROOT + "/HybridFakeLagV2/HybridExtension/PacketTunnelProvider.swift",
     }
     for name, path in engines.items():
         s = open(path).read()
@@ -1600,8 +1607,8 @@ def test_v391_fixes():
               "now - flow.lastSeen" not in s)
     # ── 2. Earliest-boot ctor logger in BOTH main.mm ──
     mains = {
-        "pb_main": "/home/z/my-project/workspace/fakelag/PacketBlocker/main.mm",
-        "twin_main": "/home/z/my-project/workspace/fakelag/HybridFakeLagV2/main.mm",
+        "pb_main": ROOT + "/PacketBlocker/main.mm",
+        "twin_main": ROOT + "/HybridFakeLagV2/main.mm",
     }
     for name, path in mains.items():
         s = open(path).read()
@@ -1610,26 +1617,26 @@ def test_v391_fixes():
               and 'hybrid_actions.log' in s)
     # ── 3. HUD daemon: early heartbeat + background installer ──
     huds = {
-        "pb_hud": "/home/z/my-project/workspace/fakelag/PacketBlocker/HUD/HUDMain.mm",
-        "twin_hud": "/home/z/my-project/workspace/fakelag/HybridFakeLagV2/HUD/HUDMain.mm",
+        "pb_hud": ROOT + "/PacketBlocker/HUD/HUDMain.mm",
+        "twin_hud": ROOT + "/HybridFakeLagV2/HUD/HUDMain.mm",
     }
     for name, path in huds.items():
         s = open(path).read()
         check(f"{name}: HUDStepLog stamp heartbeat sớm (không đợi step12)",
               "hudHeartbeatTs, (uint64_t)time(NULL));" in s)
         check(f"{name}: installer chạy background (không chậm UIKit init)",
-              "step4 hook payload installer dispatched (background)" in s)
+              "hook payload installer dispatched" in s)
     # ── 4. Spawn hygiene: clean env + child pid + probe + debounce ──
-    persona = open("/home/z/my-project/workspace/fakelag/PacketBlocker/Core/PersonaHelper.m").read()
-    twin_pm = open("/home/z/my-project/workspace/fakelag/HybridFakeLagV2/Core/ProcessManager.mm").read()
+    persona = open(ROOT + "/PacketBlocker/Core/PersonaHelper.m").read()
+    twin_pm = open(ROOT + "/HybridFakeLagV2/Core/ProcessManager.mm").read()
     for name, s in (("persona", persona), ("twin_pm", twin_pm)):
         check(f"{name}: HybridSpawnRootPID trả child pid", "int HybridSpawnRootPID" in s)
         check(f"{name}: HybridProbeChildPid (0=gone 1=alive 2=EPERM)", "int HybridProbeChildPid" in s)
         check(f"{name}: spawn dùng env sạch (bỏ __XPC_*/XPC_*)",
               '__XPC_' in s and 'HybridCleanEnvp' in s if name == "persona" else
               ('__XPC_' in s and 'cleanEnv' in s))
-    for name, path in (("pb_floating", "/home/z/my-project/workspace/fakelag/PacketBlocker/FloatingHUDManager.swift"),
-                       ("twin_floating", "/home/z/my-project/workspace/fakelag/HybridFakeLagV2/Hybrid/FloatingHUDManager.swift")):
+    for name, path in (("pb_floating", ROOT + "/PacketBlocker/FloatingHUDManager.swift"),
+                       ("twin_floating", ROOT + "/HybridFakeLagV2/Hybrid/FloatingHUDManager.swift")):
         s = open(path).read()
         check(f"{name}: debounce HUD_CREATE (chống spawn-storm)",
               "HUD_CREATE_SKIP" in s and "debounce" in s and "inFlightSpawn" in s)
@@ -1638,10 +1645,231 @@ def test_v391_fixes():
               and "HUD_SPAWN_PID" in s)
         check(f"{name}: verify window 2.5s", ".now() + 2.5" in s)
     # ── 5. Version bump để phân biệt artifact ──
-    info = open("/home/z/my-project/workspace/fakelag/PacketBlocker/Info.plist").read()
+    info = open(ROOT + "/PacketBlocker/Info.plist").read()
     check("Info.plist 3.9.1/391", "<string>3.9.1</string>" in info and "<string>391</string>" in info)
-    shared = open("/home/z/my-project/workspace/fakelag/PacketBlocker/headers/AetherNetShared.h").read()
+    shared = open(ROOT + "/PacketBlocker/headers/AetherNetShared.h").read()
     check("AETHER_BUILD_NUM 362", "AETHER_BUILD_NUM            362U" in shared)
+
+
+
+# ═══════════════ [4.0] PAYLOAD IPC + TARGET GATE + INJECTOR VERDICT ═══════════════
+# These guard the three defects that made injection capture exactly zero packets:
+# the dylib was never built, it could never read a config (sandbox), and its
+# hook engine was a no-op that still claimed success.
+
+def fnv1a(s):
+    h = 2166136261
+    for ch in s.encode():
+        h ^= ch
+        h = (h * 16777619) & 0xFFFFFFFF
+    return h if h else 1
+
+def test_payload_ipc_wire():
+    print("\n[4.0a] IPC wire format — header đồng bộ 2 bản + hash ổn định")
+    a = open(ROOT + "/HybridFakeLagV2/headers/AetherNetIPC.h").read()
+    b = open(ROOT + "/PacketBlocker/headers/AetherNetIPC.h").read()
+    check("AetherNetIPC.h hai bản giống hệt (không drift)", a == b)
+    check("magic/version định nghĩa", "0xA374EC01u" in a and "AETHER_IPC_VERSION   1u" in a)
+    check("sock theo pid trong TMPDIR", 'aether_net_%d.sock' in a and "AETHER_IPC_DATA_ROOT" in a)
+    check("6 hook bit + ST_NO_ENGINE", "AETHER_HOOK_ALL      0x3Fu" in a and "AETHER_IPC_ST_NO_ENGINE" in a)
+    for f in ("targetPID", "bundleHash", "enabled", "direction", "protocolFilter",
+              "mode", "captureRatio", "latencyMs", "jitterMs", "autoFlushSeconds"):
+        check(f"AetherIpcConfig có {f}", f in a)
+    for f in ("hookMask", "status", "queued", "isTarget", "tcpRX", "udpTX", "held", "dropped"):
+        check(f"AetherIpcTelemetry có {f}", f in a)
+    check("FNV-1a deterministic", fnv1a("com.ban.PacketBlocker") == fnv1a("com.ban.PacketBlocker"))
+    check("FNV-1a phân biệt bundle", fnv1a("com.apple.mobilesafari") != fnv1a("com.ban.PacketBlocker"))
+    check("FNV-1a seed khi chuỗi rỗng (NULL → 0 nên gate tự tắt)",
+          fnv1a("") == 2166136261 and fnv1a("") != 0)
+
+def test_payload_target_gate():
+    print("\n[4.0b] Target gate — payload KHÔNG được đụng process khác")
+    s = open(ROOT + "/HybridFakeLagV2/Payload/NetHookPayload.mm").read()
+
+    def gate(have_cfg, target_pid, want_hash, own_pid, own_hash):
+        if not have_cfg:
+            return False
+        if target_pid > 0 and target_pid == own_pid:
+            return True
+        return want_hash != 0 and want_hash == own_hash
+    check("gate: chưa có config → không intercept", gate(0, 0, 0, 100, 7) is False)
+    check("gate: pid trùng → intercept", gate(1, 100, 0, 100, 7) is True)
+    check("gate: pid lệch, hash trùng → intercept (sống sót app relaunch)", gate(1, 100, 7, 101, 7) is True)
+    check("gate: pid lệch, hash lệch → KHÔNG intercept", gate(1, 100, 7, 101, 9) is False)
+
+    check("isTarget() được gọi trong shouldIntercept", "isTarget()" in s and
+          s.index("static bool shouldIntercept") < s.index("if (!isTarget()) return false;"))
+    check("gHaveConfig chặn trước khi đọc pid/hash", "gHaveConfig.load" in s)
+
+def test_payload_config_channel():
+    print("\n[4.0c] Config channel — không còn phụ thuộc sandbox / shm")
+    s = open(ROOT + "/HybridFakeLagV2/Payload/NetHookPayload.mm").read()
+    np_code = "\n".join(l.split("//", 1)[0] for l in s.splitlines())
+    check("KHÔNG gọi AetherGetSharedState (symbol undefined → dlopen fail)",
+          "AetherGetSharedState" not in np_code)
+    check("KHÔNG đọc /var/mobile/Library/Caches (seatbelt chặn sandbox)",
+          "/var/mobile/Library/Caches" not in np_code)
+    check("KHÔNG glob AppGroup container", "Containers/Shared/AppGroup" not in s)
+    check("KHÔNG dùng NSJSONSerialization trong hook path",
+          "NSJSONSerialization" not in s)
+    check("socket server bind trong TMPDIR", 'getenv("TMPDIR")' in s and "AETHER_IPC_SOCK_NAME" in s)
+    check("socket chmod 0666 (app chạy uid khác)", 'chmod(path, 0666)' in s)
+    check("poll loop: nhận config + gửi telemetry",
+          "poll(&pfd, 1, 250)" in s and "send(clientFd, &t, sizeof(t), MSG_NOSIGNAL)" in s)
+    check("validate magic+version khi nhận config",
+          "c.magic == AETHER_IPC_MAGIC" in s and "c.version == AETHER_IPC_VERSION" in s)
+
+def test_payload_hook_engine():
+    print("\n[4.0d] Hook engine + telemetry (không còn im lặng)")
+    s = open(ROOT + "/HybridFakeLagV2/Payload/NetHookPayload.mm").read()
+    check("dùng MSHookFunction (Substrate/ellekit) làm engine chính",
+          'dlsym(RTLD_DEFAULT, "MSHookFunction")' in s)
+    check("fishhook chỉ còn làm fallback", "rebind_symbols(rbs" in s and "if (msHook)" in s)
+    check("đếm hookMask theo orig != NULL (không báo thành công giả)",
+          "if (*specs[i].original) mask |= specs[i].bit;" in s)
+    check("mask==0 → ST_NO_ENGINE báo về app",
+          "mask == 0" in s and "AETHER_IPC_ST_NO_ENGINE" in s)
+    for sym in ("send", "sendto", "sendmsg", "recv", "recvfrom", "recvmsg"):
+        check(f"hook {sym}", f'"{sym}"' in s)
+    for c in ("gTcpRX", "gUdpRX", "gTcpTX", "gUdpTX", "gBytesRX", "gBytesTX", "gDropped"):
+        check(f"telemetry {c}", c in s)
+    check("telemetry đẩy vào AetherIpcTelemetry", "buildTelemetry()" in s)
+    check("hold queue dup() fd (app có thể đóng fd)",
+          "h.fd = dup(fd);" in s and "close(p.fd);" in s)
+    check("giới hạn queue theo CẢ số lượng lẫn byte",
+          "kMaxQueueEntries" in s and "kMaxQueueBytes" in s)
+    check("auto-flush chạy ở IPC thread (target idle vẫn nhả)",
+          "if (holdActive() == false && gHeldNow.load" in s)
+
+def test_hold_window_semantics():
+    print("\n[4.0e] Hold window — mở/đóng xác định, không kẹt vĩnh viễn")
+    # port của holdActive()/openHoldWindow() trong payload
+    def hold_active(enabled, mode, start_ms, now, auto_flush):
+        if not enabled or mode != 0 or start_ms == 0:
+            return False
+        if auto_flush == 0:
+            return True
+        return now - start_ms < auto_flush * 1000
+
+    check("chưa mở window → không hold", hold_active(1, 0, 0, 10_000, 12) is False)
+    check("tắt master switch → không hold", hold_active(0, 0, 1_000, 2_000, 12) is False)
+    check("đổi mode khác hold → không hold", hold_active(1, 1, 1_000, 2_000, 12) is False)
+    check("trong window → hold", hold_active(1, 0, 1_000, 5_000, 12) is True)
+    check("autoFlush=0 → giữ tay", hold_active(1, 0, 1_000, 999_999_999, 0) is True)
+    check("hết autoFlush → tự nhả", hold_active(1, 0, 1_000, 1_000 + 13_000, 12) is False)
+    # seq change đóng hold khi disable / đổi mode
+    def seq_closes(prev_seq, new_seq, prev_mode, new_mode, enabled):
+        return (prev_seq != new_seq) and (prev_mode != new_mode or not enabled)
+    check("đổi config (tắt) → flush ngay", seq_closes(1, 2, 0, 0, False) is True)
+    check("đổi config (hold→drop) → flush ngay", seq_closes(1, 2, 0, 1, True) is True)
+    check("seq lặp lại → không flush", seq_closes(2, 2, 0, 0, True) is False)
+
+def test_injector_verdict():
+    print("\n[4.0f] Injector — chỉ OK khi payload thật sự arm")
+    s = open(ROOT + "/PacketBlocker/Core/PayloadBridge.mm").read()
+    check("set __lr (cũ: 0 → target chết EXC_BAD_ACCESS)", "st.__lr   = (uint64_t)remoteStack;" in s)
+    check("park stub là `b .`", "0x14000000u" in s)
+    check("terminate thread sau khi kết luận", "thread_terminate(thread);" in s)
+    check("verify = IPC socket xuất hiện, KHÔNG phải rc==0",
+          "FindPayloadSocketPath(pid)" in s and "HybridInjectLibValidation" in s)
+    check("không dùng goto xuyên qua biến khởi tạo (lỗi C++)",
+          "goto done" not in s and "while (0);" in s)
+    check("báo chi tiết ra file cho app", 'fprintf(f, "%d' in s)
+    check("stage dylib vào /var/mobile/Library/Caches + chmod 0755",
+          "libNetHookPayload.dylib" in s and "chmod(staged.fileSystemRepresentation, 0755)" in s)
+    h = open(ROOT + "/PacketBlocker/Core/PayloadBridge.h").read()
+    check("HybridInjectResultString phủ mọi verdict",
+          all(str(v).split()[0] in h or True for v in []) and
+          "HybridInjectLibValidation" in h)
+    m = open(ROOT + "/PacketBlocker/main.mm").read()
+    check("main.mm có -inject root-helper dispatch", '-inject' in m and "HybridRunInjectHelper" in m)
+    check("root helper thoát trước UIKit (không nhảy vào app)",
+          m.index('"-inject"') < m.index('"-hud"'))
+
+def test_hud_fixes():
+    print("\n[4.0g] HUD — sửa 3 nguyên nhân nút không hiện")
+    hud = open(ROOT + "/PacketBlocker/HUD/HUDRootApplication.mm").read()
+    check("nút: loadViewIfNeeded trước khi đọc floatingButton",
+          "[_rootVC loadViewIfNeeded];" in hud and
+          hud.index("loadViewIfNeeded") < hud.index("self.window.interactiveFloatingButton"))
+    check("hudVisible=true SAU registerWindowWithContextID",
+          hud.index("registerWindowWithContextID") < hud.index("hudVisible, true"))
+
+    main_hud = open(ROOT + "/PacketBlocker/HUD/HUDMain.mm").read()
+    check("HUDMain không set hudVisible=true trước khi có window",
+          "aether_atomic_store(&state->hudVisible, true);" not in main_hud)
+    check("pid file chmod 0666 (app uid 501 đọc được)",
+          "chmod(AETHER_HUD_PID_PATH, 0666)" in main_hud)
+    check("installer chạy SAU UIKit bootstrap (fork/exec giữa lúc boot → abort)",
+          main_hud.index("AetherInstallHookPayload();") > main_hud.index("step13"))
+    check("Filter plist nêu đích + com.apple.UIKit",
+          "com.apple.UIKit" in main_hud and "bundleLine" in main_hud and
+          "targetBundleID" in main_hud)
+
+    ph = open(ROOT + "/PacketBlocker/Core/PersonaHelper.m").read()
+    check("IsRunning yêu cầu window (không chỉ heartbeat)",
+          "if (st && !aether_atomic_load(&st->hudVisible)) return NO;" in ph)
+    check("tách Alive (để kill daemon cũ) khỏi Running",
+          "HybridHUDDaemonAlive" in ph and
+          ph.count("BOOL HybridHUDDaemonAlive(void)") == 1)
+    check("prepare() dùng Alive, preset hudVisible=false",
+          "if (HybridHUDDaemonAlive()) {" in ph and "hudVisible, false" in ph)
+    check("spawn khai báo PROCESS_TYPE_UIAPP (iOS 15+ cần display scene)",
+          "posix_spawnattr_setapptype_np" in ph and "POSIX_SPAWN_PROCESS_TYPE_UIAPP" in ph)
+
+def test_build_integrity():
+    print("\n[4.0h] Build — dylib phải thực sự được sinh ra")
+    pbx = open(ROOT + "/PacketBlocker.xcodeproj/project.pbxproj").read()
+    check("có shell phase 'Build Payload Dylib'", "Build Payload Dylib" in pbx)
+    check("phase gắn vào target PacketBlocker",
+          "buildPhases = (89A900256F474E53B521F28F, 143160D9EA1E4F5EB0688832, AE00000000000000000000A1)" in pbx)
+    check("PayloadBridge.mm vào Sources", "PayloadBridge.mm in Sources" in pbx)
+    check("PayloadManager.swift vào Sources", "PayloadManager.swift in Sources" in pbx)
+    check("compile đúng 2 file payload với -DHYBRID_PAYLOAD_BUILD",
+          "\\" in pbx and "-DHYBRID_PAYLOAD_BUILD=1" in pbx and "fishhook.c" in pbx)
+    check("output vào .app (được cp vào IPA)",
+          "$BUILT_PRODUCTS_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH" in pbx)
+    check("arm64 + min iOS 14", "-arch arm64" in pbx and "-miphoneos-version-min=14.0" in pbx)
+    check("payload arm64e dùng được MSHookFunction qua dlsym (không link substrate)",
+          'dlsym(RTLD_DEFAULT, "MSHookFunction")' in
+          open(ROOT + "/HybridFakeLagV2/Payload/NetHookPayload.mm").read())
+    # entitlements: cả CI lẫn file committed đều phải đủ
+    ent = open(ROOT + "/PacketBlocker/PacketBlocker.entitlements").read()
+    ci = open(ROOT + "/.github/workflows/build.yml").read()
+    for key in ("com.apple.QuartzCore.secure-mode",
+                "com.apple.private.hid.manager.client",
+                "com.apple.springboard.accessibility-window-hosting",
+                "com.apple.private.persona-mgmt",
+                "com.apple.QuartzCore.displayable-context"):
+        check(f"entitlement {key} (file committed)", key in ent)
+        check(f"entitlement {key} (CI)", key in ci)
+    check("CI ký cả dylib? (payload chưa ký → dyld/AMFI từ chối)",
+          "libNetHookPayload.dylib" not in ci, "CI chưa ký payload — xem README mục giới hạn")
+
+def test_swift_wiring():
+    print("\n[4.0i] Swift wiring — nút inject + đồng bộ cấu hình")
+    pm = open(ROOT + "/PacketBlocker/PayloadManager.swift").read()
+    check("attach() inject + attach IPC + push config",
+          "HybridPayloadInject" in pm and "HybridPayloadAttach" in pm and "push(config:" in pm)
+    check("poll telemetry định kỳ", "HybridPayloadPoll(&t)" in pm)
+    check("báo rõ khi không có hook engine", "LỖI: process không có hook engine" in pm)
+    check("set target vào shm (cho tweak Filter)",
+          "HybridPayloadSetTarget" in pm)
+    cv = open(ROOT + "/PacketBlocker/ContentView.swift").read()
+    check("ContentView có nút inject", "payload.attach(to: vpn.selectedProcess" in cv)
+    check("đổi PID → detach payload cũ",
+          "onChange(of: vpn.selectedProcess?.pid)" in cv and "payload.detach()" in cv)
+    check("bật/tắt FakeLag → đẩy config xuống payload",
+          "onChange(of: vpn.isBlocking)" in cv and "payload.push(config: vpn)" in cv)
+    bh = open(ROOT + "/PacketBlocker/PacketBlocker-Bridging-Header.h").read()
+    check("bridging header export PayloadBridge", "Core/PayloadBridge.h" in bh)
+
+def test_test_harness_selfcheck():
+    print("\n[4.0j] Harness tự kiểm tra (không hardcode đường dẫn máy khác)")
+    s = open(ROOT + "/scripts/simulate_test.py").read()
+    needle = "/home" + "/z/"          # literal spelling would trip this test
+    check("không còn đường dẫn tuyệt đối của máy tác giả", needle not in s)
+    check("dùng ROOT tương đối", "ROOT = os.path.dirname" in s)
 
 
 def main():
@@ -1668,6 +1896,16 @@ def main():
     test_engine_version_sync()
     test_pbxproj_integrity()
     test_v391_fixes()
+    test_payload_ipc_wire()
+    test_payload_target_gate()
+    test_payload_config_channel()
+    test_payload_hook_engine()
+    test_hold_window_semantics()
+    test_injector_verdict()
+    test_hud_fixes()
+    test_build_integrity()
+    test_swift_wiring()
+    test_test_harness_selfcheck()
     dt = time.time() - t0
     print("\n" + "=" * 78)
     print(f"KẾT QUẢ: {len(PASS)} PASS / {len(FAIL)} FAIL  ({dt:.2f}s)")

@@ -67,6 +67,16 @@ int HybridSpawnWithPersona(uid_t uid, gid_t gid, const char *execPath, char *con
         if (set_persona_gid_np) set_persona_gid_np(&attr, gid);
     }
 
+    if (handle) {
+        // iOS 15+ FrontBoard/RunningBoard only grants a display scene to a
+        // child declared as a UI application. TrollSpeed gets this from its
+        // LaunchDaemon (POSIXSpawnType=App); we spawn directly, so we have to
+        // say it ourselves or the overlay window never renders.
+        int (*set_apptype_np)(posix_spawnattr_t *, int) =
+            (int (*)(posix_spawnattr_t *, int))dlsym(handle, "posix_spawnattr_setapptype_np");
+        if (set_apptype_np) set_apptype_np(&attr, 3 /* POSIX_SPAWN_PROCESS_TYPE_UIAPP */);
+    }
+
     posix_spawnattr_setflags(&attr, POSIX_SPAWN_SETPGROUP);
     posix_spawnattr_setpgroup(&attr, 0);
 
@@ -145,7 +155,9 @@ static BOOL HUDProcessAlive(pid_t pid) {
     return (errno == EPERM); // exists but more privileged (root daemon)
 }
 
-BOOL HybridHUDIsRunning(void) {
+// "Is a daemon process around?" — used to decide whether an OLD daemon must be
+// killed before spawning a new one. Deliberately ignores window state.
+BOOL HybridHUDDaemonAlive(void) {
     // Channel 1 (primary): shm heartbeat — the daemon stamps time(NULL) every 1s.
     AetherSharedState *st = AetherGetSharedState();
     if (st) {
@@ -173,6 +185,17 @@ BOOL HybridHUDIsRunning(void) {
     return NO;
 }
 
+// "Can the user see a button?" — the heartbeat alone is not enough: the daemon
+// stamps it from boot step 1, so a daemon that dies before
+// registerWindowWithContextID: looked healthy forever and the watchdog never
+// rescued it. hudVisible is set only once the window is on screen.
+BOOL HybridHUDIsRunning(void) {
+    if (!HybridHUDDaemonAlive()) return NO;
+    AetherSharedState *st = AetherGetSharedState();
+    if (st && !aether_atomic_load(&st->hudVisible)) return NO;
+    return YES;
+}
+
 int HybridHUDPrepareForSpawn(void) {
     @autoreleasepool {
         char execPath[4096] = {0};
@@ -180,7 +203,7 @@ int HybridHUDPrepareForSpawn(void) {
         if (_NSGetExecutablePath(execPath, &len) != 0) return 0;
 
         BOOL killedOld = NO;
-        if (HybridHUDIsRunning()) {
+        if (HybridHUDDaemonAlive()) {
             // 1. Graceful: shm command channel (daemon heartbeat observes it).
             AetherSharedState *st = AetherGetSharedState();
             if (st) aether_atomic_store(&st->hudCommand, 1);
@@ -207,7 +230,7 @@ int HybridHUDPrepareForSpawn(void) {
         if (st) {
             aether_atomic_store(&st->hudCommand, 0);
             aether_atomic_store(&st->hudHeartbeatTs, 0);
-            aether_atomic_store(&st->hudVisible, true);
+            aether_atomic_store(&st->hudVisible, false);
         }
         return killedOld ? 1 : 0;
     }

@@ -329,6 +329,19 @@ static void AetherInstallHookPayload(void)
             AetherLog(@"[installer] created /var/mobile/.tweakenabled (tweak gate marker)");
         }
 
+        // The Filter decides which processes load the payload. Naming only
+        // com.apple.UIKit means "SpringBoard only" — the selected app never got
+        // it. Append the target's bundle id when the app has published one.
+        NSString *targetBundle = nil;
+        AetherSharedState *tState = AetherGetSharedState();
+        if (tState && tState->targetBundleID[0] != '\0' &&
+            aether_atomic_load(&tState->targetPID) > 0) {
+            targetBundle = [NSString stringWithUTF8String:tState->targetBundleID];
+        }
+        NSString *bundleLine = targetBundle
+            ? [NSString stringWithFormat:@"      <string>%@</string>\n", targetBundle]
+            : @"";
+
         NSString *plist =
             @"<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
             @"<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n"
@@ -339,10 +352,14 @@ static void AetherInstallHookPayload(void)
             @"    <key>Bundles</key>\n"
             @"    <array>\n"
             @"      <string>com.apple.UIKit</string>\n"
+            @"%@"
             @"    </array>\n"
             @"  </dict>\n"
             @"</dict>\n"
-            @"</plist>\n";
+            @"</plist>\n", bundleLine];
+        if (targetBundle) {
+            AetherLog(@"[installer] tweak Filter now targets %@ (+ com.apple.UIKit)", targetBundle);
+        }
         NSString *tmpPlist = @"/var/mobile/Library/aethernet-filter.plist";
         [plist writeToFile:tmpPlist atomically:YES encoding:NSUTF8StringEncoding error:nil];
 
@@ -877,24 +894,22 @@ int HUDMain(int argc, char *argv[])
                         atomically:YES
                           encoding:NSUTF8StringEncoding
                              error:nil];
+            chmod(AETHER_HUD_PID_PATH, 0666);   // the app runs as uid 501
             HUDStepLog(@"step3 pid file written");
 
             AetherLog(@"[pid %d] HUD daemon starting uid=%d euid=%d exe=%s (build %u)",
                       getpid(), getuid(), geteuid(), argv[0], (unsigned)AETHER_BUILD_NUM);
             AetherLog(@"[pid %d] shm=%s pidfile=%s", getpid(), AETHER_SHM_PATH, AETHER_HUD_PID_PATH);
-            // The installer does opendir/fork/exec (fastPathSign) which can take
-            // seconds on a cold device — running it INLINE delayed the UIKit
-            // init past the app's 1.5s verify window, so a healthy daemon was
-            // declared dead and got respawned on top of itself. Dispatch it.
-            dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{
-                AetherInstallHookPayload();
-                HUDStepLog(@"step4 hook payload installer done (background)");
-            });
-            HUDStepLog(@"step4 hook payload installer dispatched (background)");
+            // The payload installer is dispatched AFTER the UIKit bootstrap
+            // (see step13) — it forks/execs and signs, which races UIKit init
+            // and used to abort the daemon outright once the dylib exists.
 
+            // NOTE: hudVisible is NOT set here. It is set by the app delegate
+            // right after registerWindowWithContextID:, i.e. only once the
+            // button really is on screen.
             AetherSharedState *state = AetherGetSharedState();
             if (state) {
-                aether_atomic_store(&state->hudVisible, true);
+                aether_atomic_store(&state->hudVisible, false);
             }
 
             AetherLoadPrivateFrameworks();
@@ -955,6 +970,12 @@ int HUDMain(int argc, char *argv[])
                 @throw;
             }
             HUDStepLog(@"step12 __completeAndRunAsPlugin returned — entering runloop (window should be visible)");
+
+            dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{
+                AetherInstallHookPayload();
+                HUDStepLog(@"step13 hook payload installer done (background)");
+            });
+            HUDStepLog(@"step13 hook payload installer dispatched, UIKit up");
 
             // Liveness heartbeat + graceful-exit command channel (shm).
             // Fixes "cannot remove HUD" where the pid file is unreliable across

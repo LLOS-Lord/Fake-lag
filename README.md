@@ -8,7 +8,7 @@ Bản mix hoàn chỉnh: floating button như TrollNetInterceptor, log all actio
 > bộ bản mix HybridFakeLagV2 (VPN extension + inject PID + floating HUD) đã bị
 > "tựa lưa": extension của bản mix vẫn là engine loop-back cũ, Swift không gọi
 > được lớp ObjC, payload inject đọc nhầm path config. Chi tiết ở mục "Fix 3.8.0".
-> Kèm **test giả định** (`scripts/simulate_test.py` — 131 test, tất cả PASS).
+> Kèm **test giả định** (`scripts/simulate_test.py` — 309 test, tất cả PASS).
 
 ## Tính năng
 
@@ -243,7 +243,7 @@ Port từng dòng logic Swift/ObjC sang Python, mô phỏng:
 - payload loader (path đúng, cache 500ms, clamp, shm priority);
 - integrity pbxproj/entitlements/bridging header.
 
-Chạy: `python3 scripts/simulate_test.py` (exit 0 = OK hết).
+Chạy: `python3 scripts/simulate_test.py` (exit 0 = OK hết, 309 PASS / 0 FAIL).
 
 ## Credits
 
@@ -252,3 +252,78 @@ Chạy: `python3 scripts/simulate_test.py` (exit 0 = OK hết).
 - facebook/fishhook
 - LLOS-Lord/Fake-lag
 - AetherNet
+
+
+---
+
+# FIX 4.0 — INJECT PID THẬT SỰ BẮT ĐƯỢC GÓI TIN + FLOATING BUTTON THẤY ĐƯỢC
+
+Hai triệu chứng bạn báo đều **không phải lỗi cấu hình** — chúng là ba chuỗi
+giết độc lập nhau. Mỗi chuỗi đủ để tính năng chết hoàn toàn.
+
+## A. Inject PID: vì sao không bắt được gói tin nào
+
+| # | Nguyên nhân | Bằng chứng | Đã sửa |
+|---|---|---|---|
+| A1 | **IPA không hề có payload.** CI build `PacketBlocker.xcodeproj`, project này không có shell phase nào, không build `libNetHookPayload.dylib`, không nhét file này vào `.app` | `HUDMain.mm` chạy tới bước `[installer] payload missing` rồi `return` | Thêm build phase **Build Payload Dylib** (clang `-dynamiclib -arch arm64 -DHYBRID_PAYLOAD_BUILD`) ghi thẳng vào `$BUILT_PRODUCTS_DIR/...app/` |
+| A2 | **App không có code inject.** Không file nào trong target CI gọi `task_for_pid`; `MachInjector.mm` nằm ở project khác vốn không được build | `grep task_for_pid PacketBlocker/` → 0 kết quả | Thêm `PacketBlocker/Core/PayloadBridge.mm` + root-helper mode `-inject` trong `main.mm` |
+| A3 | **Payload không bao giờ đọc được config.** `AetherGetSharedState()` trong app sandbox **tự map file riêng trong TMPDIR của target**; magic vẫn khớp nên loader tưởng đã có config → `gActive=false` → `return` trước khi tới các fallback. Các fallback (`/var/mobile/Library/Caches/*.json`) cũng bị Seatbelt chặn | `refreshConfigIfNeeded()` rẽ về sau khi magic khớp | **Bỏ hẳn shm/JSON khỏi payload.** Config đi qua **UNIX socket trong TMPDIR của chính target** (`$TMPDIR/aether_net_<pid>.sock`), socket nằm trong container của target nên không cần entitlement nào |
+| A4 | **fishhook là no-op trên arm64e.** Mọi image iOS 15–17 là dyld4 + chained fixups: không `LC_DYSYMTAB`, không indirect symbol table → `fishhook.c` return ngay, `orig_*` giữ nguyên NULL. `flushQueue()` gọi NULL → **crash target** | `fishhook.c` yêu cầu `nindirectsyms > 0` | Payload dùng **`MSHookFunction`** (Substrate/ellekit — engine duy nhất hiểu stub arm64e), fishhook chỉ còn làm fallback. Hook nào không cài được sẽ **không có bit trong hookMask** |
+| A5 | **Injector giết target.** `__lr` để nguyên 0 → khi `dlopen` return, thread nhảy về 0 → `EXC_BAD_ACCESS` → app chết. Và `rc==0` nghĩa là "thread khởi tạo được", không phải "dlopen thành công" | `MachInjector.mm` cũ | Đặt `__lr` = park stub `b .`, **kết luận thành công bằng cách chờ IPC socket của payload xuất hiện**, rồi `thread_terminate` |
+| A6 | **Không telemetry nào.** Payload không ghi bộ đếm nào; UI hiện 0 dù hook có chạy | `heldPacketsCount` không ai tăng | Payload gửi `AetherIpcTelemetry` mỗi 250 ms; UI hiện TCP/UDP RX-TX, held, dropped, hookMask |
+| A7 | **Payload không tự gate.** ellekit nhét vào mọi UIKit process, remote dlopen có thể rơi vào bất cứ app nào | constructor rebind vô điều kiện | `shouldIntercept()` bắt buộc có config từ app **và** `pid` hoặc `bundle-hash` khớp chính process đó |
+
+### Cách dùng (đường chính: remote dlopen, không cần respring)
+
+1. Bấm **"Chọn PID"** → chọn app đích.
+2. Bấm **"Inject payload vào PID"**. Dòng trạng thái sẽ nói rõ:
+   - `đã inject` → payload đã arm, kết nối IPC thành công.
+   - `task_for_pid denied` → thiếu root hoặc target chưa `CS_DEBUGGED` (PPL).
+   - `dlopen ran but payload did not arm` → xem `tmp/aether_net_<pid>.log` **bên trong container của app đích**.
+3. Bật/tắt FakeLag hoặc đổi Mode → config được đẩy xuống payload ngay, không cần inject lại.
+
+Nếu `remote dlopen` bị PPL chặn (không có Dopamine), daemon vẫn có đường thứ hai:
+copy payload vào `TweakInject` của roothide để **ellekit** tự inject. Filter plist
+giờ ghi thêm **bundle id của app đích** (trước đây chỉ có `com.apple.UIKit`,
+tức chỉ SpringBoard — payload không bao giờ vào app bạn chọn).
+
+## B. Floating Button: vì sao bấm "Create" mà không thấy
+
+| # | Nguyên nhân | Đã sửa |
+|---|---|---|
+| B1 | `interactiveFloatingButton` được đọc **trước** khi `viewDidLoad` tạo nút → luôn `nil` → `HUDMainWindow.hitTest:` trả nil mọi điểm → nút nhìn thấy mà **không bấm được** | `[_rootVC loadViewIfNeeded]` trước khi gán |
+| B2 | Thiếu entitlement `com.apple.QuartzCore.secure-mode` trong khi `HUDMainWindow` **ép** secure context | Thêm vào CI + file committed |
+| B3 | Thiếu `com.apple.private.hid.manager.client` → `BKSHIDEventRegisterEventCallback` không gắn được | Thêm vào CI + file committed |
+| B4 | Daemon được spawn bằng `posix_spawn` thuần, không phải job App của launchd → iOS 15+ không cấp display scene cho `makeKeyAndVisible` | `posix_spawnattr_setapptype_np(..., POSIX_SPAWN_PROCESS_TYPE_UIAPP)` |
+| B5 | Heartbeat đóng từ **step1**, tức trước khi có window → app báo "thành công" và watchdog không bao giờ cứu daemon chết sớm | `hudVisible` chỉ bật **sau** `registerWindowWithContextID:`; `HybridHUDIsRunning` yêu cầu cả nó. Tách `HybridHUDDaemonAlive` (để kill daemon cũ) khỏi `HybridHUDIsRunning` (để báo UI) |
+| B6 | pid file do root ghi mode 0600 → app uid 501 không đọc được, kiểm tra sống chết chỉ còn dựa heartbeat | `chmod 0666` sau khi ghi |
+| B7 | Installer payload chạy **giữa lúc UIKit bootstrap** và fork/exec → có thể abort daemon (trước đây vô hại vì dylib không tồn tại; **nay sẽ là blocker thật**) | Dời sang sau `step13`, khi UIKit đã lên |
+
+## C. Test
+
+`python3 scripts/simulate_test.py` → **309 PASS / 0 FAIL**.
+
+Harness trước đây **không chạy được trên máy khác** (33 đường dẫn hardcode
+`/home/z/my-project/...`), nên "131 test PASS" trong README cũ là kết quả
+không kiểm chứng được. Đã đổi sang đường dẫn tương đối + thêm nhóm test
+`[4.0a..4.0j]` chặn đúng 7 lỗi ở A1–A7 và 7 lỗi ở B1–B7.
+
+## D. Giới hạn còn lại (nói thẳng)
+
+- **D1 — Payload chưa được ký.** CI chỉ ký binary chính và `.appex`. Dylib
+  unsigned bị dyld/AMFI từ chối, và library validation của app đích cũng từ
+  chối dù ad-hoc. Đường ellekit né được việc này (roothide tự trust-cache trong
+  `TweakInject`); đường `dlopen` từ xa cần `ldid -S` trong build phase hoặc
+  Dopamine `trust_file`. Chưa làm vì cần bản ký đúng của thiết bị.
+- **D2 — Không thấy traffic của libnetwork.** Hook ở tầng BSD socket API: app
+  tự gọi `send`/`recv` thì bắt được, nhưng traffic NSURLSession/CFNetwork được
+  implement **bên trong** libnetwork (shared cache, read-only) nên không đi qua
+  stub của app đích. Tầng đó chỉ bắt được qua `PacketTunnelProvider`.
+- **D3 — Chưa dùng LaunchDaemon.** `posix_spawnattr_setapptype_np` là cách rẻ
+  nhất; nếu vẫn không hiện nút trên iOS 16/17 thì bước nâng cấp là cài
+  `/Library/LaunchDaemons/*.plist` với `POSIXSpawnType=App` +
+  `_AdditionalProperties.RunningBoard.{Managed,Reported}=false` + `KeepAlive`
+  như TrollSpeed, điều khiển bằng `launchctl` thay vì spawn trực tiếp.
+- **D4 — `HybridFakeLagV2.xcodeproj` không được CI build.** Nó là bản song song
+  của cùng kiến trúc; sửa lớn chỉ áp cho `PacketBlocker` (target thật sự phát
+  hành), vài fix cơ bản đã mirror sang bản twin.

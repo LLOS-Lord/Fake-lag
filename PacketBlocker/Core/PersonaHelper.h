@@ -25,8 +25,15 @@ int HybridProbeChildPid(int pid, char * _Nullable childPath, int pathMax);
 // Returns: 0 = clean to spawn now, 1 = an old daemon was killed, wait ~1s then spawn.
 int HybridHUDPrepareForSpawn(void);
 
-// YES when the HUD daemon looks alive: shm heartbeat (<=3s old) or pid file
+// YES when a HUD daemon PROCESS exists: shm heartbeat (<=3s old) or pid file
 // with kill(pid,0)==0 / errno==EPERM (EPERM means "exists but more privileged").
+// Used to decide whether an old daemon has to be killed before spawning.
+BOOL HybridHUDDaemonAlive(void);
+
+// YES only when the user can actually SEE a button: the daemon is alive AND it
+// has registered its window (shm hudVisible, set after
+// registerWindowWithContextID:). A daemon that booted and died before
+// rendering must not be reported as running.
 BOOL HybridHUDIsRunning(void);
 
 // Graceful stop: shm hudCommand=1 (daemon heartbeat exits itself), then the

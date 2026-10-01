@@ -1,4 +1,5 @@
 #import "Core/PersonaHelper.h"
+#import "Core/PayloadBridge.h"
 #import "Core/AetherLog.h"
 #import "headers/AetherNetShared.h"
 #import "headers/PrivateSystemSPI.h"

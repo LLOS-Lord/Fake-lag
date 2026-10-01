@@ -69,6 +69,10 @@
 
     self.window = [[AetherHUDMainWindow alloc] initWithFrame:[UIScreen mainScreen].bounds];
     self.window.rootViewController = _rootVC;
+    // Force the root view to load NOW — the button is created in viewDidLoad, so
+    // reading _rootVC.floatingButton before this returned nil forever and every
+    // hitTest: in HUDMainWindow returned nil.
+    [_rootVC loadViewIfNeeded];
     self.window.interactiveFloatingButton = _rootVC.floatingButton;
     // Level 10000010.0 renders above SpringBoard, banners, apps, and fullscreen games
     self.window.windowLevel = 10000010.0;
@@ -90,6 +94,11 @@
         [inv setArgument:&level atIndex:3];
         [inv invoke];
     }
+
+    // hudVisible is set only once the window really is on screen; the boot
+    // heartbeat starts at step1 and used to make a windowless daemon look alive.
+    AetherSharedState *state = AetherGetSharedState();
+    if (state) aether_atomic_store(&state->hudVisible, true);
 
     return YES;
 }
