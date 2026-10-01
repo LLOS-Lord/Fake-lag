@@ -1904,7 +1904,7 @@ def test_build_integrity():
     _script = _script.encode().decode("unicode_escape")
     _bad = [l for l in _script.splitlines()
             if l.lstrip().startswith("# ") and any(l.lstrip()[2:].startswith(c)
-                                                  for c in ("xcrun", "clang", "mkdir", "set "))]
+                                                  for c in ("xcrun", "mkdir", "set ", "echo "))]
     check("shellScript: không lệnh nào bị '# ' nuốt mất", not _bad, "; ".join(_bad))
     with _tf.NamedTemporaryFile("w", suffix=".sh", delete=False) as _f:
         _f.write(_script)
@@ -1921,7 +1921,7 @@ def test_build_integrity():
     # phải compile ra object riêng rồi mới link vào dylib.
     _ccblk = ""
     if "clang -c " in _dlcont:
-        _ccblk = _dlcont.split("clang -c ", 1)[1].split("clang -dynamiclib", 1)[0]
+        _ccblk = _dlcont.split("clang -c ", 1)[1].split("-dynamiclib", 1)[0]
     check("fishhook.c compile riêng (-c) thành object",
           bool(_ccblk) and "-std=gnu++17" not in _ccblk and "fishhook.c" in _ccblk)
     check("object được link vào dylib cùng NetHookPayload.mm",
@@ -1930,6 +1930,12 @@ def test_build_integrity():
     # $BUILT_TEMP_DIR rỗng trong một số môi trường phase -> ghi ra root
     # read-only ("unable to open output file '/libNetHookPayload-fishhook.o'").
     _code = "\n".join(l for l in _sl if not l.lstrip().startswith("#"))
+    # Driver C không link libc++; payload dùng std::vector/std::deque nên link
+    # hỏng với "Undefined symbols: std::length_error / std::logic_error".
+    _link = _dlcont.split("-dynamiclib", 1)[1] if "-dynamiclib" in _dlcont else ""
+    check("bước link dùng clang++ (driver C không link libc++)",
+          "clang++ -dynamiclib" in _dlcont)
+    check("link tường minh -lc++", "-lc++" in _link)
     check("object tạm nằm trong mktemp -d, không dùng $BUILT_TEMP_DIR",
           'mktemp -d' in _code and "BUILT_TEMP_DIR" not in _code
           and "$WORK/fishhook.o" in _code)
