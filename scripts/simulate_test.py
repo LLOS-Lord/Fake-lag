@@ -1896,8 +1896,6 @@ def test_build_integrity():
     check("arm64 + min iOS 14", "-arch arm64" in pbx and "-miphoneos-version-min=14.0" in pbx)
     # .mm build không có -std thì rơi vào default của toolchain (gnu++98 với
     # Objective-C++ trên Xcode 15) -> std::atomic biến mất -> parse error.
-    check("payload build ép -std= (mặc định ObjC++ không có std::atomic)",
-          "-std=gnu++17" in pbx)
     # Script build phase phải là shell hợp lệ — và KHÔNG được có "# " dính vào
     # dòng lệnh (một lần chú thích đè lên chính dòng xcrun khiến -dynamiclib
     # chạy thành lệnh riêng → "command not found", trong khi CI vẫn báo xanh).
@@ -1915,6 +1913,20 @@ def test_build_integrity():
     check("shellScript: sh -n pass", _syn.returncode == 0, _syn.stderr.strip())
     check("shellScript: dòng xcrun không bị comment",
           any(l.startswith("xcrun -sdk iphoneos clang") for l in _script.splitlines()))
+    _sl = _script.splitlines()
+    _dlcont = "\n".join(_sl)
+    check("payload build ép -std= (mặc định ObjC++ không có std::atomic)",
+          "-std=gnu++17" in _dlcont)
+    # fishhook.c là C: C không nhận -std=gnu++17 ("not allowed with 'C'"), nên
+    # phải compile ra object riêng rồi mới link vào dylib.
+    _ccblk = ""
+    if "clang -c " in _dlcont:
+        _ccblk = _dlcont.split("clang -c ", 1)[1].split("clang -dynamiclib", 1)[0]
+    check("fishhook.c compile riêng (-c) thành object",
+          bool(_ccblk) and "-std=gnu++17" not in _ccblk and "fishhook.c" in _ccblk)
+    check("object được link vào dylib cùng NetHookPayload.mm",
+          "fishhook.o" in _dlcont and "NetHookPayload.mm" in _dlcont
+          and "-dynamiclib" in _dlcont)
     # CI phải fail thật khi build hỏng (pipefail + marker BUILD SUCCEEDED).
     _ci = open(ROOT + "/.github/workflows/build.yml").read()
     check("CI bật pipefail (mất exit code của xcodebuild qua tee)",
