@@ -9,6 +9,12 @@ import SwiftUI
 class PayloadManager: ObservableObject {
     static let shared = PayloadManager()
 
+    /// Injection runs off the main thread. A root spawn plus a wait for the
+    /// payload socket can take seconds; parking the main thread that long is a
+    /// watchdog kill, which reaches the user as "crash when I tap Inject".
+    private let workQueue = DispatchQueue(label: "com.hybrid.payload.inject", qos: .userInitiated)
+
+    @Published var injectBusy = false
     @Published var status: String = "chưa inject"
     @Published var detail: String = ""
     @Published var isAttached = false
@@ -24,6 +30,14 @@ class PayloadManager: ObservableObject {
     private var timer: Timer?
     private var targetPID: Int32 = 0
     private var bundleID: String = ""
+
+    /// Plain-value copy of the UI config. `VPNManager` is MainActor-isolated, so
+    /// it must never be captured by the background injection closure — snapshot
+    /// the fields here instead.
+    private struct Snapshot {
+        var enabled = 0, direction = 0, proto = 0, mode = 0
+        var ratio = 0, latencyMs = 0, jitterMs = 0
+    }
 
     private static func modeCode(_ s: String) -> Int32 {
         switch s { case "drop": return 1; case "delay": return 2; default: return 0 }
@@ -44,20 +58,35 @@ class PayloadManager: ObservableObject {
             isAttached = false
             return
         }
+        guard !injectBusy else { return }
 
         targetPID = p.pid
         bundleID = p.bundleID
         status = "đang inject…"
         detail = ""
+        injectBusy = true
+        let snapshot = snapshot(of: config)
 
         // Publish the target so the HUD daemon's ellekit Filter names the right
         // bundle (otherwise the payload only ever loads into SpringBoard).
         HybridPayloadSetTarget(p.pid, p.bundleID)
 
-        var err = [CChar](repeating: 0, count: 512)
-        let rc = HybridPayloadInject(p.pid, &err, 512)
-        let errText = String(cString: err)
+        let pid = p.pid
+        workQueue.async { [weak self] in
+            var err = [CChar](repeating: 0, count: 512)
+            let rc = HybridPayloadInject(pid, &err, 512)
+            let errText = String(cString: err)
+            let attached = rc == 1 ? HybridPayloadAttach(pid) : 0
+            Task { @MainActor in
+                self?.finishInject(rc: rc, errText: errText,
+                                   attached: attached == 1, snapshot: snapshot)
+            }
+        }
+    }
 
+    /// Main-actor continuation of `attach` — every UI mutation happens here.
+    private func finishInject(rc: Int32, errText: String, attached: Bool, snapshot: Snapshot) {
+        injectBusy = false
         guard rc == 1 else {
             status = "inject thất bại"
             detail = String(cString: HybridInjectResultString(rc))
@@ -68,29 +97,47 @@ class PayloadManager: ObservableObject {
         status = "đã inject"
         detail = errText
 
-        guard HybridPayloadAttach(p.pid) == 1 else {
+        guard attached else {
             detail += " — không kết nối được IPC socket"
             isAttached = false
             return
         }
         isAttached = true
-        push(config: config)
+        send(snapshot)
         startTimer()
     }
 
     /// Re-send the current config without re-injecting (floating button, mode
     /// picker, Settings changes).
     func push(config: VPNManager) {
+        send(snapshot(of: config))
+    }
+
+    private func snapshot(of config: VPNManager) -> Snapshot {
+        var s = Snapshot()
+        s.enabled = config.isBlocking ? 1 : 0
+        s.direction = Int(PayloadManager.dirCode(config.direction))
+        s.proto = Int(PayloadManager.protoCode(config.protoFilter))
+        s.mode = Int(PayloadManager.modeCode(config.mode))
+        s.ratio = Int(config.captureRatio)
+        s.latencyMs = Int(config.latencyMs)
+        s.jitterMs = Int(config.jitterMs)
+        return s
+    }
+
+    /// Non-blocking by construction: the IPC socket is O_NONBLOCK (see
+    /// PayloadBridge), so a frozen target can never park the main thread.
+    private func send(_ s: Snapshot) {
         guard HybridPayloadIsAttached() == 1 else { return }
-        HybridPayloadSendConfig(config.isBlocking ? 1 : 0,
-                               Int32(targetPID),
+        HybridPayloadSendConfig(s.enabled,
+                               targetPID,
                                bundleID,
-                               PayloadManager.dirCode(config.direction),
-                               PayloadManager.protoCode(config.protoFilter),
-                               PayloadManager.modeCode(config.mode),
-                               Int32(config.captureRatio),
-                               Int32(config.latencyMs),
-                               Int32(config.jitterMs),
+                               Int32(s.direction),
+                               Int32(s.proto),
+                               Int32(s.mode),
+                               Int32(s.ratio),
+                               Int32(s.latencyMs),
+                               Int32(s.jitterMs),
                                12)
     }
 

@@ -368,3 +368,76 @@ Lấy IPA từ artifact và kiểm tra trực tiếp:
 Mỗi lỗi trên đã kèm một test trong `scripts/simulate_test.py` (giờ **332 test**)
 để không tái phát: resolve ngược `file -> group -> mainGroup`, `sh -n` trên
 shellScript của build phase, chặn lệnh bị `#` nuốt, chặn CI mất `pipefail`.
+
+
+---
+
+# FIX 4.2 — BA LỖI CHỈ LỘ TRÊN MÁY THẬT
+
+Build đã xanh nhưng chạy lên iPhone thì: VPN không lên được, bấm Inject bị treo,
+đổi chế độ bị treo, nút floating không hiện. Cả ba đều là lỗi **chỉ tồn tại khi
+chạy thật**, không lộ ra lúc build.
+
+## 1. VPN không kết nối được — extension SIGTRAP
+
+Hai file `.ips` cùng chỉ một chỗ:
+`EXC_BREAKPOINT` trong `PacketTunnelProvider.clientTCPSegment(key:pkt:ihl:)`,
+cùng một offset, đúng lúc tunnel bắt đầu nhận gói TCP. Đó là hệ quả của:
+
+```
+configQueue ──► loadConfig() ──► config = cfg          (gán)
+engineQueue  ──► clientTCPSegment() ──► đọc config.mode (đọc)
+```
+
+`config` là struct nhưng chứa **field reference-counted** (`mode`, `direction`,
+`protoFilter`, `targetBundleID`, `targetSockets`). Lệnh gán release các String cũ
+trong khi engineQueue đang đọc chúng → reference nửa vời → Swift runtime trap
+ngay trong hàm đang chạy. Trong app log bạn thấy `enabled=false` nhưng extension
+vẫn reload config mỗi 0.8s và vẫn đọc `config` ở rất nhiều nơi trên đường gói tin.
+
+Sửa: **`loadConfig()` chỉ parse, `applyConfig()` mới gán, và chạy trên `engineQueue`.**
+Mọi thứ chạm `config` / `tcpFlows` / `udpFlows` giờ nằm trên đúng một serial queue.
+Timer thống kê cũng chuyển từ `configQueue` sang `engineQueue` vì nó đọc cả ba.
+
+## 2. Bấm Inject / đổi chế độ bị treo (watchdog kill)
+
+Hai chỗ đều **block main thread**:
+
+- `HybridPayloadInject` spawn root helper rồi chờ tới 3s cho socket payload xuất
+  hiện — chạy thẳng trên main thread.
+- `HybridPayloadSendConfig` dùng `send()` **blocking** tới một process khác. iOS
+  đóng băng app nền; app đích đang bị can thiệp chính là app người dùng đang mở
+  và cũng bị đóng băng theo. Socket buffer đầy → `send()` đứng đời → watchdog giết
+  app, người dùng thấy là "crash".
+
+Sửa: socket IPC bật `O_NONBLOCK` (xử lý `EAGAIN`/`EWOULDBLOCK` — config là ảnh
+chụp, bỏ lần gửi sau cũng an toàn), và `attach()` chuyển phần inject sang queue
+nền rồi `Task { @MainActor }` quay lại cập nhật UI. `VPNManager` là
+MainActor-isolated nên không được mang qua boundary — giờ chỉ truyền `Snapshot`
+giá trị thuần.
+
+## 3. Nút floating không hiện — spawn "thành công" nhưng child không phải root
+
+Dòng log quyết định:
+`[HUD_SPAWN_PID] child pid=76449 probe=1 (0=gone 1=alive 2=alive-root)`
+
+`HybridProbeChildPid` dùng `kill(pid, 0)`: từ uid 501, gọi lên child **root** sẽ
+trả `EPERM` (=2). Nhận **1** nghĩa là child vẫn cùng uid với app — **persona
+root escalation thất bại**. Cùng lý do đó, `-sockdump` cũng không bao giờ có
+output nên app cứ báo *"no cached socket dump yet"*.
+
+Hai nguyên nhân:
+- `posix_spawnattr_set_persona_np(&attr, 99, ...)` — persona id 99 không sinh ra
+  child uid 0. Dạng thật sự cho ra root là **persona 0 + `PERSONA_FLAGS_OVERRIDE`**
+  (đúng dạng TrollSpeed dùng).
+- **Mọi return code của persona setters đều bị vứt bỏ.** Đó là lý do lỗi này im
+  lặng bấy lâu: `posix_spawn rc=0` chỉ có nghĩa "fork + exec được".
+
+Sửa: persona 0, log từng return code + tên symbol thiếu, và `HybridSpawnRootPID`
+**xác minh** child thật sự là root (`IS root` / `died immediately`) trước khi
+báo `rc=0`.
+
+## Test
+
+`python3 scripts/simulate_test.py` → **359 PASS / 0 FAIL** (thêm nhóm `[4.2a..4.2d]`
+chặn đúng 3 lỗi trên: queue ownership của `config`, socket non-blocking, persona 0).

@@ -276,6 +276,14 @@ int HybridPayloadAttach(int pid) {
     strlcpy(addr.sun_path, path.fileSystemRepresentation, sizeof(addr.sun_path));
     if (connect(fd, (struct sockaddr *)&addr, sizeof(addr)) != 0) { close(fd); return 0; }
 
+    // Non-blocking: this socket lives in ANOTHER process's container, and iOS
+    // freezes background apps. A blocking send() to a frozen payload fills the
+    // socket buffer and then parks the MAIN THREAD forever — the watchdog kills
+    // the app, which reads as "crash when switching mode". The payload is also
+    // suspended while the user is in the app being intercepted, so blocking is
+    // the wrong shape here regardless.
+    int flags = fcntl(fd, F_GETFL, 0);
+    if (flags >= 0) fcntl(fd, F_SETFL, flags | O_NONBLOCK);
     // Darwin has no MSG_NOSIGNAL; the equivalent is a per-socket opt.
     int one = 1;
     setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, &one, sizeof(one));
@@ -306,6 +314,12 @@ int HybridPayloadSendConfig(int enabled, int targetPID, const char *bundleID,
     c.jitterMs = (uint32_t)jitterMs;
     c.autoFlushSeconds = (uint32_t)autoFlushSeconds;
     ssize_t w = send(gClientFd, &c, sizeof(c), 0);
+    if (w < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
+        // Payload is frozen/busy. Config is a snapshot, not a stream: dropping
+        // it is safe because the next push (or the payload's own auto-flush)
+        // re-syncs, and the payload keeps the last config it accepted.
+        return 0;
+    }
     return w == (ssize_t)sizeof(c);
 }
 

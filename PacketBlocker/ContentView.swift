@@ -23,9 +23,9 @@ struct ContentView: View {
                         HStack{Image(systemName:"scope"); Text(vpn.selectedProcess == nil ? "Chọn PID (GLOBAL)" : "PID: \(vpn.selectedProcess!.displayName)"); Spacer(); Image(systemName:"chevron.right")}
                     }.padding(.horizontal)
                     Button(action:{ payload.attach(to: vpn.selectedProcess, config: vpn) }){
-                        HStack{Image(systemName:"cross.case.fill"); Text(payload.isAttached ? "Re-attach payload" : "Inject payload vào PID")}
+                        HStack{Image(systemName:"cross.case.fill"); Text(payload.injectBusy ? "Đang inject…" : (payload.isAttached ? "Re-attach payload" : "Inject payload vào PID"))}
                         .frame(maxWidth:.infinity).padding().background(payload.isAttached ? Color.green.opacity(0.35) : Color.blue.opacity(0.35)).cornerRadius(12)
-                    }.padding(.horizontal).disabled(vpn.selectedProcess == nil)
+                    }.padding(.horizontal).disabled(vpn.selectedProcess == nil || payload.injectBusy)
                     if !payload.status.isEmpty {
                         VStack(alignment:.leading, spacing:2){
                             Text(payload.status).font(.caption).foregroundColor(payload.status.hasPrefix("LỖI") ? .red : .secondary)

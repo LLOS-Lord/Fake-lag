@@ -1987,6 +1987,78 @@ def test_test_harness_selfcheck():
     check("dùng ROOT tương đối", "ROOT = os.path.dirname" in s)
 
 
+
+# ═══════════════ [4.2] BA LỖI RUNTIME SAU KHI BUILD ĐƯỢC ═══════════════
+# Đều là lỗi chỉ lộ ra trên máy thật, không lộ ra khi build.
+
+def test_extension_single_queue():
+    print("\n[4.2a] Extension — config/flow table chỉ được chạm trên engineQueue")
+    for name, path in (("ext", ROOT + "/PacketBlockerExtension/PacketTunnelProvider.swift"),
+                       ("twin_ext", ROOT + "/HybridFakeLagV2/HybridExtension/PacketTunnelProvider.swift")):
+        s = open(path).read()
+        # `config` chứa field reference-counted (String/[UInt32]) nên phải gán
+        # trên đúng queue đọc nó; gán ở queue khác là đọc trùng reference.
+        lc = s[s.index("private func loadConfig"):s.index("private func applyConfig")]
+        check(f"{name}: loadConfig chỉ parse, apply chuyển sang engineQueue",
+              "engineQueue.async" in lc and "config = cfg" not in lc)
+        check(f"{name}: applyConfig() là nơi duy nhất gán config",
+              "private func applyConfig" in s and "config = cfg" in s
+              and s.count("config = cfg") == 1)
+        check(f"{name}: applyConfig gọi flush trực tiếp (đã ở engineQueue)",
+              "engineQueue.async" not in s[s.index("private func applyConfig"):
+                                          s.index("private func applyConfig") + 1400])
+        # stats đọc config + tcpFlows/udpFlows → phải engineQueue
+        st = s[s.index("private func startStatsTimer"):s.index("private func startStatsTimer") + 320]
+        check(f"{name}: startStatsTimer chạy engineQueue", "queue: engineQueue" in st)
+        # readLoop phải đẩy packet sang engineQueue
+        check(f"{name}: readLoop xử lý packet trên engineQueue",
+              "self.engineQueue.async" in s[s.index("private func readLoop"):
+                                             s.index("private func readLoop") + 600])
+        for q in ("readQueue.async { self.handleOutbound", "configQueue.async { self.applyConfig"):
+            check(f"{name}: không gọi trực tiếp {q.split('{')[0].strip()} ngoài engineQueue", q not in s)
+
+def test_extension_queue_ownership():
+    print("\n[4.2b] Extension — không timer nào đọc state ngoài engineQueue")
+    s = open(ROOT + "/PacketBlockerExtension/PacketTunnelProvider.swift").read()
+    queues = [l.strip() for l in s.splitlines() if "makeTimerSource(queue:" in l]
+    # configQueue giữ đúng MỘT timer: watcher chỉ parse rồi hand-off sang
+    # engineQueue. Mọi timer đọc state (stats/maintenance/delay) phải ở engine.
+    check("configQueue chỉ còn timer đọc config (watcher), không timer đọc state",
+          sum("configQueue" in q for q in queues) == 1, "; ".join(queues))
+    check("còn timer trên engineQueue", sum("engineQueue" in q for q in queues) >= 3)
+
+def test_ipc_nonblocking():
+    print("\n[4.2c] IPC socket non-blocking (app treo khi đổi mode)")
+    b = open(ROOT + "/PacketBlocker/Core/PayloadBridge.mm").read()
+    check("socket client bật O_NONBLOCK", "O_NONBLOCK" in b and "F_SETFL" in b)
+    check("send EWOULDBLOCK được xử lý, không block main thread",
+          "EWOULDBLOCK" in b and "errno == EAGAIN" in b)
+    check("recv dùng MSG_DONTWAIT", "MSG_DONTWAIT" in b)
+    pm = open(ROOT + "/PacketBlocker/PayloadManager.swift").read()
+    check("inject chạy ngoài main thread", "workQueue.async" in pm and "injectBusy" in pm)
+    check("UI update quay lại MainActor", "Task { @MainActor" in pm)
+    _body = pm[pm.index("workQueue.async {"):pm.index("Task { @MainActor")]
+    check("background closure KHÔNG capture VPNManager (chỉ Snapshot)",
+          "config" not in _body and "cfg = config" not in pm
+          and "finishInject(rc: Int32, errText: String, attached: Bool, snapshot: Snapshot)" in pm
+          and "let snapshot = snapshot(of: config)" in pm)
+    check("nút inject bị disable khi đang chạy",
+          "payload.injectBusy" in open(ROOT + "/PacketBlocker/ContentView.swift").read())
+
+def test_persona_root():
+    print("\n[4.2d] Persona root — child phải thật sự uid 0")
+    s = open(ROOT + "/PacketBlocker/Core/PersonaHelper.m").read()
+    sp = s[s.index("int HybridSpawnWithPersona"):s.index("int HybridSpawnRootPID")]
+    check("persona id = 0 (99 sinh child KHÔNG phải root)",
+          "set_persona_np(&attr, 0," in sp and "set_persona_np(&attr, 99" not in sp)
+    check("không bỏ qua return code của persona setters",
+          "persona_rc = set_persona_np" in sp and "puid_rc" in sp and "pgid_rc" in sp)
+    check("ghi log khi thiếu symbol", "missing = " in sp and "missing ?" in sp)
+    sr = s[s.index("int HybridSpawnRootPID"):s.index("int HybridSpawnRoot(")]
+    check("spawn xong phải xác minh child là root (EPERM)",
+          "HybridProbeChildPid" in sr and "IS root" in sr and "died immediately" in sr)
+
+
 def main():
     t0 = time.time()
     print("=" * 78)
@@ -2021,6 +2093,10 @@ def main():
     test_build_integrity()
     test_swift_wiring()
     test_test_harness_selfcheck()
+    test_extension_single_queue()
+    test_extension_queue_ownership()
+    test_ipc_nonblocking()
+    test_persona_root()
     dt = time.time() - t0
     print("\n" + "=" * 78)
     print(f"KẾT QUẢ: {len(PASS)} PASS / {len(FAIL)} FAIL  ({dt:.2f}s)")

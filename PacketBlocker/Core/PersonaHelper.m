@@ -57,15 +57,27 @@ int HybridSpawnWithPersona(uid_t uid, gid_t gid, const char *execPath, char *con
     posix_spawnattr_t attr;
     posix_spawnattr_init(&attr);
 
+    // Persona id 0 with the OVERRIDE flag is the incantation that actually
+    // yields a uid-0 child (the form TrollSpeed uses). The previous hardcoded
+    // 99 spawned a child that stayed in the app's own uid: the parent's probe
+    // then saw kill(pid, 0) succeed instead of EPERM, i.e. "alive but NOT root",
+    // and the root helper died at its first privileged call.
+    //
+    // Every setters return code used to be discarded, which is why this failed
+    // silently for so long. Log them: a non-zero here IS the root cause.
+    int persona_rc = -1, puid_rc = -1, pgid_rc = -1, papptype_rc = -1;
+    const char *missing = NULL;
     void *handle = dlopen(NULL, RTLD_NOW);
     if (handle) {
         int (*set_persona_np)(posix_spawnattr_t *, int, uint32_t) = dlsym(handle, "posix_spawnattr_set_persona_np");
         int (*set_persona_uid_np)(posix_spawnattr_t *, uid_t)     = dlsym(handle, "posix_spawnattr_set_persona_uid_np");
         int (*set_persona_gid_np)(posix_spawnattr_t *, gid_t)     = dlsym(handle, "posix_spawnattr_set_persona_gid_np");
-        if (set_persona_np)     set_persona_np(&attr, 99, 1 /* POSIX_SPAWN_PERSONA_FLAGS_OVERRIDE */);
-        if (set_persona_uid_np) set_persona_uid_np(&attr, uid);
-        if (set_persona_gid_np) set_persona_gid_np(&attr, gid);
-    }
+        if (!set_persona_np)     missing = "posix_spawnattr_set_persona_np";
+        else if (!set_persona_uid_np) missing = "posix_spawnattr_set_persona_uid_np";
+        else if (!set_persona_gid_np) missing = "posix_spawnattr_set_persona_gid_np";
+        if (set_persona_np)     persona_rc = set_persona_np(&attr, 0, 1 /* POSIX_SPAWN_PERSONA_FLAGS_OVERRIDE */);
+        if (set_persona_uid_np) puid_rc    = set_persona_uid_np(&attr, uid);
+        if (set_persona_gid_np) pgid_rc    = set_persona_gid_np(&attr, gid);
 
     if (handle) {
         // iOS 15+ FrontBoard/RunningBoard only grants a display scene to a
@@ -74,8 +86,10 @@ int HybridSpawnWithPersona(uid_t uid, gid_t gid, const char *execPath, char *con
         // say it ourselves or the overlay window never renders.
         int (*set_apptype_np)(posix_spawnattr_t *, int) =
             (int (*)(posix_spawnattr_t *, int))dlsym(handle, "posix_spawnattr_setapptype_np");
-        if (set_apptype_np) set_apptype_np(&attr, 3 /* POSIX_SPAWN_PROCESS_TYPE_UIAPP */);
+        if (set_apptype_np) papptype_rc = set_apptype_np(&attr, 3 /* POSIX_SPAWN_PROCESS_TYPE_UIAPP */);
     }
+    AetherLog(@"persona spawn: persona=%d uid=%d gid=%d apptype=%d missing=%s",
+              persona_rc, puid_rc, pgid_rc, papptype_rc, missing ? missing : "-");
 
     posix_spawnattr_setflags(&attr, POSIX_SPAWN_SETPGROUP);
     posix_spawnattr_setpgroup(&attr, 0);
@@ -103,6 +117,19 @@ int HybridSpawnRootPID(const char *execPath, const char *arg1, const char *arg2,
     argv[3] = NULL;
     int rc = HybridSpawnWithPersona(0, 0, execPath, (char *const *)argv, NULL, &pid);
     if (outPid) *outPid = (int)pid;
+
+    // rc == 0 only means "fork + exec worked". Prove the escalation landed:
+    // from a uid-501 parent, kill() on a uid-0 child returns EPERM, which is
+    // exactly what HybridProbeChildPid reports as 2. Reporting this is the
+    // difference between "spawn rc=0" and "a daemon that is actually root".
+    if (rc == 0 && pid > 0) {
+        for (int i = 0; i < 20; i++) {
+            int probe = HybridProbeChildPid((int)pid, NULL, 0);
+            if (probe == 2) { AetherLog(@"root spawn %s: pid %d IS root", arg1, (int)pid); break; }
+            if (probe == 0) { AetherLog(@"root spawn %s: pid %d died immediately", arg1, (int)pid); break; }
+            usleep(25000);
+        }
+    }
     return rc;
 }
 

@@ -274,25 +274,34 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
     }
 
     private func loadConfig() {
+        // Parse on configQueue, APPLY on engineQueue: `config` holds
+        // reference-counted fields, so assigning it from configQueue while the
+        // packet path reads it on engineQueue races (torn reference -> Swift
+        // runtime trap). Mirrors PacketBlockerExtension.
         let cfg = loadSync()
-        if cfg.timestamp > lastConfigTS {
-            let wasEnabled = config.enabled
-            let previousMode = config.mode
-            lastConfigTS = cfg.timestamp
-            config = cfg
-            NSLog("[Hybrid] cfg enabled=%d mode=%@ target=%@ sockets=%d ratio=%d latency=%dms",
-                  cfg.enabled ? 1 : 0, cfg.mode, cfg.targetBundleID, cfg.targetSockets.count, cfg.captureRatio, cfg.latencyMs)
-            log("CONFIG", "enabled=\(cfg.enabled) mode=\(cfg.mode) dir=\(cfg.direction) proto=\(cfg.protoFilter) ratio=\(cfg.captureRatio)% dl=\(cfg.downloadRatio)% ul=\(cfg.uploadRatio)% latency=\(cfg.latencyMs)ms jitter=\(cfg.jitterMs)ms autoFlush=\(cfg.autoFlushSeconds)s target=\(cfg.targetBundleID.isEmpty ? "GLOBAL" : "\(cfg.targetBundleID)/pid=\(cfg.targetPID) sockets=\(cfg.targetSockets.count)")")
-            // F8: release everything stuck in the queues when the simulation
-            // turns OFF or the mode no longer matches the queued packets.
-            if !cfg.enabled && wasEnabled {
-                engineQueue.async { [weak self] in
-                    self?.flushHeld(bypassGates: true)
-                    self?.flushDelayedNow()
-                }
-            } else if cfg.enabled && previousMode == "delay" && cfg.mode != "delay" {
-                engineQueue.async { [weak self] in self?.flushDelayedNow() }
-            }
+        guard cfg.timestamp > lastConfigTS else { return }
+        engineQueue.async { [weak self] in
+            guard let self = self, cfg.timestamp > self.lastConfigTS else { return }
+            self.applyConfig(cfg)
+        }
+    }
+
+    /// engineQueue only — mutates `config` and flushes held/delayed queues.
+    private func applyConfig(_ cfg: HybridConfig) {
+        let wasEnabled = config.enabled
+        let previousMode = config.mode
+        lastConfigTS = cfg.timestamp
+        config = cfg
+        NSLog("[Hybrid] cfg enabled=%d mode=%@ target=%@ sockets=%d ratio=%d latency=%dms",
+              cfg.enabled ? 1 : 0, cfg.mode, cfg.targetBundleID, cfg.targetSockets.count, cfg.captureRatio, cfg.latencyMs)
+        log("CONFIG", "enabled=\(cfg.enabled) mode=\(cfg.mode) dir=\(cfg.direction) proto=\(cfg.protoFilter) ratio=\(cfg.captureRatio)% dl=\(cfg.downloadRatio)% ul=\(cfg.uploadRatio)% latency=\(cfg.latencyMs)ms jitter=\(cfg.jitterMs)ms autoFlush=\(cfg.autoFlushSeconds)s target=\(cfg.targetBundleID.isEmpty ? "GLOBAL" : "\(cfg.targetBundleID)/pid=\(cfg.targetPID) sockets=\(cfg.targetSockets.count))")
+        // F8: release everything stuck in the queues when the simulation
+        // turns OFF or the mode no longer matches the queued packets.
+        if !cfg.enabled && wasEnabled {
+            flushHeld(bypassGates: true)
+            flushDelayedNow()
+        } else if cfg.enabled && previousMode == "delay" && cfg.mode != "delay" {
+            flushDelayedNow()
         }
     }
 
@@ -1062,7 +1071,9 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
     // ═══════════════════════════════ timers & maintenance ═══════════════════════════════
 
     private func startStatsTimer() {
-        let t = DispatchSource.makeTimerSource(queue: configQueue)
+        // engineQueue, not configQueue: statsString() reads config AND
+        // tcpFlows/udpFlows, which are engineQueue-only state.
+        let t = DispatchSource.makeTimerSource(queue: engineQueue)
         t.schedule(deadline: .now() + 5, repeating: 5)
         t.setEventHandler { [weak self] in
             guard let self = self else { return }
