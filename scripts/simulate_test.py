@@ -2014,6 +2014,12 @@ def test_extension_single_queue():
         check(f"{name}: readLoop xử lý packet trên engineQueue",
               "self.engineQueue.async" in s[s.index("private func readLoop"):
                                              s.index("private func readLoop") + 600])
+        # Dòng log CONFIG chứa ternary lồng nhau ("GLOBAL" : "...") — chép tay
+        # dễ rơi một dấu nháy và build chết với "unterminated string literal".
+        _cfgline = [l for l in s.splitlines() if l.strip().startswith('log("CONFIG"')]
+        check(f"{name}: dòng log CONFIG cân bằng dấu nháy", len(_cfgline) == 1
+              and _cfgline[0].count('"') % 2 == 0,
+              str(len(_cfgline)) + " occurrence")
         for q in ("readQueue.async { self.handleOutbound", "configQueue.async { self.applyConfig"):
             check(f"{name}: không gọi trực tiếp {q.split('{')[0].strip()} ngoài engineQueue", q not in s)
 

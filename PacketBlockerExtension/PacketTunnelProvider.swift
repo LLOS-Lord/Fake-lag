@@ -282,7 +282,7 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         config = cfg
         NSLog("[Hybrid] cfg enabled=%d mode=%@ target=%@ sockets=%d ratio=%d latency=%dms",
               cfg.enabled ? 1 : 0, cfg.mode, cfg.targetBundleID, cfg.targetSockets.count, cfg.captureRatio, cfg.latencyMs)
-        log("CONFIG", "enabled=\(cfg.enabled) mode=\(cfg.mode) dir=\(cfg.direction) proto=\(cfg.protoFilter) ratio=\(cfg.captureRatio)% dl=\(cfg.downloadRatio)% ul=\(cfg.uploadRatio)% latency=\(cfg.latencyMs)ms jitter=\(cfg.jitterMs)ms autoFlush=\(cfg.autoFlushSeconds)s target=\(cfg.targetBundleID.isEmpty ? "GLOBAL" : "\(cfg.targetBundleID)/pid=\(cfg.targetPID) sockets=\(cfg.targetSockets.count))")
+            log("CONFIG", "enabled=\(cfg.enabled) mode=\(cfg.mode) dir=\(cfg.direction) proto=\(cfg.protoFilter) ratio=\(cfg.captureRatio)% dl=\(cfg.downloadRatio)% ul=\(cfg.uploadRatio)% latency=\(cfg.latencyMs)ms jitter=\(cfg.jitterMs)ms autoFlush=\(cfg.autoFlushSeconds)s target=\(cfg.targetBundleID.isEmpty ? "GLOBAL" : "\(cfg.targetBundleID)/pid=\(cfg.targetPID) sockets=\(cfg.targetSockets.count)")")
         // F8: release everything stuck in the queues when the simulation
         // turns OFF or the mode no longer matches the queued packets.
         if !cfg.enabled && wasEnabled {
