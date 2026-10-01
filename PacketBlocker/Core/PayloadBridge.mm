@@ -8,7 +8,10 @@
 #import "AetherNetShared.h"
 
 #include <mach/mach.h>
-#include <mach/mach_vm.h>   // mach_vm_allocate/write/protect live here, not in mach.h
+// mach/mach_vm.h on iOS is a deliberate dead end — its only line is
+// "#error mach_vm.h unsupported.". mach.h omits the mach_vm_* family too, so the
+// prototypes come from PrivateSystemSPI.h (same as the rest of this project).
+#import "PrivateSystemSPI.h"
 #include <mach-o/dyld.h>
 #include <dlfcn.h>
 #include <unistd.h>

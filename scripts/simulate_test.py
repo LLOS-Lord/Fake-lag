@@ -1781,9 +1781,17 @@ def test_injector_verdict():
           "FindPayloadSocketPath(pid)" in s and "HybridInjectLibValidation" in s)
     check("không dùng goto xuyên qua biến khởi tạo (lỗi C++)",
           "goto done" not in s and "while (0);" in s)
-    # mach.h KHÔNG khai báo họ mach_vm_* — phải include mach/mach_vm.h.
-    check("include <mach/mach_vm.h> (mach.h không có mach_vm_allocate/write)",
-          "#include <mach/mach_vm.h>" in s)
+    # mach.h không khai báo mach_vm_*; mach/mach_vm.h thì chỉ có
+    # "#error mach_vm.h unsupported." trên iOS. Prototype phải lấy từ
+    # PrivateSystemSPI.h — cùng nguồn với phần còn lại của project.
+    s_code = "\n".join(l.split("//", 1)[0] for l in s.splitlines())
+    check("KHÔNG include <mach/mach_vm.h> (Apple chặn header này trên iOS)",
+          "mach/mach_vm.h" not in s_code)
+    check("mach_vm_* lấy prototype từ PrivateSystemSPI.h",
+          '#import "PrivateSystemSPI.h"' in s and "mach_vm_allocate(task" in s)
+    spi = open(ROOT + "/PacketBlocker/headers/PrivateSystemSPI.h").read()
+    check("PrivateSystemSPI.h khai báo mach_vm_allocate + mach_vm_write",
+          "kern_return_t mach_vm_allocate(" in spi and "kern_return_t mach_vm_write(" in spi)
     # thread_state_t là `integer_t *`; cast thêm dấu * là build fail.
     check("cast thread_state_t đúng (không dấu * thừa)",
           "(thread_state_t)&st" in s and "(thread_state_t *)&st" not in s)
