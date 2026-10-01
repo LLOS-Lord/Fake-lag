@@ -1927,6 +1927,12 @@ def test_build_integrity():
     check("object được link vào dylib cùng NetHookPayload.mm",
           "fishhook.o" in _dlcont and "NetHookPayload.mm" in _dlcont
           and "-dynamiclib" in _dlcont)
+    # $BUILT_TEMP_DIR rỗng trong một số môi trường phase -> ghi ra root
+    # read-only ("unable to open output file '/libNetHookPayload-fishhook.o'").
+    _code = "\n".join(l for l in _sl if not l.lstrip().startswith("#"))
+    check("object tạm nằm trong mktemp -d, không dùng $BUILT_TEMP_DIR",
+          'mktemp -d' in _code and "BUILT_TEMP_DIR" not in _code
+          and "$WORK/fishhook.o" in _code)
     # CI phải fail thật khi build hỏng (pipefail + marker BUILD SUCCEEDED).
     _ci = open(ROOT + "/.github/workflows/build.yml").read()
     check("CI bật pipefail (mất exit code của xcodebuild qua tee)",
