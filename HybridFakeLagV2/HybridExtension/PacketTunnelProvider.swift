@@ -776,7 +776,7 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
 
     private func forwardToServer(_ flow: TCPFlow, key: FlowKey, payload: [UInt8]) {
         let data = Data(payload)
-        guard flow.connReady, let conn = flow.conn else {
+        guard flow.connReady, flow.conn != nil else {
             if flow.pendingToServer.count < 128 { flow.pendingToServer.append(data) }
             return
         }
