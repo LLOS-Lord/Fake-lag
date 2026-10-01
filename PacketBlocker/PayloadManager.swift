@@ -35,8 +35,8 @@ class PayloadManager: ObservableObject {
     /// it must never be captured by the background injection closure — snapshot
     /// the fields here instead.
     private struct Snapshot {
-        var enabled = 0, direction = 0, proto = 0, mode = 0
-        var ratio = 0, latencyMs = 0, jitterMs = 0
+        var enabled: Int32 = 0, direction: Int32 = 0, proto: Int32 = 0, mode: Int32 = 0
+        var ratio: Int32 = 0, latencyMs: Int32 = 0, jitterMs: Int32 = 0
     }
 
     private static func modeCode(_ s: String) -> Int32 {
@@ -72,12 +72,14 @@ class PayloadManager: ObservableObject {
         HybridPayloadSetTarget(p.pid, p.bundleID)
 
         let pid = p.pid
-        workQueue.async { [weak self] in
+        workQueue.async {
             var err = [CChar](repeating: 0, count: 512)
             let rc = HybridPayloadInject(pid, &err, 512)
             let errText = String(cString: err)
             let attached = rc == 1 ? HybridPayloadAttach(pid) : 0
-            Task { @MainActor in
+            // The Task carries its own [weak self]: capturing the outer one would
+            // mean capturing a var across a concurrency boundary.
+            Task { @MainActor [weak self] in
                 self?.finishInject(rc: rc, errText: errText,
                                    attached: attached == 1, snapshot: snapshot)
             }
@@ -116,12 +118,12 @@ class PayloadManager: ObservableObject {
     private func snapshot(of config: VPNManager) -> Snapshot {
         var s = Snapshot()
         s.enabled = config.isBlocking ? 1 : 0
-        s.direction = Int(PayloadManager.dirCode(config.direction))
-        s.proto = Int(PayloadManager.protoCode(config.protoFilter))
-        s.mode = Int(PayloadManager.modeCode(config.mode))
-        s.ratio = Int(config.captureRatio)
-        s.latencyMs = Int(config.latencyMs)
-        s.jitterMs = Int(config.jitterMs)
+        s.direction = PayloadManager.dirCode(config.direction)
+        s.proto = PayloadManager.protoCode(config.protoFilter)
+        s.mode = PayloadManager.modeCode(config.mode)
+        s.ratio = Int32(config.captureRatio)
+        s.latencyMs = Int32(config.latencyMs)
+        s.jitterMs = Int32(config.jitterMs)
         return s
     }
 
@@ -132,12 +134,12 @@ class PayloadManager: ObservableObject {
         HybridPayloadSendConfig(s.enabled,
                                targetPID,
                                bundleID,
-                               Int32(s.direction),
-                               Int32(s.proto),
-                               Int32(s.mode),
-                               Int32(s.ratio),
-                               Int32(s.latencyMs),
-                               Int32(s.jitterMs),
+                               s.direction,
+                               s.proto,
+                               s.mode,
+                               s.ratio,
+                               s.latencyMs,
+                               s.jitterMs,
                                12)
     }
 
