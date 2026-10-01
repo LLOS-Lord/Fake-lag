@@ -1894,6 +1894,10 @@ def test_build_integrity():
     check("output vào .app (được cp vào IPA)",
           "$BUILT_PRODUCTS_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH" in pbx)
     check("arm64 + min iOS 14", "-arch arm64" in pbx and "-miphoneos-version-min=14.0" in pbx)
+    # .mm build không có -std thì rơi vào default của toolchain (gnu++98 với
+    # Objective-C++ trên Xcode 15) -> std::atomic biến mất -> parse error.
+    check("payload build ép -std= (mặc định ObjC++ không có std::atomic)",
+          "-std=gnu++17" in pbx)
     check("payload arm64e dùng được MSHookFunction qua dlsym (không link substrate)",
           'dlsym(RTLD_DEFAULT, "MSHookFunction")' in
           open(ROOT + "/HybridFakeLagV2/Payload/NetHookPayload.mm").read())
