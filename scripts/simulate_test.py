@@ -2065,6 +2065,60 @@ def test_persona_root():
           "HybridProbeChildPid" in sr and "IS root" in sr and "died immediately" in sr)
 
 
+
+def test_brace_balance():
+    print("\n[4.2e] Ngoặc cân bằng — 'function definition is not allowed here' chỉ là hậu quả")
+    import glob as _g, re as _r
+
+    def scan(text):
+        """Strip strings/comments, then return brace balance."""
+        out, i, n = [], 0, len(text)
+        while i < n:
+            c = text[i]
+            if c == '"' or c == "'":
+                q = c; i += 1
+                while i < n and text[i] != q:
+                    i += 2 if text[i] == "\\" else 1
+                i += 1
+                continue
+            if text.startswith("/*", i):
+                j = text.find("*/", i + 2)
+                i = n if j < 0 else j + 2
+                continue
+            if text.startswith("//", i):
+                j = text.find("\n", i)
+                i = n if j < 0 else j
+                continue
+            out.append(c); i += 1
+        return "".join(out)
+
+    # Những file thực sự được CI biên dịch.
+    targets = (["PacketBlocker/Core/*.m", "PacketBlocker/Core/*.mm",
+                "PacketBlocker/*.m", "PacketBlocker/*.mm", "PacketBlocker/HUD/*.m",
+                "PacketBlocker/HUD/*.mm",
+                "PacketBlockerExtension/*.swift", "PacketBlocker/*.swift",
+                "HybridFakeLagV2/Payload/*.mm", "HybridFakeLagV2/HUD/*.mm",
+                "HybridFakeLagV2/Core/*.m", "HybridFakeLagV2/HybridExtension/*.swift"])
+    bad = []
+    for pat in targets:
+        for f in _g.glob(ROOT + "/" + pat):
+            t = open(f).read()
+            if f.endswith(".swift"):
+                continue          # interpolation braces are legal inside strings
+            b = scan(t)
+            if b.count("{") != b.count("}"):
+                bad.append(f"{os.path.basename(f)} {b.count('{')}-{b.count('}')}")
+    check("mọi file .m/.mm trong build cân bằng ngoặc", not bad, "; ".join(bad))
+    # Riêng PersonaHelper: ngoặc thừa ở giữa hàm làm mọi hàm phía sau thành
+    # "function definition is not allowed here".
+    p_h = ROOT + "/PacketBlocker/Core/PersonaHelper.m"
+    ph = open(p_h).read()
+    check("PersonaHelper.m: if (handle) đóng trước khối apptype",
+          "pgid_rc    = set_persona_gid_np(&attr, gid);\n    }" in ph)
+    check("PersonaHelper.m: log persona nằm NGOÀI mọi if", 
+          ph.index("persona spawn: persona=") > ph.index("if (set_apptype_np) papptype_rc"))
+
+
 def main():
     t0 = time.time()
     print("=" * 78)
@@ -2103,6 +2157,7 @@ def main():
     test_extension_queue_ownership()
     test_ipc_nonblocking()
     test_persona_root()
+    test_brace_balance()
     dt = time.time() - t0
     print("\n" + "=" * 78)
     print(f"KẾT QUẢ: {len(PASS)} PASS / {len(FAIL)} FAIL  ({dt:.2f}s)")

@@ -78,6 +78,7 @@ int HybridSpawnWithPersona(uid_t uid, gid_t gid, const char *execPath, char *con
         if (set_persona_np)     persona_rc = set_persona_np(&attr, 0, 1 /* POSIX_SPAWN_PERSONA_FLAGS_OVERRIDE */);
         if (set_persona_uid_np) puid_rc    = set_persona_uid_np(&attr, uid);
         if (set_persona_gid_np) pgid_rc    = set_persona_gid_np(&attr, gid);
+    }
 
     if (handle) {
         // iOS 15+ FrontBoard/RunningBoard only grants a display scene to a
