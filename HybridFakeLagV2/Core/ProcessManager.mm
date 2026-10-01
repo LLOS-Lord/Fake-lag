@@ -407,7 +407,11 @@ static void HybridWriteExtOverrideFiles(BOOL active) {
 #if !TARGET_OS_SIMULATOR
     // Elevate HUD child daemon to root (UID 0 / GID 0) using com.apple.private.persona-mgmt
     // Required so SpringBoard does not kill the HUD window upon device lock/unlock
-    posix_spawnattr_set_persona_np(&attr, 99, POSIX_SPAWN_PERSONA_FLAGS_OVERRIDE);
+    // NOTE: the persona id MUST be 0, not 99. Persona 99 is an unmapped id —
+    // posix_spawnattr_set_persona_uid_np(&attr, 0) is silently ignored when
+    // the persona itself is not 0, so the child stayed in the app's uid-501
+    // and SpringBoard killed the HUD window on lock.
+    posix_spawnattr_set_persona_np(&attr, 0, POSIX_SPAWN_PERSONA_FLAGS_OVERRIDE);
     posix_spawnattr_set_persona_uid_np(&attr, 0);
     posix_spawnattr_set_persona_gid_np(&attr, 0);
 #endif
@@ -543,7 +547,7 @@ int HybridHUDPrepareForSpawn(void) {
         posix_spawnattr_t attr;
         posix_spawnattr_init(&attr);
 #if !TARGET_OS_SIMULATOR
-        posix_spawnattr_set_persona_np(&attr, 99, POSIX_SPAWN_PERSONA_FLAGS_OVERRIDE);
+        posix_spawnattr_set_persona_np(&attr, 0, POSIX_SPAWN_PERSONA_FLAGS_OVERRIDE);
         posix_spawnattr_set_persona_uid_np(&attr, 0);
         posix_spawnattr_set_persona_gid_np(&attr, 0);
 #endif
@@ -611,7 +615,7 @@ void HybridHUDRequestExit(void) {
     posix_spawnattr_t attr;
     posix_spawnattr_init(&attr);
 #if !TARGET_OS_SIMULATOR
-    posix_spawnattr_set_persona_np(&attr, 99, POSIX_SPAWN_PERSONA_FLAGS_OVERRIDE);
+    posix_spawnattr_set_persona_np(&attr, 0, POSIX_SPAWN_PERSONA_FLAGS_OVERRIDE);
     posix_spawnattr_set_persona_uid_np(&attr, 0);
     posix_spawnattr_set_persona_gid_np(&attr, 0);
 #endif
@@ -627,7 +631,7 @@ int HybridSpawnRootPID(const char *execPath, const char *argv1, const char *argv
     posix_spawnattr_t attr;
     posix_spawnattr_init(&attr);
 #if !TARGET_OS_SIMULATOR
-    posix_spawnattr_set_persona_np(&attr, 99, POSIX_SPAWN_PERSONA_FLAGS_OVERRIDE);
+    posix_spawnattr_set_persona_np(&attr, 0, POSIX_SPAWN_PERSONA_FLAGS_OVERRIDE);
     posix_spawnattr_set_persona_uid_np(&attr, 0);
     posix_spawnattr_set_persona_gid_np(&attr, 0);
 #endif
@@ -664,10 +668,17 @@ int HybridSpawnRootPID(const char *execPath, const char *argv1, const char *argv
     posix_spawnattr_destroy(&attr);
     AetherLog(@"HybridSpawnRoot %s %s rc=%d pid=%d", execPath, argv1 ?: "", rc, child);
     if (outPid) *outPid = (int)child;
-    if (rc == 0) {
-        AetherSharedState *state = AetherGetSharedState();
-        if (state && argv1 && strcmp(argv1, "-hud") == 0) {
-            aether_atomic_store(&state->hudVisible, true);
+
+    // rc == 0 only means "fork + exec worked". Prove the escalation landed:
+    // from a uid-501 parent, kill() on a uid-0 child returns EPERM, which is
+    // exactly what HybridProbeChildPid reports as 2. Reporting this is the
+    // difference between "spawn rc=0" and "a daemon that is actually root".
+    if (rc == 0 && child > 0) {
+        for (int i = 0; i < 20; i++) {
+            int probe = HybridProbeChildPid((int)child, NULL, 0);
+            if (probe == 2) { AetherLog(@"root spawn %s: pid %d IS root", argv1 ?: "-", (int)child); break; }
+            if (probe == 0) { AetherLog(@"root spawn %s: pid %d died immediately", argv1 ?: "-", (int)child); break; }
+            usleep(25000);
         }
     }
     return rc;

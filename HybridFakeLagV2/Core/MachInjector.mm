@@ -65,10 +65,17 @@ extern "C" int AetherInjectDylibIntoPID(pid_t pid, const char *dylibPath, char *
     mach_vm_protect(task, remoteStack, stackSize, FALSE, VM_PROT_READ | VM_PROT_WRITE);
     mach_vm_protect(task, remotePath, pathAllocSize, FALSE, VM_PROT_READ);
 
+    // Park stub: dlopen returns to __lr. If __lr is 0 the target dies with
+    // EXC_BAD_ACCESS on return. Write a "b ." (0x14000000) into the remote
+    // stack and point __lr there so the injected thread parks cleanly.
+    uint32_t parkInsn = 0x14000000u;   // b .
+    mach_vm_write(task, remoteStack, (vm_offset_t)&parkInsn, 4);
+
     // Note: Because dyld shared cache is mapped at the same slide across processes
     // from the same boot session on iOS, dlopen's address in libdyld.dylib matches.
     void *dlopenAddr = dlsym(RTLD_DEFAULT, "dlopen");
     if (!dlopenAddr) {
+        mach_vm_deallocate(task, remoteStack, stackSize);
         mach_port_deallocate(mach_task_self(), task);
         return -6;
     }
@@ -82,6 +89,7 @@ extern "C" int AetherInjectDylibIntoPID(pid_t pid, const char *dylibPath, char *
     threadState.__x[1] = (uint64_t)RTLD_NOW;
     threadState.__sp   = (uint64_t)(remoteStack + (stackSize / 2));
     threadState.__pc   = (uint64_t)dlopenAddr;
+    threadState.__lr   = (uint64_t)remoteStack;      // park stub
 
     thread_act_t remoteThread = MACH_PORT_NULL;
     kr = thread_create_running(
@@ -100,9 +108,16 @@ extern "C" int AetherInjectDylibIntoPID(pid_t pid, const char *dylibPath, char *
         return -7;
     }
 
+    // Never leave a thread parked inside the target — terminate it. The
+    // dylib is now loaded; subsequent calls to the dlopen'd symbols resolve
+    // via the target's normal execution.
+    // (synced with PacketBlocker/Core/PayloadBridge.mm)
+    thread_terminate(remoteThread);
     mach_port_deallocate(mach_task_self(), remoteThread);
 #endif
 
+    mach_vm_deallocate(task, remoteStack, stackSize);
+    mach_vm_deallocate(task, remotePath, pathAllocSize);
     mach_port_deallocate(mach_task_self(), task);
     return 0;
 }
@@ -164,7 +179,7 @@ extern "C" int AetherApplyRootTrafficControl(pid_t pid, AetherSharedState *state
     posix_spawnattr_t attr;
     posix_spawnattr_init(&attr);
 #if !TARGET_OS_SIMULATOR
-    posix_spawnattr_set_persona_np(&attr, 99, POSIX_SPAWN_PERSONA_FLAGS_OVERRIDE);
+    posix_spawnattr_set_persona_np(&attr, 0, POSIX_SPAWN_PERSONA_FLAGS_OVERRIDE);
     posix_spawnattr_set_persona_uid_np(&attr, 0);
     posix_spawnattr_set_persona_gid_np(&attr, 0);
 #endif

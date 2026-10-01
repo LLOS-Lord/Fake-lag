@@ -323,7 +323,24 @@ static void AetherInstallHookPayload(void)
             AetherLog(@"[installer] created /var/mobile/.tweakenabled (tweak gate marker)");
         }
 
-        NSString *plist =
+        // The Filter decides which processes load the payload. Naming only
+        // com.apple.UIKit means "SpringBoard only" — the selected app never got
+        // it. Append the target's bundle id when the app has published one.
+        NSString *targetBundle = nil;
+        AetherSharedState *tState = AetherGetSharedState();
+        if (tState && tState->targetBundleID[0] != '\0' &&
+            aether_atomic_load(&tState->targetPID) > 0) {
+            targetBundle = [NSString stringWithUTF8String:tState->targetBundleID];
+        }
+        // Không dùng ternary: dưới ARC, [NSString stringWithFormat:] trả về
+        // instancetype còn @"" là __constant → "interface type cannot be
+        // statically allocated".
+        NSString *bundleLine = @"";
+        if (targetBundle) {
+            bundleLine = [NSString stringWithFormat:@"      <string>%@</string>\n", targetBundle];
+        }
+
+        NSString *plist = [NSString stringWithFormat:
             @"<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
             @"<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n"
             @"<plist version=\"1.0\">\n"
@@ -333,10 +350,14 @@ static void AetherInstallHookPayload(void)
             @"    <key>Bundles</key>\n"
             @"    <array>\n"
             @"      <string>com.apple.UIKit</string>\n"
+            @"%@"
             @"    </array>\n"
             @"  </dict>\n"
             @"</dict>\n"
-            @"</plist>\n";
+            @"</plist>\n", bundleLine];
+        if (targetBundle) {
+            AetherLog(@"[installer] tweak Filter now targets %@ (+ com.apple.UIKit)", targetBundle);
+        }
         NSString *tmpPlist = @"/var/mobile/Library/aethernet-filter.plist";
         [plist writeToFile:tmpPlist atomically:YES encoding:NSUTF8StringEncoding error:nil];
 
@@ -870,24 +891,19 @@ int HUDMain(int argc, char *argv[])
             chmod(AETHER_HUD_PID_PATH, 0666);   // the app runs as uid 501
             HUDStepLog(@"step3 pid file written");
 
-            AetherLog(@"[pid %d] HUD daemon starting", getpid());
-            // Installer does opendir/fork/exec — run it in the background so
-            // UIKit init is not delayed past the app's verify window.
-            dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{
-                AetherInstallHookPayload();
-                HUDStepLog(@"step4 hook payload installer done (background)");
-            });
-            HUDStepLog(@"step4 hook payload installer dispatched (background)");
-
-            // hudVisible is set by the app delegate only after
-            // registerWindowWithContextID:, i.e. once the button is on screen.
+            AetherLog(@"[pid %d] HUD daemon starting uid=%d euid=%d exe=%s (build %u)",
+                      getpid(), getuid(), geteuid(), argv[0], (unsigned)AETHER_BUILD_NUM);
+            AetherLog(@"[pid %d] shm=%s pidfile=%s", getpid(), AETHER_SHM_PATH, AETHER_HUD_PID_PATH);
+            // NOTE: hudVisible is NOT set here. It is set by the app delegate
+            // right after registerWindowWithContextID:, i.e. only once the
+            // button really is on screen.
             AetherSharedState *state = AetherGetSharedState();
             if (state) {
                 aether_atomic_store(&state->hudVisible, false);
             }
 
             AetherLoadPrivateFrameworks();
-            HUDStepLog(@"step5 private frameworks loaded");
+            HUDStepLog(@"step4 private frameworks loaded");
             static id<UIApplicationDelegate> appDelegate = nil;
             @try {
                 [UIScreen initialize];
@@ -976,6 +992,15 @@ int HUDMain(int argc, char *argv[])
             });
 
             HUDStepLog(@"step13 entering CFRunLoopRun — daemon fully up");
+
+            // The payload installer is dispatched AFTER the UIKit bootstrap
+            // (see step13) — it forks/execs and signs, which races UIKit init
+            // and used to abort the daemon outright once the dylib exists.
+            dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{
+                AetherInstallHookPayload();
+                HUDStepLog(@"step14 hook payload installer done (background)");
+            });
+            HUDStepLog(@"step14 hook payload installer dispatched, UIKit up");
 
             CFRunLoopRun();
             return EXIT_SUCCESS;

@@ -7,7 +7,7 @@ Bản mix hoàn chỉnh theo yêu cầu: **floating button như TrollNetIntercep
 ### 1. Floating Button giống TrollNetInterceptor (100%)
 - **File gốc đã port:** `HUD/HUDMain.mm`, `HUDRootApplication.mm`, `FloatingToggleButton.h/.mm`, `HUDMainWindow.h/.mm`, `TSEventFetcher`, `IOHIDEventKIF`
 - Cơ chế: 
-  - Main App spawn HUD daemon bằng `posix_spawnattr_set_persona_np(99) UID 0` -> daemon sống sót qua lock/unlock, windowLevel `10000010.0` render trên mọi app/game
+  - Main App spawn HUD daemon bằng `posix_spawnattr_set_persona_np(0) UID 0` -> daemon sống sót qua lock/unlock, windowLevel `10000010.0` render trên mọi app/game
   - Đăng ký qua `SBSAccessibilityWindowHostingController.registerWindowWithContextID:atLevel:`
   - Touch qua BackBoard HID pipeline `BKSHIDEventRegisterEventCallback` -> `AXEventRepresentation` -> `TSEventFetcher` -> gesture recognizers
   - Nút tròn: viền titanium, orbital ring quay khi active, icon ▶ (tắt) / ⏸ (bật), badge số packet held

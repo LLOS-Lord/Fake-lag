@@ -88,6 +88,9 @@ class FloatingHUDManager: ObservableObject {
             respawnAttempts = 0
             AppGroupStore.logAction("HUD_CREATE", details: "prepare + spawn root HUD daemon (TrollNet flow)")
             spawnDaemon()
+            // Push the current floating config right away so the fresh daemon
+            // starts with the user's size/opacity/position.
+            syncFloatingConfigFromStore()
             DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) { [weak self] in self?.verifySpawn() }
         } else {
             expectedEnabled = false
@@ -108,7 +111,7 @@ class FloatingHUDManager: ObservableObject {
     private func spawnDaemon() {
         guard let execPath = Bundle.main.executablePath else {
             lastError = "Bundle.main.executablePath is nil"
-            AppGroupStore.logAction("HUD_SPAWN_FAIL", details: lastError!)
+            AppGroupStore.logAction("HUD_SPAWN_FAIL", details: lastError!, level: "ERROR")
             return
         }
 
@@ -164,8 +167,18 @@ class FloatingHUDManager: ObservableObject {
             DispatchQueue.main.async { self.lastError = nil }
         } else {
             let msg = "daemon not alive after 2.5s (lastChildPid=\(lastChildPid) — see HUD_SPAWN_PID / HUD_EARLY / HUD_STEP lines); watchdog will retry"
-            AppGroupStore.logAction("HUD_VERIFY_FAIL", details: msg)
+            AppGroupStore.logAction("HUD_VERIFY_FAIL", details: msg, level: "WARN")
             DispatchQueue.main.async { self.lastError = msg }
         }
+    }
+
+    /// Pushes the Settings-tab floating customization into the HUD daemon's
+    /// shared memory (the daemon reads size/opacity/snap/lock/haptic/pos).
+    func syncFloatingConfigFromStore() {
+        let cfg = AppGroupStore.load()
+        HybridHUDSyncFloatingConfig(cfg.floatingSize, cfg.floatingOpacity,
+                                    cfg.floatingEdgeSnap, cfg.floatingLockPosition,
+                                    cfg.floatingHaptic, cfg.floatingPosX, cfg.floatingPosY)
+        AppGroupStore.logAction("HUD_CONFIG_SYNC", details: "size=\(cfg.floatingSize) opacity=\(cfg.floatingOpacity) snap=\(cfg.floatingEdgeSnap) lock=\(cfg.floatingLockPosition) haptic=\(cfg.floatingHaptic) pos=(\(cfg.floatingPosX),\(cfg.floatingPosY))")
     }
 }
