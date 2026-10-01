@@ -270,6 +270,9 @@ int HybridPayloadAttach(int pid) {
     strlcpy(addr.sun_path, path.fileSystemRepresentation, sizeof(addr.sun_path));
     if (connect(fd, (struct sockaddr *)&addr, sizeof(addr)) != 0) { close(fd); return 0; }
 
+    // Darwin has no MSG_NOSIGNAL; the equivalent is a per-socket opt.
+    int one = 1;
+    setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, &one, sizeof(one));
     gClientFd = fd;
     gClientPid = pid;
     strlcpy(gSockPath, path.fileSystemRepresentation, sizeof(gSockPath));
@@ -296,7 +299,7 @@ int HybridPayloadSendConfig(int enabled, int targetPID, const char *bundleID,
     c.latencyMs = (uint32_t)latencyMs;
     c.jitterMs = (uint32_t)jitterMs;
     c.autoFlushSeconds = (uint32_t)autoFlushSeconds;
-    ssize_t w = send(gClientFd, &c, sizeof(c), MSG_NOSIGNAL);
+    ssize_t w = send(gClientFd, &c, sizeof(c), 0);
     return w == (ssize_t)sizeof(c);
 }
 

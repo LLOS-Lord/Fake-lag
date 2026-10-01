@@ -575,6 +575,7 @@ static void *ipcServerThread(void *arg) {
         return NULL;
     }
     chmod(path, 0666);
+    { int one = 1; setsockopt(listenFd, SOL_SOCKET, SO_NOSIGPIPE, &one, sizeof(one)); }
     gStatus.store(AETHER_IPC_ST_LISTENING, std::memory_order_relaxed);
 
     int clientFd = -1;
@@ -620,7 +621,7 @@ static void *ipcServerThread(void *arg) {
                 releaseHold();
             }
             AetherIpcTelemetry t = buildTelemetry();
-            ssize_t w = send(clientFd, &t, sizeof(t), MSG_NOSIGNAL);
+            ssize_t w = send(clientFd, &t, sizeof(t), 0);
             if (w < 0 && (errno == EPIPE || errno == ECONNRESET)) {
                 close(clientFd);
                 clientFd = -1;

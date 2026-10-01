@@ -1715,7 +1715,14 @@ def test_payload_config_channel():
     check("socket server bind trong TMPDIR", 'getenv("TMPDIR")' in s and "AETHER_IPC_SOCK_NAME" in s)
     check("socket chmod 0666 (app chạy uid khác)", 'chmod(path, 0666)' in s)
     check("poll loop: nhận config + gửi telemetry",
-          "poll(&pfd, 1, 250)" in s and "send(clientFd, &t, sizeof(t), MSG_NOSIGNAL)" in s)
+          "poll(&pfd, 1, 250)" in s and "send(clientFd, &t, sizeof(t), 0)" in s)
+    # Darwin không có MSG_NOSIGNAL (chỉ SO_NOSIGPIPE) — dùng là build fail.
+    check("KHÔNG dùng MSG_NOSIGNAL (không tồn tại trên Darwin)",
+          "MSG_NOSIGNAL" not in np_code and "SO_NOSIGPIPE" in s)
+    pb = open(ROOT + "/PacketBlocker/Core/PayloadBridge.mm").read()
+    pb_code = "\n".join(l.split("//", 1)[0] for l in pb.splitlines())
+    check("app socket dùng SO_NOSIGPIPE, không MSG_NOSIGNAL",
+          "MSG_NOSIGNAL" not in pb_code and "SO_NOSIGPIPE" in pb)
     check("validate magic+version khi nhận config",
           "c.magic == AETHER_IPC_MAGIC" in s and "c.version == AETHER_IPC_VERSION" in s)
 
@@ -1825,6 +1832,49 @@ def test_build_integrity():
           "buildPhases = (89A900256F474E53B521F28F, 143160D9EA1E4F5EB0688832, AE00000000000000000000A1)" in pbx)
     check("PayloadBridge.mm vào Sources", "PayloadBridge.mm in Sources" in pbx)
     check("PayloadManager.swift vào Sources", "PayloadManager.swift in Sources" in pbx)
+
+    # MỌI fileRef dùng trong Sources phải nằm trong một PBXGroup. Nếu không,
+    # Xcode resolve `sourceTree = "<group>"` so với THƯ MỤC PROJECT thay vì
+    # group chứa nó → "Build input file cannot be found: .../PayloadManager.swift".
+    import re as _re
+    groups, parent_of = {}, {}
+    for line in pbx.splitlines():
+        gm = _re.match(r"\t\t([0-9A-F]{24})(?: /\* .*? \*/)? = \{isa = PBXGroup; children = \((.*?)\);(.*)\};", line)
+        if not gm:
+            continue
+        kids = [k.strip() for k in gm.group(2).split(",") if k.strip()]
+        pm = _re.search(r"\bpath = ([^;]+);", gm.group(3))
+        groups[gm.group(1)] = (pm.group(1).strip() if pm else "", kids)
+        for k in kids:
+            parent_of[k] = gm.group(1)
+
+    root_gid = _re.search(r"mainGroup = ([0-9A-F]{24})", pbx).group(1)
+
+    def resolve(uuid):
+        """Walk file -> group -> parent -> ... -> mainGroup, concatenating paths."""
+        path = _re.search(r"\t\t" + uuid + r"[^\n]*\bpath = ([^;]+);", pbx)
+        if not path:
+            return None
+        parts, cur = [path.group(1).strip()], parent_of.get(uuid)
+        seen = set()
+        while cur and cur in groups and cur != root_gid and cur not in seen:
+            seen.add(cur)
+            gp = groups[cur][0]
+            if gp:
+                parts.insert(0, gp)
+            cur = parent_of.get(cur)
+        return "/".join(parts)
+
+    for bf in ("AE00000000000000000000B1", "AE00000000000000000000B3"):
+        ref = _re.search(r"fileRef = ([0-9A-F]{24})", _re.search(r"\t\t" + bf + r"[^\n]*", pbx).group(0)).group(1)
+        rel = resolve(ref)
+        check(f"fileRef {bf[-4:]} resolve được từ project root", rel is not None)
+        if rel:
+            check(f"{rel} tồn tại trên đĩa", os.path.exists(ROOT + "/" + rel))
+    check("Core group chứa PayloadBridge.mm",
+          "AE00000000000000000000B2" in groups.get("72F46ADB42944016A4640132", ("", ""))[1])
+    check("PacketBlocker group chứa PayloadManager.swift",
+          "AE00000000000000000000B4" in groups.get("8834A2F42D9C4D30A55033DA", ("", ""))[1])
     check("compile đúng 2 file payload với -DHYBRID_PAYLOAD_BUILD",
           "\\" in pbx and "-DHYBRID_PAYLOAD_BUILD=1" in pbx and "fishhook.c" in pbx)
     check("output vào .app (được cp vào IPA)",
