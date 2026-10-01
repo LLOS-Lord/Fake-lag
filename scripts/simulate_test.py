@@ -1898,6 +1898,29 @@ def test_build_integrity():
     # Objective-C++ trên Xcode 15) -> std::atomic biến mất -> parse error.
     check("payload build ép -std= (mặc định ObjC++ không có std::atomic)",
           "-std=gnu++17" in pbx)
+    # Script build phase phải là shell hợp lệ — và KHÔNG được có "# " dính vào
+    # dòng lệnh (một lần chú thích đè lên chính dòng xcrun khiến -dynamiclib
+    # chạy thành lệnh riêng → "command not found", trong khi CI vẫn báo xanh).
+    import re as _re2, subprocess as _sp, tempfile as _tf
+    _script = _re2.search(r'shellScript = "(.*?)";\n\t\t\};', pbx, _re2.S).group(1)
+    _script = _script.encode().decode("unicode_escape")
+    _bad = [l for l in _script.splitlines()
+            if l.lstrip().startswith("# ") and any(l.lstrip()[2:].startswith(c)
+                                                  for c in ("xcrun", "clang", "mkdir", "set "))]
+    check("shellScript: không lệnh nào bị '# ' nuốt mất", not _bad, "; ".join(_bad))
+    with _tf.NamedTemporaryFile("w", suffix=".sh", delete=False) as _f:
+        _f.write(_script)
+        _shname = _f.name
+    _syn = _sp.run(["sh", "-n", _shname], capture_output=True, text=True)
+    check("shellScript: sh -n pass", _syn.returncode == 0, _syn.stderr.strip())
+    check("shellScript: dòng xcrun không bị comment",
+          any(l.startswith("xcrun -sdk iphoneos clang") for l in _script.splitlines()))
+    # CI phải fail thật khi build hỏng (pipefail + marker BUILD SUCCEEDED).
+    _ci = open(ROOT + "/.github/workflows/build.yml").read()
+    check("CI bật pipefail (mất exit code của xcodebuild qua tee)",
+          "set -o pipefail" in _ci)
+    check("CI đòi marker ** BUILD SUCCEEDED **", "BUILD SUCCEEDED" in _ci)
+
     check("payload arm64e dùng được MSHookFunction qua dlsym (không link substrate)",
           'dlsym(RTLD_DEFAULT, "MSHookFunction")' in
           open(ROOT + "/HybridFakeLagV2/Payload/NetHookPayload.mm").read())

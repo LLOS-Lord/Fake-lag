@@ -95,13 +95,25 @@ jobs:
 
       - name: Build unsigned app (Fixed - No Kill)
         run: |
-          xcodebuild -project PacketBlocker.xcodeproj -scheme PacketBlocker -configuration Release -sdk iphoneos -derivedDataPath ./build CODE_SIGNING_ALLOWED=NO CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO PROVISIONING_PROFILE_SPECIFIER="" ONLY_ACTIVE_ARCH=YES ENABLE_BITCODE=NO IPHONEOS_DEPLOYMENT_TARGET=14.0 -destination 'generic/platform=iOS' | tee build.log
+          # Without pipefail the `| tee` swallows xcodebuild's exit status, so a
+          # failed build still showed a green check. And a failing script phase
+          # prints no "error:" line at all — only "** BUILD FAILED **".
+          set -o pipefail
+          xcodebuild -project PacketBlocker.xcodeproj -scheme PacketBlocker -configuration Release -sdk iphoneos -derivedDataPath ./build CODE_SIGNING_ALLOWED=NO CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO PROVISIONING_PROFILE_SPECIFIER="" ONLY_ACTIVE_ARCH=YES ENABLE_BITCODE=NO IPHONEOS_DEPLOYMENT_TARGET=14.0 -destination 'generic/platform=iOS' | tee build.log || {
+            echo "::error::xcodebuild failed"
+            grep -E "error:|fatal error|BUILD FAILED|Command .* failed|PhaseScriptExecution" build.log | head -n 60
+            exit 1
+          }
           echo "Build finished, checking errors"
           if grep -q "error:" build.log; then
             echo "Build errors found:"
             grep -A2 "error:" build.log | head -n 100
             exit 1
           fi
+          grep -q '\*\* BUILD SUCCEEDED \*\*' build.log || {
+            echo "::error::no BUILD SUCCEEDED marker in build.log"
+            exit 1
+          }
 
       - name: Prepare Payload structure
         run: |
