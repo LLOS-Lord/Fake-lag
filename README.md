@@ -327,3 +327,44 @@ không kiểm chứng được. Đã đổi sang đường dẫn tương đối 
 - **D4 — `HybridFakeLagV2.xcodeproj` không được CI build.** Nó là bản song song
   của cùng kiến trúc; sửa lớn chỉ áp cho `PacketBlocker` (target thật sự phát
   hành), vài fix cơ bản đã mirror sang bản twin.
+
+
+---
+
+# FIX 4.1 — CI THỰC SỰ BUILD ĐƯỢC (7 lỗi, mỗi lỗi 1 nguyên nhân)
+
+`PacketBlocker.xcodeproj` trước đây **build xanh nhưng nhét ra một `.app` không
+có payload** — và nhiều lần build hỏng vẫn báo xanh. Danh sách lỗi thật, theo
+đúng thứ tự gặp:
+
+| # | Triệu chứng | Nguyên nhân |
+|---|---|---|
+| 1 | `Build input file cannot be found: .../PayloadManager.swift` | `PBXFileReference` không nằm trong `PBXGroup` nào → Xcode resolve `sourceTree = "<group>"` so với **thư mục project**, không phải group chứa nó |
+| 2 | `use of undeclared identifier 'mach_vm_allocate'` | `<mach/mach.h>` không khai báo họ `mach_vm_*` |
+| 3 | `mach/mach_vm.h:1: #error mach_vm.h unsupported` | Apple **cấm** header đó trên iOS → phải lấy prototype từ `PrivateSystemSPI.h` |
+| 4 | `no matching function for call to 'thread_create_running'` | `thread_state_t` trên iOS SDK **đã là con trỏ** (`integer_t *`); `(thread_state_t *)&st` dư một cấp |
+| 5 | `interface type cannot be statically allocated` / `extraneous ']'` | Thêm `bundleLine` làm mất dấu `[` mở đầu `[NSString stringWithFormat:` |
+| 6 | `expected ';' after top level declarator` (mọi `gX{0}`) | Script build `.mm` **không có `-std=`** → mặc định Objective-C++ của Xcode 15 là `gnu++98`, không có `std::atomic` |
+| 7 | `invalid argument '-std=gnu++17' not allowed with 'C'` | Một lệnh clang gộp cả `fishhook.c` (C) lẫn `.mm` (ObjC++) |
+| 8 | `': command not found'` cho `-dynamiclib` | Chú thích `# ` dính vào chính dòng lệnh `xcrun`, biến nó thành comment |
+| 9 | `unable to open output file '/libNetHookPayload-fishhook.o': Read-only file system` | `$BUILT_TEMP_DIR` rỗng trong môi trường phase |
+| 10 | `Undefined symbols: std::length_error / std::logic_error` | Gọi driver C `clang` — driver này **không link libc++**, còn payload dùng `std::vector`/`std::deque` |
+
+Ngoài ra: `xcodebuild ... | tee build.log` **nuốt mất exit code** và lỗi script
+phase không in ra chữ `error:` — nên build hỏng vẫn báo nút xanh. Nay đã bật
+`set -o pipefail`, in diagnostics khi fail, và **đòi marker `** BUILD SUCCEEDED **`**
+trong `build.log`.
+
+### Xác minh artifact (không chỉ "nút xanh")
+
+Lấy IPA từ artifact và kiểm tra trực tiếp:
+
+- `Payload/PacketBlocker.app/libNetHookPayload.dylib` — 91.896 bytes,
+  Mach-O `MH_DYLIB`, `cputype = 16777228` (arm64), `install_name =
+  /usr/lib/libNetHookPayload.dylib`
+- `entitlements.plist` — 29 keys, gồm `com.apple.QuartzCore.secure-mode` và
+  `com.apple.private.hid.manager.client`
+
+Mỗi lỗi trên đã kèm một test trong `scripts/simulate_test.py` (giờ **332 test**)
+để không tái phát: resolve ngược `file -> group -> mainGroup`, `sh -n` trên
+shellScript của build phase, chặn lệnh bị `#` nuốt, chặn CI mất `pipefail`.
