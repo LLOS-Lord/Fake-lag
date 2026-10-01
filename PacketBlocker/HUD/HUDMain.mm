@@ -338,11 +338,15 @@ static void AetherInstallHookPayload(void)
             aether_atomic_load(&tState->targetPID) > 0) {
             targetBundle = [NSString stringWithUTF8String:tState->targetBundleID];
         }
-        NSString *bundleLine = targetBundle
-            ? [NSString stringWithFormat:@"      <string>%@</string>\n", targetBundle]
-            : @"";
+        // Không dùng ternary: dưới ARC, [NSString stringWithFormat:] trả về
+        // instancetype còn @"" là __constant → "interface type cannot be
+        // statically allocated".
+        NSString *bundleLine = @"";
+        if (targetBundle) {
+            bundleLine = [NSString stringWithFormat:@"      <string>%@</string>\n", targetBundle];
+        }
 
-        NSString *plist =
+        NSString *plist = [NSString stringWithFormat:
             @"<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
             @"<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n"
             @"<plist version=\"1.0\">\n"
