@@ -426,21 +426,19 @@ trả `EPERM` (=2). Nhận **1** nghĩa là child vẫn cùng uid với app — 
 root escalation thất bại**. Cùng lý do đó, `-sockdump` cũng không bao giờ có
 output nên app cứ báo *"no cached socket dump yet"*.
 
-Hai nguyên nhân:
-- `posix_spawnattr_set_persona_np(&attr, 99, ...)` — persona id 99 không sinh ra
-  child uid 0. Dạng thật sự cho ra root là **persona 0 + `PERSONA_FLAGS_OVERRIDE`**
-  (đúng dạng TrollSpeed dùng).
-- **Mọi return code của persona setters đều bị vứt bỏ.** Đó là lý do lỗi này im
-  lặng bấy lâu: `posix_spawn rc=0` chỉ có nghĩa "fork + exec được".
+Hai nguyên nhên:
+- `posix_spawnattr_set_persona_np(&attr, 0, ...)` — persona id 0 là **default
+  persona** của user hiện tại, KHÔNG escalate lên root. Child dở lại ở
+  uid-501 (log thấy `probe=1`). Dạng thật sự cho ra root là **persona 99 +
+  `PERSONA_FLAGS_OVERRIDE`** (đúng dạng TrollNetInterceptor .zip dùng),
+  kết hợp `set_persona_uid_np(&attr, 0)` để set UID thành 0.
+- **Mọi return code của persona setters đều bị vứt bỏ.** Đó là lý do lỗi này
+  im lặng: `posix_spawn rc=0` chỉ có nghĩa "fork + exec được", không phải
+  "child đã thành root".
 
-Sửa: persona 0, log từng return code + tên symbol thiếu, và `HybridSpawnRootPID`
-**xác minh** child thật sự là root (`IS root` / `died immediately`) trước khi
+Sửa: persona 99, log từng return code + tên symbol thiếu, và `HybridSpawnRootPID`
+**xác minh** child thật sự là root (`probe=2 / EPERM` = alive-root) trước khi
 báo `rc=0`.
-
-## Test
-
-`python3 scripts/simulate_test.py` → **359 PASS / 0 FAIL** (thêm nhóm `[4.2a..4.2d]`
-chặn đúng 3 lỗi trên: queue ownership của `config`, socket non-blocking, persona 0).
 
 
 ---
