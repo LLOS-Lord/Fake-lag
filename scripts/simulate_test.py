@@ -2055,8 +2055,8 @@ def test_persona_root():
     print("\n[4.2d] Persona root — child phải thật sự uid 0")
     s = open(ROOT + "/PacketBlocker/Core/PersonaHelper.m").read()
     sp = s[s.index("int HybridSpawnWithPersona"):s.index("int HybridSpawnRootPID")]
-    check("persona id = 0 (99 sinh child KHÔNG phải root)",
-          "set_persona_np(&attr, 0," in sp and "set_persona_np(&attr, 99" not in sp)
+    check("persona id = 99 (TrollNetInterceptor incantation cho uid-0 child)",
+          "set_persona_np(&attr, 99," in sp)
     check("không bỏ qua return code của persona setters",
           "persona_rc = set_persona_np" in sp and "puid_rc" in sp and "pgid_rc" in sp)
     check("ghi log khi thiếu symbol", "missing = " in sp and "missing ?" in sp)

@@ -9,7 +9,7 @@ import UIKit
 //      heartbeat + remove stale pid file. (A leftover "exit" command in the
 //      shared memory used to kill the fresh daemon within 1s — that is why
 //      "bấm Create mà không thấy nút nào xuất hiện".)
-//   2. posix_spawn with persona-0 ROOT re-exec of THIS binary with "-hud"
+//   2. posix_spawn with persona-99 ROOT re-exec of THIS binary with "-hud"
 //      (plain spawns run as uid 501 and SpringBoard kills their window).
 //   3. Verify after 2.5s that the daemon is really alive (shm heartbeat).
 //   4. Watchdog respawns the daemon (bounded attempts) if it silently dies

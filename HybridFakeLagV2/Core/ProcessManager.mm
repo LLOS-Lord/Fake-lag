@@ -406,12 +406,11 @@ static void HybridWriteExtOverrideFiles(BOOL active) {
 
 #if !TARGET_OS_SIMULATOR
     // Elevate HUD child daemon to root (UID 0 / GID 0) using com.apple.private.persona-mgmt
-    // Required so SpringBoard does not kill the HUD window upon device lock/unlock
-    // NOTE: the persona id MUST be 0, not 99. Persona 99 is an unmapped id —
-    // posix_spawnattr_set_persona_uid_np(&attr, 0) is silently ignored when
-    // the persona itself is not 0, so the child stayed in the app's uid-501
-    // and SpringBoard killed the HUD window on lock.
-    posix_spawnattr_set_persona_np(&attr, 0, POSIX_SPAWN_PERSONA_FLAGS_OVERRIDE);
+    // Required so SpringBoard does not kill the HUD window upon device lock/unlock.
+    // Persona 99 + POSIX_SPAWN_PERSONA_FLAGS_OVERRIDE is the TrollNetInterceptor incantation
+    // that maps to uid 0 (root) on iOS. Persona 0 means "current user's default persona"
+    // and does NOT escalate — the daemon would stay uid 501 and SpringBoard kills the window.
+    posix_spawnattr_set_persona_np(&attr, 99, POSIX_SPAWN_PERSONA_FLAGS_OVERRIDE);
     posix_spawnattr_set_persona_uid_np(&attr, 0);
     posix_spawnattr_set_persona_gid_np(&attr, 0);
 #endif
@@ -547,7 +546,7 @@ int HybridHUDPrepareForSpawn(void) {
         posix_spawnattr_t attr;
         posix_spawnattr_init(&attr);
 #if !TARGET_OS_SIMULATOR
-        posix_spawnattr_set_persona_np(&attr, 0, POSIX_SPAWN_PERSONA_FLAGS_OVERRIDE);
+        posix_spawnattr_set_persona_np(&attr, 99, POSIX_SPAWN_PERSONA_FLAGS_OVERRIDE);
         posix_spawnattr_set_persona_uid_np(&attr, 0);
         posix_spawnattr_set_persona_gid_np(&attr, 0);
 #endif
@@ -615,7 +614,7 @@ void HybridHUDRequestExit(void) {
     posix_spawnattr_t attr;
     posix_spawnattr_init(&attr);
 #if !TARGET_OS_SIMULATOR
-    posix_spawnattr_set_persona_np(&attr, 0, POSIX_SPAWN_PERSONA_FLAGS_OVERRIDE);
+    posix_spawnattr_set_persona_np(&attr, 99, POSIX_SPAWN_PERSONA_FLAGS_OVERRIDE);
     posix_spawnattr_set_persona_uid_np(&attr, 0);
     posix_spawnattr_set_persona_gid_np(&attr, 0);
 #endif
@@ -631,7 +630,7 @@ int HybridSpawnRootPID(const char *execPath, const char *argv1, const char *argv
     posix_spawnattr_t attr;
     posix_spawnattr_init(&attr);
 #if !TARGET_OS_SIMULATOR
-    posix_spawnattr_set_persona_np(&attr, 0, POSIX_SPAWN_PERSONA_FLAGS_OVERRIDE);
+    posix_spawnattr_set_persona_np(&attr, 99, POSIX_SPAWN_PERSONA_FLAGS_OVERRIDE);
     posix_spawnattr_set_persona_uid_np(&attr, 0);
     posix_spawnattr_set_persona_gid_np(&attr, 0);
 #endif

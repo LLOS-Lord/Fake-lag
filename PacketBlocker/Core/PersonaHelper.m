@@ -57,14 +57,11 @@ int HybridSpawnWithPersona(uid_t uid, gid_t gid, const char *execPath, char *con
     posix_spawnattr_t attr;
     posix_spawnattr_init(&attr);
 
-    // Persona id 0 with the OVERRIDE flag is the incantation that actually
-    // yields a uid-0 child (the form TrollSpeed uses). The previous hardcoded
-    // 99 spawned a child that stayed in the app's own uid: the parent's probe
-    // then saw kill(pid, 0) succeed instead of EPERM, i.e. "alive but NOT root",
-    // and the root helper died at its first privileged call.
-    //
-    // Every setters return code used to be discarded, which is why this failed
-    // silently for so long. Log them: a non-zero here IS the root cause.
+    // Persona 99 + POSIX_SPAWN_PERSONA_FLAGS_OVERRIDE is the TrollNetInterceptor
+    // incantation that yields a uid-0 child on iOS. Persona 0 means "current
+    // user's default persona" and does NOT escalate — the child stays uid 501
+    // and SpringBoard kills the HUD window on lock. Every setter's return code
+    // is logged: a non-zero return IS the root cause if the daemon isn't root.
     int persona_rc = -1, puid_rc = -1, pgid_rc = -1, papptype_rc = -1;
     const char *missing = NULL;
     void *handle = dlopen(NULL, RTLD_NOW);
@@ -75,7 +72,7 @@ int HybridSpawnWithPersona(uid_t uid, gid_t gid, const char *execPath, char *con
         if (!set_persona_np)     missing = "posix_spawnattr_set_persona_np";
         else if (!set_persona_uid_np) missing = "posix_spawnattr_set_persona_uid_np";
         else if (!set_persona_gid_np) missing = "posix_spawnattr_set_persona_gid_np";
-        if (set_persona_np)     persona_rc = set_persona_np(&attr, 0, 1 /* POSIX_SPAWN_PERSONA_FLAGS_OVERRIDE */);
+        if (set_persona_np)     persona_rc = set_persona_np(&attr, 99, 1 /* POSIX_SPAWN_PERSONA_FLAGS_OVERRIDE */);
         if (set_persona_uid_np) puid_rc    = set_persona_uid_np(&attr, uid);
         if (set_persona_gid_np) pgid_rc    = set_persona_gid_np(&attr, gid);
     }

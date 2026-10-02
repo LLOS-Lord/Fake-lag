@@ -179,7 +179,7 @@ extern "C" int AetherApplyRootTrafficControl(pid_t pid, AetherSharedState *state
     posix_spawnattr_t attr;
     posix_spawnattr_init(&attr);
 #if !TARGET_OS_SIMULATOR
-    posix_spawnattr_set_persona_np(&attr, 0, POSIX_SPAWN_PERSONA_FLAGS_OVERRIDE);
+    posix_spawnattr_set_persona_np(&attr, 99, POSIX_SPAWN_PERSONA_FLAGS_OVERRIDE);
     posix_spawnattr_set_persona_uid_np(&attr, 0);
     posix_spawnattr_set_persona_gid_np(&attr, 0);
 #endif
